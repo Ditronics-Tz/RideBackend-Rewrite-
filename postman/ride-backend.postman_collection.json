@@ -1,0 +1,365 @@
+{
+  "info": {
+    "name": "Ride Backend API",
+    "description": "Ride backend (Fiber + Postgres). Flow: 1) Register driver + passenger (tokens auto-saved) 2) Try profile/rating endpoints 3) For Admin folder: make a user admin first via SQL `UPDATE users SET role='admin' WHERE email='you@example.com';` then run Login Admin.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "driver_token", "value": "" },
+    { "key": "passenger_token", "value": "" },
+    { "key": "admin_token", "value": "" },
+    { "key": "driver_id", "value": "" },
+    { "key": "passenger_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Driver",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Juma Driver\",\n  \"email\": \"juma@driver.tz\",\n  \"password\": \"secret123\",\n  \"role\": \"driver\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.token) pm.collectionVariables.set('driver_token', j.token);",
+                  "if (j.user && j.user.id) pm.collectionVariables.set('driver_id', j.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Passenger",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Pax\",\n  \"email\": \"asha@pax.tz\",\n  \"password\": \"secret123\",\n  \"role\": \"passenger\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.token) pm.collectionVariables.set('passenger_token', j.token);",
+                  "if (j.user && j.user.id) pm.collectionVariables.set('passenger_id', j.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Admin (fails - must be assigned)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Boss\",\n  \"email\": \"boss@ride.tz\",\n  \"password\": \"secret123\",\n  \"role\": \"admin\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login Driver",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juma@driver.tz\",\n  \"password\": \"secret123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.token) pm.collectionVariables.set('driver_token', j.token);",
+                  "if (j.user && j.user.id) pm.collectionVariables.set('driver_id', j.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Passenger",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"asha@pax.tz\",\n  \"password\": \"secret123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.token) pm.collectionVariables.set('passenger_token', j.token);",
+                  "if (j.user && j.user.id) pm.collectionVariables.set('passenger_id', j.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Account",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/auth/me",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] }
+          }
+        },
+        {
+          "name": "Google Login (redirect)",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/auth/google" }
+        }
+      ]
+    },
+    {
+      "name": "Driver Profile",
+      "item": [
+        {
+          "name": "Get My Driver Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/driver/profile/me",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] }
+          }
+        },
+        {
+          "name": "Update My Driver Profile",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/v1/driver/profile/me",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licence_number\": \"LIC-12345\",\n  \"vehicle_card_number\": \"KADI-999\",\n  \"plate_number\": \"T123 ABC\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Upload Driver Images",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/driver/profile/me/images",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "licence_image", "type": "file", "src": "/path/to/licence.png" },
+                { "key": "profile_picture", "type": "file", "src": "/path/to/profile.png" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Driver By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/driver/profile/{{driver_id}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Passenger Profile",
+      "item": [
+        {
+          "name": "Get My Passenger Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/passenger/profile/me",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] }
+          }
+        },
+        {
+          "name": "Update My Passenger Profile",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/v1/passenger/profile/me",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Asha Updated\",\n  \"phone\": \"+255700000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Upload Passenger Image",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/passenger/profile/me/image",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "profile_picture", "type": "file", "src": "/path/to/profile.png" }]
+            }
+          }
+        },
+        {
+          "name": "Get Passenger By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/passenger/profile/{{passenger_id}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ratings",
+      "item": [
+        {
+          "name": "Passenger Rates Driver",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/ratings/",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to_user_id\": \"{{driver_id}}\",\n  \"score\": 5,\n  \"comment\": \"Safari nzuri sana\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Driver Rates Passenger",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/ratings/",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to_user_id\": \"{{passenger_id}}\",\n  \"score\": 4,\n  \"comment\": \"Abiria mzuri\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Ratings For Driver",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/ratings/user/{{driver_id}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] }
+          }
+        },
+        {
+          "name": "Invalid Score (fails)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/ratings/",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to_user_id\": \"{{driver_id}}\",\n  \"score\": 6,\n  \"comment\": \"should fail\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin (mzee/support/admin)",
+      "description": "First promote a user: UPDATE users SET role='admin' WHERE email='you@example.com'; then run Login Admin.",
+      "item": [
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"boss@ride.tz\",\n  \"password\": \"secret123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["var j = pm.response.json();", "if (j.token) pm.collectionVariables.set('admin_token', j.token);"] }
+            }
+          ]
+        },
+        {
+          "name": "List All Users",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/admin/users",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] }
+          }
+        },
+        {
+          "name": "List Users By Role",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/admin/users?role=driver",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] }
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/admin/users/{{driver_id}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] }
+          }
+        },
+        {
+          "name": "Update User Role (mzee/admin only)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/admin/users/{{passenger_id}}/role",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"role\": \"support\"\n}" }
+          }
+        },
+        {
+          "name": "Verify Driver",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/admin/drivers/{{driver_id}}/verify",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"verified\": true\n}" }
+          }
+        },
+        {
+          "name": "Forbidden Check (passenger token)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/admin/users",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] }
+          }
+        }
+      ]
+    }
+  ]
+}

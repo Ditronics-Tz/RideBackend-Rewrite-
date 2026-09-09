@@ -2,6 +2,7 @@ package routes
 
 import (
 	"ride-backend/controllers"
+	"ride-backend/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,12 +18,9 @@ func SetupAuthRoutes(app *fiber.App, authController *controllers.AuthController)
 	api.Get("/google", authController.GoogleLogin)
 	api.Get("/google/callback", authController.GoogleCallback)
 
-	// Example protected route
-	api.Get("/me", middleware.Protected(authController.Cfg.JWTSecret), func(c *fiber.Ctx) error {
-		userID := c.Locals("user_id")
-		return c.JSON(fiber.Map{
-			"message": "Access granted to protected endpoint",
-			"user_id": userID,
-		})
-	})
+	// Logged-in user info (any role)
+	api.Get("/me",
+		middleware.Protected(authController.Cfg.JWTSecret),
+		authController.Me,
+	)
 }
