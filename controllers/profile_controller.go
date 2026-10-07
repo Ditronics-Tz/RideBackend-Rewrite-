@@ -65,11 +65,11 @@ func (pc *ProfileController) UploadMyDriverImages(c *fiber.Ctx) error {
 	if role != models.RoleDriver {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "driver role required"})
 	}
-	licURL, err := utils.SaveImageField(c, "licence_image", "licence_"+uid)
+	licURL, err := utils.SaveLicenceImage(c, "licence_image", "licence_"+uid)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
-	profURL, err := utils.SaveImageField(c, "profile_picture", "driver_"+uid)
+	profURL, err := utils.SavePublicImage(c, "profile_picture", "driver_"+uid)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -143,7 +143,7 @@ func (pc *ProfileController) UploadMyPassengerImage(c *fiber.Ctx) error {
 	if role != models.RolePassenger {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "passenger role required"})
 	}
-	url, err := utils.SaveImageField(c, "profile_picture", "passenger_"+uid)
+	url, err := utils.SavePublicImage(c, "profile_picture", "passenger_"+uid)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}

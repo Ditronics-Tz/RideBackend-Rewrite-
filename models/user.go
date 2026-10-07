@@ -1,59 +1,54 @@
 package models
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
-// Role represents a user role in the system.
+// Role represents an app user role in the system (realm "app").
 type Role string
 
 const (
-	RoleMzee      Role = "mzee"
 	RoleDriver    Role = "driver"
 	RolePassenger Role = "passenger"
-	RoleSupport   Role = "support"
-	RoleAdmin     Role = "admin"
 )
 
-// AllRoles lists every supported role.
-var AllRoles = []Role{RoleMzee, RoleDriver, RolePassenger, RoleSupport, RoleAdmin}
+// AllRoles lists every supported app role.
+var AllRoles = []Role{RoleDriver, RolePassenger}
 
-// IsValidRole reports whether r is a known role.
+// IsValidRole reports whether r is a known app role.
 func IsValidRole(r Role) bool {
 	switch r {
-	case RoleMzee, RoleDriver, RolePassenger, RoleSupport, RoleAdmin:
+	case RoleDriver, RolePassenger:
 		return true
 	default:
 		return false
 	}
 }
 
-// NormalizeRole lowercases/validates a role string, defaulting to passenger.
-func NormalizeRole(s string) Role {
-	r := Role(s)
-	if IsValidRole(r) {
-		return r
-	}
-	// Accept common variants / Swahili mix-ups
-	switch s {
-	case "dereva", "drivr", "drivers":
-		return RoleDriver
-	case "abiria":
-		return RolePassenger
-	case "msaada":
-		return RoleSupport
-	case "mzee ":
-		return RoleMzee
+// ParseRole parses and validates an app role string strictly.
+// Unknown role = error (which callers map to 400).
+func ParseRole(s string) (Role, error) {
+	clean := strings.ToLower(strings.TrimSpace(s))
+	switch clean {
+	case "driver", "dereva":
+		return RoleDriver, nil
+	case "passenger", "abiria":
+		return RolePassenger, nil
 	default:
-		return RolePassenger
+		return "", fmt.Errorf("invalid app role %q: allowed roles are driver or passenger", s)
 	}
 }
 
-// User is the core account record.
+// User is the core account record for realm "app".
 type User struct {
-	ID           string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	ID           string    `json:"id" gorm:"primaryKey;type:uuid"`
 	Name         string    `json:"name" gorm:"not null"`
 	Email        string    `json:"email" gorm:"uniqueIndex;not null"`
 	PasswordHash string    `json:"-" gorm:"column:password_hash;default:''"`
 	Role         Role      `json:"role" gorm:"type:varchar(20);not null;default:'passenger'"`
+	IsActive     bool      `json:"is_active" gorm:"default:true"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -88,7 +83,7 @@ type PassengerProfile struct {
 
 // Rating is a rating from one user to another (either direction).
 type Rating struct {
-	ID         string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	ID         string    `json:"id" gorm:"primaryKey;type:uuid"`
 	FromUserID string    `json:"from_user_id" gorm:"type:uuid;not null;index"`
 	ToUserID   string    `json:"to_user_id" gorm:"type:uuid;not null;index"`
 	Score      int       `json:"score" gorm:"not null"` // 1-5
@@ -102,7 +97,7 @@ type RegisterInput struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
-	Role     string `json:"role"` // optional: mzee|driver|passenger|support|admin (default passenger)
+	Role     string `json:"role"` // optional: driver|passenger (default passenger)
 }
 
 type LoginInput struct {
@@ -136,14 +131,21 @@ type RatingInput struct {
 }
 
 type UserResponse struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Role  Role   `json:"role"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Role     Role   `json:"role"`
+	IsActive bool   `json:"is_active"`
 }
 
 func ToUserResponse(u *User) UserResponse {
-	return UserResponse{ID: u.ID, Name: u.Name, Email: u.Email, Role: u.Role}
+	return UserResponse{
+		ID:       u.ID,
+		Name:     u.Name,
+		Email:    u.Email,
+		Role:     u.Role,
+		IsActive: u.IsActive,
+	}
 }
 
 type GoogleUser struct {

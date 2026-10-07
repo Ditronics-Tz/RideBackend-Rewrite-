@@ -24,7 +24,7 @@ func NewAuthController(cfg *config.Config, s *store.Store) *AuthController {
 	return &AuthController{Cfg: cfg, Store: s}
 }
 
-// Register creates a user with a role (default passenger).
+// Register creates an app user (driver or passenger only).
 func (ac *AuthController) Register(c *fiber.Ctx) error {
 	var input models.RegisterInput
 	if err := c.BodyParser(&input); err != nil {
@@ -42,12 +42,10 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 
 	role := models.RolePassenger
 	if strings.TrimSpace(input.Role) != "" {
-		r := models.NormalizeRole(strings.ToLower(strings.TrimSpace(input.Role)))
-		// Only allow self-registration as driver or passenger.
-		// mzee/support/admin must be assigned by an admin (see PATCH /admin/users/:id/role).
-		if r != models.RoleDriver && r != models.RolePassenger {
+		r, err := models.ParseRole(input.Role)
+		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "self-registration allowed only as driver or passenger; other roles are assigned by admin",
+				"error": err.Error(),
 			})
 		}
 		role = r
@@ -63,7 +61,7 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	token, err := utils.GenerateToken(user.ID, user.Role, ac.Cfg.JWTSecret)
+	token, err := utils.GenerateAppToken(user.ID, user.Role, ac.Cfg.JWTSecret, utils.DefaultAppTTL)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not generate token"})
 	}
@@ -75,7 +73,7 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 	})
 }
 
-// Login authenticates and returns a role-aware token.
+// Login authenticates app realm users and returns an app token.
 func (ac *AuthController) Login(c *fiber.Ctx) error {
 	var input models.LoginInput
 	if err := c.BodyParser(&input); err != nil {
@@ -87,11 +85,14 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 	}
+	if !user.IsActive {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Account is disabled"})
+	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 	}
 
-	token, err := utils.GenerateToken(user.ID, user.Role, ac.Cfg.JWTSecret)
+	token, err := utils.GenerateAppToken(user.ID, user.Role, ac.Cfg.JWTSecret, utils.DefaultAppTTL)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not generate token"})
 	}
@@ -103,7 +104,7 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 	})
 }
 
-// Me returns the logged-in user plus their profile and rating summary.
+// Me returns the logged-in app user plus their profile and rating summary.
 func (ac *AuthController) Me(c *fiber.Ctx) error {
 	uid, _ := c.Locals("user_id").(string)
 	user, ok := ac.Store.GetUserByID(uid)
@@ -126,7 +127,7 @@ func (ac *AuthController) Me(c *fiber.Ctx) error {
 // GoogleLogin redirects to Google consent screen.
 func (ac *AuthController) GoogleLogin(c *fiber.Ctx) error {
 	oauthConfig := utils.GetGoogleOAuthConfig(ac.Cfg)
-	url := oauthConfig.AuthCodeURL("random-state-string") // production: random state stored in session
+	url := oauthConfig.AuthCodeURL("random-state-string")
 	return c.Redirect(url, fiber.StatusTemporaryRedirect)
 }
 
@@ -154,7 +155,6 @@ func (ac *AuthController) GoogleCallback(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to parse Google user response"})
 	}
 
-	// Upsert: existing user keeps role, new user becomes passenger.
 	user, ok := ac.Store.GetUserByEmail(strings.ToLower(googleUser.Email))
 	if !ok {
 		user, _ = ac.Store.CreateUser(googleUser.Name, strings.ToLower(googleUser.Email), "", models.RolePassenger)
@@ -164,9 +164,11 @@ func (ac *AuthController) GoogleCallback(c *fiber.Ctx) error {
 				_ = pp
 			})
 		}
+	} else if !user.IsActive {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Account is disabled"})
 	}
 
-	jwtToken, err := utils.GenerateToken(user.ID, user.Role, ac.Cfg.JWTSecret)
+	jwtToken, err := utils.GenerateAppToken(user.ID, user.Role, ac.Cfg.JWTSecret, utils.DefaultAppTTL)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate session token"})
 	}

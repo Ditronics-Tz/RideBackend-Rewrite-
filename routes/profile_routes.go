@@ -1,29 +1,27 @@
 package routes
 
 import (
+	"ride-backend/config"
 	"ride-backend/controllers"
 	"ride-backend/middleware"
-	"ride-backend/models"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupProfileRoutes(app *fiber.App, pc *controllers.ProfileController, jwtSecret string) {
-	protected := middleware.Protected(jwtSecret)
+func SetupProfileRoutes(router fiber.Router, pc *controllers.ProfileController, cfg *config.Config) {
+	protected := middleware.AppProtected(cfg)
 
-	driver := app.Group("/api/v1/driver", protected)
+	driver := router.Group("/driver", protected)
 	// Driver self-service (driver role only — enforced in controller)
 	driver.Get("/profile/me", pc.GetMyDriverProfile)
 	driver.Put("/profile/me", pc.UpdateMyDriverProfile)
 	driver.Post("/profile/me/images", pc.UploadMyDriverImages)
-	// Public driver lookup (any logged-in user)
+	// Public driver lookup (any logged-in app user)
 	driver.Get("/profile/:userId", pc.GetDriverProfileByID)
 
-	passenger := app.Group("/api/v1/passenger", protected)
+	passenger := router.Group("/passenger", protected)
 	passenger.Get("/profile/me", pc.GetMyPassengerProfile)
 	passenger.Put("/profile/me", pc.UpdateMyPassengerProfile)
 	passenger.Post("/profile/me/image", pc.UploadMyPassengerImage)
 	passenger.Get("/profile/:userId", pc.GetPassengerProfileByID)
-
-	_ = models.RoleDriver // keep models import if unused in future guards
 }

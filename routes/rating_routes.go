@@ -1,16 +1,17 @@
 package routes
 
 import (
+	"ride-backend/config"
 	"ride-backend/controllers"
 	"ride-backend/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRatingRoutes(app *fiber.App, rc *controllers.RatingController, jwtSecret string) {
-	protected := middleware.Protected(jwtSecret)
+func SetupRatingRoutes(router fiber.Router, rc *controllers.RatingController, cfg *config.Config) {
+	protected := middleware.AppProtected(cfg)
 
-	r := app.Group("/api/v1/ratings", protected)
+	r := router.Group("/ratings", protected)
 	r.Post("/", rc.CreateRating)
 	r.Get("/user/:userId", rc.ListRatingsForUser)
 }

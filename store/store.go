@@ -42,6 +42,7 @@ func (s *Store) CreateUser(name, email, passwordHash string, role models.Role) (
 		Email:        email,
 		PasswordHash: passwordHash,
 		Role:         role,
+		IsActive:     true,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
