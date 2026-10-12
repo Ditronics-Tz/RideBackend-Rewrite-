@@ -1,5 +1,47 @@
 # RideBackend
 
+## Phase 6: block and report
+
+App endpoints: `POST /blocks {user_id}`, `DELETE /blocks/:userId`,
+`GET /blocks`, `POST /reports {reported_id,ride_id,category,description}` and
+`GET /reports`. Lists use `limit` (default 20, max 100) and `offset`, with stable
+date/UUID ordering. App report responses contain only the reporter's own report
+ID, status and date. The reported account cannot look up a report or its author.
+Blocks require an authoritative shared ride; matching must call
+`Store.CheckRideEligibility(passengerID,driverID)`. Blocking does not alter a ride.
+Reports are unique per reporter/reported/ride, capped at 10 in a rolling 24 hours.
+
+| Staff endpoint (under `/api/v1`) | Support | Admin |
+|---|---|---|
+| GET `/admin/reports`, `/:id`, `/admin/users/:id/reports`, `/admin/flags` | Read | Read |
+| POST `/admin/reports/:id/assign` | Claim self only | Assign active staff / override |
+| POST `/admin/reports/:id/note` | Add internal note | Add internal note |
+| POST `/admin/reports/:id/resolve` | Dismiss, warn, escalate, suspend with future `until` within 7 days | Also indefinite suspension, `banned`, explicit `override:true` |
+| POST `/admin/flags/:id/resolve` | Resolve operational flag | Resolve |
+| GET `/admin/users/:id/reports?include_blocks=true` | Denied | Paginated block list, audited |
+
+Queue filters: `status`, `category`, `assignee`, `priority`, `user`, `before`
+(RFC3339 for age). Resolution requires `outcome` and a nonempty `note`.
+`/admin/complaints` GET and PATCH remain deprecated aliases: PATCH accepts the
+same resolution body and never reports success without persisting a decision.
+Three distinct reporters in 30 days create a flag and raise open-report priority;
+configure `REPORT_FLAG_THRESHOLD` and `REPORT_FLAG_WINDOW_DAYS`. No auto-suspension.
+Warnings and flag notifications are placed in a transactional delivery outbox.
+
+Assumptions: phases 1â€“5 are not supplied. `store.ParsePage` supplies the missing
+pagination helper. `models.Ride` is an internal authoritative integration record,
+not a dispatcher: a future ride lifecycle must persist real participants, status,
+fare and locations before these APIs can operate. No demo rides are inserted.
+Account status, verification and privacy registries are reused. Existing app JWTs
+are denied immediately during a suspension; this realm has no refresh sessions.
+Reports/ride free text and precise locations are cleared on anonymisation;
+internal report notes and reporter identity are never exported to a reported user.
+
+**MOBILE APP CHANGES (phase 6):** add block/report actions to the trip and history
+screens, submit the server ride UUID, and add paginated blocked-user settings.
+Handle duplicate reports (409), ineligible pairs (403), and daily limit (429 with
+`Retry-After`). Resolve a report only in the staff realm.
+
 Go backend service built with Fiber v2, GORM, and PostgreSQL.
 
 ## Architecture & API Structure
@@ -265,11 +307,14 @@ notifier must support retries/idempotency: external delivery cannot roll back if
 the surrounding database transaction later fails; use an outbox for guaranteed
 delivery when implementing that provider.
 
-### Future rides integration (no rides module added)
+### Future rides integration (ride operations remain external)
 
-The promo engine does not create ride records or ride endpoints. The future rides
-service must use server-authoritative passenger IDs, stable UUID ride IDs and
-fares, never trust a client-supplied discount:
+The operations phases add an internal ride integration record for participants,
+status, server fare, route context and location evidence. It supports these
+operations modules but is not a booking or dispatch implementation. No ride
+creation, matching, or driver-acceptance endpoints exist. A future rides service
+must use server-authoritative passenger IDs, stable UUID ride IDs, and server
+fares; it must never trust a client-supplied discount:
 
 1. Call `EvaluatePromo(userID, code, fare, now)` for a preview. It returns
    `(discountAmount, *models.PromoCode, error)` without changing counters.
@@ -300,7 +345,8 @@ persists its reason and does not reject an otherwise valid completed ride.
 
 `ride_completion_receipts` stores only ride UUID, passenger UUID and receipt time;
 it is an integration ledger, with no fare, driver, route or ride lifecycle. First-ride
-checks currently rely on these receipts because no ride history exists. When
+checks use receipts for completed callback IDs; receipts and their matching
+ride rows must be written in one transaction by the future rides module. When
 integrating an existing rides system, backfill every historical completion before
 enabling first-ride promos/referrals. The future rides service must also serialize
 each passenger's active ride lifecycle so two outstanding rides cannot both use
@@ -314,10 +360,11 @@ verifies exactly five successes out of thirty simultaneous reservations:
 
 ```powershell
 $env:RUN_POSTGRES_PROMO_TESTS="1"
+$env:POSTGRES_TEST_DSN="postgres://user:password@localhost:5432/ride_test?sslmode=disable"
 go test ./store -run TestPostgresConcurrentPromoReservations -count=1 -v
 ```
 
-This opt-in test reads existing local DB configuration without modifying `.env`.
+The opt-in promo and payout concurrency tests use `POSTGRES_TEST_DSN`; they do not read or modify `.env`. Each creates and drops only its randomly named test schema. Run payout concurrency with `RUN_POSTGRES_FINANCE_TESTS=1` and `go test ./store -run TestPostgresConcurrentPayoutRequestsNoOverspend -count=1 -v`.
 
 ## Data protection
 
@@ -338,14 +385,14 @@ export; deleted accounts cannot authenticate.
 | Deletion/export request records | Keep request IDs, statuses and timestamps; clear free text, errors and file paths | Compliance evidence and idempotent cleanup |
 | Staff notes | Removed for the deleted user; never included in exports | Internal notes are not part of a user data package |
 | Staff audit logs | Never deleted; new data-protection audit metadata contains IDs only | Security and accountability history |
-| Rides/payments | Not implemented because those tables do not exist. Future modules must register exporters and anonymizers that retain only anonymised user IDs and required financial fields, clear comments/precise addresses, and enforce the configured financial retention period. | Financial retention obligations depend on jurisdiction and transaction type |
+| Rides, reports and safety | Stable ride/report/alert IDs remain; precise route/location and free text are cleared, user blocks and private contacts are removed. | Preserve operational counts and referenced IDs while removing identifying details |
+| Payments and wallets | Immutable ledger entries, anonymised transaction IDs and required balances remain; encrypted destinations, raw identifiers and free text are cleared. | Financial retention period is a legal decision; confirm before production |
+| Fraud review | Device hashes/location samples and internal notes are removed; anonymised rule outcomes/hold IDs remain. | Retain only investigation/accounting history that cannot directly identify the account |
 | Staff users/sessions | Exempt from app-user export/anonymisation | Separate staff authentication realm; staff security records are not passenger/driver data |
 | Referral settings | Exempt | Global configuration has no individual user data |
 
 `FINANCIAL_RETENTION_YEARS` is a placeholder and must be confirmed with a
-lawyer before production. No account-deletion tombstone is retained; therefore
-this implementation does not prevent a former banned user from signing up
-again after anonymisation. That trade-off avoids keeping a re-identification
+lawyer before production. No account-deletion tombstone is retained; therefore this implementation does not prevent a former banned user from signing up again after anonymisation. That trade-off avoids keeping a re-identification
 hash without an approved retention policy.
 
 The privacy registry exposes `DataExporter` modules (`Name`, `Export(userID)`
@@ -380,9 +427,9 @@ details; production SMS/push can be added through the notifier interface.
    stored generic error and server logs; do not add personal data to audit
    metadata or operational logs.
 
-Deletion blockers are currently an extension registry. There are no ride,
-unpaid-balance, or payout tables in this repository, so those checks are
-explicit future hooks rather than guessed queries. New modules must register
+Deletion blockers are currently an extension registry. An internal ride record and wallet/payout tables now support active-ride and
+financial-obligation checks. A real dispatcher may add stricter blockers. New
+modules must register
 both export and anonymisation behavior, document retained fields, and extend
 blocker checks when those domains are added.
 
@@ -407,3 +454,36 @@ requests are limited to one active request and one new request per 24 hours.
 Every user/admin request transition writes a staff audit event containing only
 account/request IDs and fixed action names. Staff audit history is intentionally
 retained through account anonymisation.
+
+
+## Operations phases 6–9
+
+Phases 6–9 use the existing Fiber routes, staff/app JWT realms, GORM models,
+privacy registries, notification interfaces, admin Axios refresh flow, Radix
+modals, tables, date formatting and Recharts chart. See [operations runbook](docs/OPERATIONS_PHASES_6_9.md)
+for endpoint permission tables, provider assumptions, job commands, setup values,
+retention notes, and the mobile app changes.
+
+**Retention periods must be confirmed with a lawyer before production.**
+`FINANCIAL_RETENTION_YEARS` is a deployment placeholder. Configure unique
+secrets for `PAYMENT_ENCRYPTION_KEY` (32 bytes), webhook secrets and
+`DEVICE_HASH_PEPPER`; never commit them. `PAYMENT_PROVIDER=mock` is for local
+offline development and must not be used to accept real payments.
+
+### Ride integration contract for phases 6–9
+
+A rides module must persist authoritative ride participants, status, fare,
+vehicle type, pickup/dropoff and expected distance. It may populate
+`route_geometry` with a JSON polyline `[[lat,lng], ...]` from its trusted routing
+service; clients cannot submit route geometry. Check
+`Store.CheckRideEligibility(passengerID,driverID)` and
+`Store.RequireDriverApproval(driverID)` before matching/accepting. Record only
+assigned-driver location points through `POST /api/v1/rides/:rideId/location`.
+Call `Store.OnRideCompleted(rideID,passengerID,fare)` once a real ride completes;
+its receipt makes referral and rating/fraud events idempotent. For payment,
+create the transaction only after validating the completed ride and its stored
+fare; the amount in the client body is ignored for ride payments. Reserve promos
+when a ride is accepted (before first-ride receipt), then call
+`ConfirmPromo(rideID)` on settlement or `ReleasePromo(rideID)` on cancellation.
+`POST /api/v1/rides/:rideId/sos` requires a real assigned/in-progress ride.
+Never make these operations records a substitute for a booking system.

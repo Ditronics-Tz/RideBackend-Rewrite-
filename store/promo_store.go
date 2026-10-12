@@ -264,6 +264,13 @@ func evaluatePromo(tx *gorm.DB, userID, code string, fare int64, now time.Time) 
 	if user.Role != models.RolePassenger || !user.IsActive || user.Status != "active" {
 		return 0, nil, unavailablePromo()
 	}
+	var held int64
+	if err := tx.Model(&models.FraudMitigation{}).Where("user_id = ? AND type = ? AND active = ?", userID, "promo_block", true).Count(&held).Error; err != nil {
+		return 0, nil, err
+	}
+	if held > 0 {
+		return 0, nil, unavailablePromo()
+	}
 	discount := p.DiscountValue
 	if p.DiscountType == "percent" {
 		discount = (fare/100)*p.DiscountValue + ((fare%100)*p.DiscountValue)/100
@@ -317,7 +324,7 @@ func (s *Store) ReservePromo(userID, code string, fare int64, rideID string) (*m
 			}
 			return err
 		}
-		discount, _, err := evaluatePromo(sc.db, userID, code, fare, time.Now().UTC())
+		discount, _, err := evaluatePromo(sc.db, userID, code, fare, sc.now())
 		if err != nil {
 			return err
 		}
@@ -493,7 +500,7 @@ func (s *Store) SharePromo(ctx context.Context, id, actor string) (int, error) {
 		if err != nil {
 			return err
 		}
-		if p.EffectiveStatus(time.Now().UTC()) != "active" {
+		if p.EffectiveStatus(s.now()) != "active" {
 			return promoInvalid("status", "only currently active promos can be shared")
 		}
 		var users []models.User

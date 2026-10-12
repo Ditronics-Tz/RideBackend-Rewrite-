@@ -23,6 +23,7 @@ func main() {
 	appStore := store.New(gdb)
 	go jobs.RunDocumentExpiry(context.Background(), appStore)
 	if cfg.RunBackgroundJobs {
+		go jobs.RunOperations(context.Background(), appStore, cfg)
 		go jobs.RunDataRequests(context.Background(), appStore, cfg)
 	}
 

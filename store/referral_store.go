@@ -146,7 +146,7 @@ func (s *Store) ApplyReferralCode(refereeID, code string) (*models.Referral, err
 			return err
 		}
 		referee, referrer := users[refereeID], users[invite.UserID]
-		now := time.Now().UTC()
+		now := sc.now()
 		if referee.Role != models.RolePassenger || !referee.IsActive || referee.Status != "active" {
 			return promoInvalid("code", "active passenger account required")
 		}
@@ -193,7 +193,10 @@ func (s *Store) ApplyReferralCode(refereeID, code string) (*models.Referral, err
 			return promoInvalid("phone", "this phone has already received a referral reward")
 		}
 		result = &models.Referral{ID: newID(), ReferrerID: referrer.ID, RefereeID: refereeID, Status: "pending", ReferrerRewardStatus: "none"}
-		return sc.db.Create(result).Error
+		if err := sc.db.Create(result).Error; err != nil {
+			return err
+		}
+		return sc.QueueFraudEvent(referrer.ID, "referral_applied", nil, "referral:"+result.ID)
 	})
 	return result, err
 }
@@ -264,13 +267,16 @@ func (s *Store) OnRideCompleted(rideID, passengerID string, fare int64) error {
 		if err != nil {
 			return err
 		}
-		now := time.Now().UTC()
+		now := sc.now()
 		created := sc.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.RideCompletionReceipt{RideID: rideID, PassengerID: passengerID, CreatedAt: now})
 		if created.Error != nil {
 			return created.Error
 		}
 		if created.RowsAffected != 1 {
 			return promoInvalid("ride_id", "completion already recorded")
+		}
+		if err := sc.QueueFraudEvent(passengerID, "ride_completed", &rideID, "completed:"+rideID); err != nil {
+			return err
 		}
 		// Re-read after the account lock: a concurrent apply may have committed meanwhile.
 		if err := sc.db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("referee_id = ?", passengerID).First(&referral).Error; err != nil {

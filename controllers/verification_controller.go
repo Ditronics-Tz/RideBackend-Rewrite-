@@ -17,6 +17,10 @@ import (
 )
 
 func verificationError(c *fiber.Ctx, err error) error {
+	var op *store.OperationError
+	if errors.As(err, &op) {
+		return operationError(c, err)
+	}
 	status := fiber.StatusInternalServerError
 	message := "Unable to process driver verification"
 	switch {

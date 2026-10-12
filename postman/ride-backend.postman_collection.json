@@ -1,24 +1,150 @@
 {
   "info": {
     "name": "Ride Backend API",
-    "description": "Ride backend (Fiber v2 + Postgres) featuring strict realm separation between App Users (passengers & drivers) and Staff (admin & support). Every HTTP route starts with /api/v1.",
+    "description": "Ride backend (Fiber v2 + Postgres) featuring strict realm separation between App Users (passengers & drivers) and Staff (admin & support). Every HTTP route starts with /api/v1. Operations: reports, SOS/safety, mobile-money finance, and fraud review. Set stable test UUIDs and local secrets in collection variables; never store production credentials in this collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:3000" },
-    { "key": "driver_token", "value": "" },
-    { "key": "passenger_token", "value": "" },
-    { "key": "staff_access_token", "value": "" },
-    { "key": "staff_refresh_token", "value": "" },
-    { "key": "driver_id", "value": "" },
-    { "key": "passenger_id", "value": "" },
-    { "key": "staff_id", "value": "" },
-    { "key": "promo_id", "value": "" },
-    { "key": "promo_code", "value": "WELCOME20" },
-    { "key": "referral_code", "value": "" },
-    { "key": "passenger_password", "value": "" },
-    { "key": "data_request_id", "value": "" },
-    { "key": "export_request_id", "value": "" }
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "driver_token",
+      "value": ""
+    },
+    {
+      "key": "passenger_token",
+      "value": ""
+    },
+    {
+      "key": "staff_access_token",
+      "value": ""
+    },
+    {
+      "key": "staff_refresh_token",
+      "value": ""
+    },
+    {
+      "key": "driver_id",
+      "value": ""
+    },
+    {
+      "key": "passenger_id",
+      "value": ""
+    },
+    {
+      "key": "staff_id",
+      "value": ""
+    },
+    {
+      "key": "promo_id",
+      "value": ""
+    },
+    {
+      "key": "promo_code",
+      "value": "WELCOME20"
+    },
+    {
+      "key": "referral_code",
+      "value": ""
+    },
+    {
+      "key": "passenger_password",
+      "value": ""
+    },
+    {
+      "key": "data_request_id",
+      "value": ""
+    },
+    {
+      "key": "export_request_id",
+      "value": ""
+    },
+    {
+      "key": "ride_id",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "report_id",
+      "value": ""
+    },
+    {
+      "key": "flag_id",
+      "value": ""
+    },
+    {
+      "key": "sos_id",
+      "value": ""
+    },
+    {
+      "key": "incident_id",
+      "value": ""
+    },
+    {
+      "key": "share_token",
+      "value": ""
+    },
+    {
+      "key": "contact_id",
+      "value": ""
+    },
+    {
+      "key": "payment_id",
+      "value": ""
+    },
+    {
+      "key": "refund_id",
+      "value": ""
+    },
+    {
+      "key": "payout_id",
+      "value": ""
+    },
+    {
+      "key": "fraud_flag_id",
+      "value": ""
+    },
+    {
+      "key": "device_id",
+      "value": "rida-installation-id"
+    },
+    {
+      "key": "payment_webhook_secret",
+      "value": ""
+    },
+    {
+      "key": "payment_webhook_timestamp",
+      "value": ""
+    },
+    {
+      "key": "payment_webhook_signature",
+      "value": ""
+    },
+    {
+      "key": "idempotency_key",
+      "value": "{{guid}}"
+    },
+    {
+      "key": "reporter_user_id",
+      "value": ""
+    },
+    {
+      "key": "second_user_id",
+      "value": ""
+    },
+    {
+      "key": "exception_id",
+      "value": ""
+    },
+    {
+      "key": "webhook_event_id",
+      "value": "{{guid}}"
+    }
   ],
   "item": [
     {
@@ -461,7 +587,12 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/auth/register",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Juma Driver\",\n  \"email\": \"juma@driver.tz\",\n  \"password\": \"secret123\",\n  \"role\": \"driver\"\n}"
@@ -485,7 +616,12 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/auth/register",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Asha Pax\",\n  \"email\": \"asha@pax.tz\",\n  \"password\": \"secret123\",\n  \"role\": \"passenger\"\n}"
@@ -509,7 +645,12 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/auth/login",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"email\": \"juma@driver.tz\",\n  \"password\": \"secret123\"\n}"
@@ -533,7 +674,12 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/auth/login",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"email\": \"asha@pax.tz\",\n  \"password\": \"secret123\"\n}"
@@ -557,12 +703,24 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/auth/me",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{driver_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
               "name": "Google Login (redirect)",
-              "request": { "method": "GET", "url": "{{base_url}}/api/v1/auth/google" }
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/auth/google"
+              }
             }
           ]
         },
@@ -574,7 +732,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/driver/profile/me",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{driver_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -582,8 +749,22 @@
               "request": {
                 "method": "PUT",
                 "url": "{{base_url}}/api/v1/driver/profile/me",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{driver_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"licence_number\": \"LIC-12345\",\n  \"vehicle_card_number\": \"KADI-999\",\n  \"plate_number\": \"T123 ABC\"\n}"
@@ -595,12 +776,29 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/driver/profile/me/images",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{driver_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
                 "body": {
                   "mode": "formdata",
                   "formdata": [
-                    { "key": "licence_image", "type": "file", "src": "/path/to/licence.png" },
-                    { "key": "profile_picture", "type": "file", "src": "/path/to/profile.png" }
+                    {
+                      "key": "licence_image",
+                      "type": "file",
+                      "src": "/path/to/licence.png"
+                    },
+                    {
+                      "key": "profile_picture",
+                      "type": "file",
+                      "src": "/path/to/profile.png"
+                    }
                   ]
                 }
               }
@@ -610,7 +808,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/driver/profile/{{driver_id}}",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -623,7 +830,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/passenger/profile/me",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -631,8 +847,22 @@
               "request": {
                 "method": "PUT",
                 "url": "{{base_url}}/api/v1/passenger/profile/me",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"full_name\": \"Asha Updated\",\n  \"phone\": \"+255700000000\"\n}"
@@ -644,10 +874,25 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/passenger/profile/me/image",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
                 "body": {
                   "mode": "formdata",
-                  "formdata": [{ "key": "profile_picture", "type": "file", "src": "/path/to/profile.png" }]
+                  "formdata": [
+                    {
+                      "key": "profile_picture",
+                      "type": "file",
+                      "src": "/path/to/profile.png"
+                    }
+                  ]
                 }
               }
             },
@@ -656,7 +901,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/passenger/profile/{{passenger_id}}",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{driver_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -669,8 +923,22 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/ratings/",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"to_user_id\": \"{{driver_id}}\",\n  \"score\": 5,\n  \"comment\": \"Safari nzuri sana\"\n}"
@@ -682,8 +950,22 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/ratings/",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{driver_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"to_user_id\": \"{{passenger_id}}\",\n  \"score\": 4,\n  \"comment\": \"Abiria mzuri\"\n}"
@@ -695,7 +977,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/ratings/user/{{driver_id}}",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{passenger_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -708,7 +999,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/files/licences/{{driver_id}}",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{driver_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{driver_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -727,7 +1027,12 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/staff/auth/login",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"email\": \"admin@ride.tz\",\n  \"password\": \"SecureAdminPass123!\",\n  \"totp_code\": \"\"\n}"
@@ -752,7 +1057,12 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/staff/auth/refresh",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"refresh_token\": \"{{staff_refresh_token}}\"\n}"
@@ -776,7 +1086,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/staff/auth/me",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -784,8 +1103,22 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/staff/auth/change-password",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"current_password\": \"OldPassword123!\",\n  \"new_password\": \"NewSecurePassword123!\"\n}"
@@ -797,7 +1130,16 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/staff/auth/2fa/setup",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -805,8 +1147,22 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/staff/auth/2fa/verify",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"code\": \"123456\"\n}"
@@ -818,8 +1174,22 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/staff/auth/2fa/disable",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"password\": \"SecureAdminPass123!\",\n  \"code\": \"123456\"\n}"
@@ -831,8 +1201,22 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/staff/auth/logout",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"refresh_token\": \"{{staff_refresh_token}}\"\n}"
@@ -844,7 +1228,16 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/staff/auth/logout-all",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -857,7 +1250,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/admin/users",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -865,7 +1267,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/admin/users/{{passenger_id}}",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -873,7 +1284,16 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/admin/drivers/{{driver_id}}/approve",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -881,7 +1301,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/admin/stats",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -889,7 +1318,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/admin/rides",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -897,7 +1335,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/admin/complaints",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -905,7 +1352,16 @@
               "request": {
                 "method": "PATCH",
                 "url": "{{base_url}}/api/v1/admin/complaints/123",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -913,7 +1369,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/admin/tickets",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -921,7 +1386,16 @@
               "request": {
                 "method": "PATCH",
                 "url": "{{base_url}}/api/v1/admin/tickets/123",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -929,8 +1403,22 @@
               "request": {
                 "method": "PATCH",
                 "url": "{{base_url}}/api/v1/admin/users/{{passenger_id}}/role",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"role\": \"driver\"\n}"
@@ -942,7 +1430,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/admin/audit-logs",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -955,8 +1452,22 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/admin/staff",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Support Officer\",\n  \"email\": \"support.officer@ride.tz\",\n  \"role\": \"support\"\n}"
@@ -968,7 +1479,16 @@
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/api/v1/admin/staff",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -976,8 +1496,22 @@
               "request": {
                 "method": "PATCH",
                 "url": "{{base_url}}/api/v1/admin/staff/{{staff_id}}",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Updated Support Name\",\n  \"is_active\": true\n}"
@@ -989,8 +1523,22 @@
               "request": {
                 "method": "PATCH",
                 "url": "{{base_url}}/api/v1/admin/staff/{{staff_id}}/role",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"role\": \"admin\"\n}"
@@ -1002,7 +1550,16 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/admin/staff/{{staff_id}}/reset-password",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             },
             {
@@ -1010,7 +1567,16 @@
               "request": {
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/admin/staff/{{staff_id}}/revoke-sessions",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -1301,6 +1867,1893 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 6 — Reports and blocks",
+      "description": "App requires app tokens. Report moderation is staff-only; support temporary account actions are capped at seven days.",
+      "item": [
+        {
+          "name": "Create block",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/blocks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{second_user_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List blocks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/blocks"
+          }
+        },
+        {
+          "name": "Remove block",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/blocks/{{user_id}}"
+          }
+        },
+        {
+          "name": "Create report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/reports",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reported_id\": \"{{second_user_id}}\",\n  \"ride_id\": \"{{ride_id}}\",\n  \"category\": \"unsafe_driving\",\n  \"description\": \"Unsafe driving reported after this trip.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List my report receipts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/reports"
+          }
+        },
+        {
+          "name": "Reports queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reports?status=open&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Report detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reports/{{report_id}}"
+          }
+        },
+        {
+          "name": "Claim report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reports/{{report_id}}/assign"
+          }
+        },
+        {
+          "name": "Add internal report note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reports/{{report_id}}/note",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Evidence checked against trip timeline.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Resolve report (admin can permanently ban)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reports/{{report_id}}/resolve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"warning\",\n  \"note\": \"Warning issued after review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Account flags",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/flags?status=open&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Resolve account flag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/flags/{{flag_id}}/resolve"
+          }
+        },
+        {
+          "name": "User reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/reports?limit=20&offset=0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 7 — SOS and incidents",
+      "description": "Public share lookup has no bearer token and returns the same 404 for invalid/expired tokens.",
+      "item": [
+        {
+          "name": "List emergency contacts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/emergency-contacts"
+          }
+        },
+        {
+          "name": "Add emergency contact",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/emergency-contacts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Emergency contact\",\n  \"phone\": \"+255712345678\",\n  \"relationship\": \"family\",\n  \"notify_on_sos\": true,\n  \"notify_on_trip_share\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update emergency contact",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/emergency-contacts/{{contact_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Emergency contact\",\n  \"phone\": \"+255712345678\",\n  \"relationship\": \"family\",\n  \"notify_on_sos\": true,\n  \"notify_on_trip_share\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete emergency contact",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/emergency-contacts/{{contact_id}}"
+          }
+        },
+        {
+          "name": "Trigger SOS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rides/{{ride_id}}/sos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": -6.8,\n  \"lng\": 39.2,\n  \"accuracy\": 20,\n  \"silent\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "SOS details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sos/{{sos_id}}"
+          }
+        },
+        {
+          "name": "Send SOS location ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sos/{{sos_id}}/location",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": -6.8,\n  \"lng\": 39.201,\n  \"accuracy\": 15,\n  \"speed\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Report safe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sos/{{sos_id}}/safe",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Share active trip",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rides/{{ride_id}}/share",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact_ids\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Stop trip sharing",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rides/{{ride_id}}/share"
+          }
+        },
+        {
+          "name": "Public shared trip (no auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/share/{{share_token}}"
+          }
+        },
+        {
+          "name": "Create incident",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/incidents",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ride_id\": \"{{ride_id}}\",\n  \"category\": \"vehicle_issue\",\n  \"description\": \"Vehicle issue during trip.\",\n  \"occurred_at\": \"2026-10-12T08:00:00Z\",\n  \"location\": \"Dar es Salaam\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "My incidents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/incidents?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "SOS queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/sos?status=open&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "SOS detail (audited)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/sos/{{sos_id}}?reveal=false"
+          }
+        },
+        {
+          "name": "Acknowledge SOS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/sos/{{sos_id}}/acknowledge"
+          }
+        },
+        {
+          "name": "Log call attempt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/sos/{{sos_id}}/call-attempt",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"who\": \"driver\",\n  \"method\": \"phone\",\n  \"result\": \"no_answer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Add SOS note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/sos/{{sos_id}}/note",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Called twice; awaiting callback.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Resolve SOS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/sos/{{sos_id}}/resolve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"safe\",\n  \"note\": \"Both trip participants confirmed safe.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "SOS history CSV (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/sos/export?outcome=false_alarm"
+          }
+        },
+        {
+          "name": "Incident queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/incidents?status=new&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Incident details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/incidents/{{incident_id}}"
+          }
+        },
+        {
+          "name": "Assign incident",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/incidents/{{incident_id}}/assign"
+          }
+        },
+        {
+          "name": "Add incident note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/incidents/{{incident_id}}/note",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Reviewed supplied evidence.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Resolve incident",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/incidents/{{incident_id}}/resolve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Safety action completed.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 8 — Payments and finance",
+      "description": "Every money-moving POST carries Idempotency-Key. Provider webhook is HMAC signed in the pre-request script using payment_webhook_secret.",
+      "item": [
+        {
+          "name": "Wallet summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/wallet"
+          }
+        },
+        {
+          "name": "Wallet ledger",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/wallet/ledger"
+          }
+        },
+        {
+          "name": "Top up wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/wallet/topups",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000,\n  \"method\": \"mpesa\",\n  \"phone\": \"+255712345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pay completed ride",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rides/{{ride_id}}/pay",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"mpesa\",\n  \"phone\": \"+255712345678\",\n  \"promo_code\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/payments?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Payment status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}"
+          }
+        },
+        {
+          "name": "Driver earnings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/driver/earnings?period=week"
+          }
+        },
+        {
+          "name": "Request payout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/driver/payouts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000,\n  \"method\": \"mpesa\",\n  \"phone\": \"+255712345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My payouts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/driver/payouts?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Cancel requested payout",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/driver/payouts/{{payout_id}}"
+          }
+        },
+        {
+          "name": "Payments queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payments?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Payment detail with ledger/webhooks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payments/{{payment_id}}"
+          }
+        },
+        {
+          "name": "Request refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payments/{{payment_id}}/refund",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000,\n  \"reason\": \"Fare review requested.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refund queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/refunds?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Approve refund (admin or below configured support limit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/refunds/{{refund_id}}/approve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Verified fare adjustment.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/refunds/{{refund_id}}/reject",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Evidence does not support refund.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payout queue (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payouts?status=requested"
+          }
+        },
+        {
+          "name": "Approve payout (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payouts/{{payout_id}}/approve",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Batch approve payouts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payouts/batch-approve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    \"{{payout_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Driver wallet and ledger",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/wallets/{{user_id}}?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Adjust driver wallet (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/wallets/{{user_id}}/adjust",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000,\n  \"reason\": \"Documented balance correction.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payment-settings?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Update payment settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payment-settings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driver_max_negative_balance\": 10000,\n  \"payout_min\": 1000,\n  \"payout_auto_approve_max\": 10000,\n  \"refund_support_limit\": 5000,\n  \"commission_rules\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Run reconciliation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reconciliation/run",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.variables.replaceIn('{{$guid}}')});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reconciliation runs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reconciliation/runs?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Reconciliation exceptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reconciliation/exceptions?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Resolve reconciliation exception",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/reconciliation/exceptions/{{exception_id}}/resolve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Compared with provider statement.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Finance summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payments/summary"
+          }
+        },
+        {
+          "name": "Payments CSV (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/payments/export"
+          }
+        },
+        {
+          "name": "Signed payment webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/webhooks/payments/mock",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_id\": \"{{webhook_event_id}}\",\n  \"type\": \"collection\",\n  \"reference\": \"{{payment_id}}\",\n  \"status\": \"succeeded\",\n  \"amount\": 10000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp=Math.floor(Date.now()/1000).toString();pm.collectionVariables.set('payment_webhook_timestamp',stamp);const raw=pm.variables.replaceIn(pm.request.body.raw||'{}');const digest=CryptoJS.HmacSHA256(stamp+'.'+raw,pm.collectionVariables.get('payment_webhook_secret')||'');pm.collectionVariables.set('payment_webhook_signature',digest.toString(CryptoJS.enc.Hex));pm.request.headers.upsert({key:'X-Payment-Timestamp',value:stamp});pm.request.headers.upsert({key:'X-Payment-Signature',value:digest.toString(CryptoJS.enc.Hex)});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 9 — Fraud review",
+      "description": "Support can triage and dismiss low-severity flags. Admin controls holds, confirmation and rule changes.",
+      "item": [
+        {
+          "name": "Driver location ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              },
+              {
+                "key": "X-Device-Platform",
+                "value": "android"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rides/{{ride_id}}/location",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": -6.8,\n  \"lng\": 39.2,\n  \"accuracy\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Fraud flags queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/flags?status=open&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Fraud flag details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/flags/{{fraud_flag_id}}"
+          }
+        },
+        {
+          "name": "Assign fraud flag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/flags/{{fraud_flag_id}}/assign"
+          }
+        },
+        {
+          "name": "Add fraud note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/flags/{{fraud_flag_id}}/note",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Compared linked account activity.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Dismiss low severity flag (support)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/flags/{{fraud_flag_id}}/resolve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"dismissed\",\n  \"note\": \"Reviewed; family device below risk threshold.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Confirm fraud flag (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/flags/{{fraud_flag_id}}/resolve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\",\n  \"note\": \"Evidence confirmed.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Place payout hold (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/flags/{{fraud_flag_id}}/hold-payouts",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Release payout hold (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/flags/{{fraud_flag_id}}/release",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "User linked fraud records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/fraud?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Fraud rules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/rules?limit=100&offset=0"
+          }
+        },
+        {
+          "name": "Update fraud rules (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/rules",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rules\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Dry run a rule (admin, no writes)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/rules/shared_device/dry-run",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Fraud counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/fraud/stats"
+          }
         }
       ]
     }

@@ -41,6 +41,8 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 
 	// Support + Admin permissions
 	SetupPromoAdminRoutes(admin, controllers.NewPromoController(cfg, s), cfg)
+	SetupFinanceAdminRoutes(admin, controllers.NewOperationsController(cfg, s), cfg)
+	SetupOperationsAdminRoutes(admin, controllers.NewOperationsController(cfg, s), cfg)
 	admin.Get("/users", supportAndAdmin, ac.ListUsers)
 	admin.Get("/users/:id", supportAndAdmin, ac.GetUser)
 	admin.Post("/users/:id/suspend", supportAndAdmin, ac.ChangeAccountStatus)

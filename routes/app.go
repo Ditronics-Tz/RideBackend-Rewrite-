@@ -16,6 +16,7 @@ import (
 
 // BuildApp initializes the Fiber app with all middlewares and mounts all routes under /api/v1.
 func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
+	appStore.ConfigureOperations(cfg)
 	app := fiber.New(fiber.Config{
 		AppName:   "Ride Backend Service",
 		BodyLimit: 10 * 1024 * 1024,
@@ -44,7 +45,7 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	v1.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowMethods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS",
-		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization,Idempotency-Key,X-Device-ID,X-Platform",
 	}))
 
 	// Health endpoint (no auth)
@@ -75,6 +76,8 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	SetupFileRoutes(v1, fileController)
 	SetupPromoAppRoutes(v1, controllers.NewPromoController(cfg, appStore), cfg, appStore)
 	SetupDataRequestRoutes(v1, controllers.NewDataRequestController(cfg, appStore), cfg, appStore)
+	SetupFinanceAppRoutes(v1, controllers.NewOperationsController(cfg, appStore), cfg, appStore)
+	SetupOperationsAppRoutes(v1, controllers.NewOperationsController(cfg, appStore), cfg, appStore)
 
 	return app
 }

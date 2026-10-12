@@ -4,8 +4,11 @@ import (
 	"errors"
 	"time"
 
+	"ride-backend/config"
 	"ride-backend/models"
+	"ride-backend/notifications"
 	"ride-backend/notifier"
+	"ride-backend/payments"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -15,6 +18,12 @@ import (
 // Controllers only depend on these methods, so the DB engine
 // can be swapped without touching them.
 type Store struct {
+	Policy          *config.Config
+	PaymentProvider payments.Provider
+
+	Clock          func() time.Time
+	Delivery       notifications.Sender
+	Events         *EventHub
 	db             *gorm.DB
 	SMS            SMSSender
 	Notifier       notifier.Notifier
@@ -22,7 +31,7 @@ type Store struct {
 }
 
 func New(db *gorm.DB) *Store {
-	return &Store{db: db, Notifier: notifier.Logging{}, ExportNotifier: notifier.Logging{}}
+	return &Store{db: db, Notifier: notifier.Logging{}, ExportNotifier: notifier.Logging{}, Delivery: notifications.Logging{}, Events: NewEventHub()}
 }
 
 func newID() string { return uuid.NewString() }
@@ -39,7 +48,7 @@ func (s *Store) CreateUser(name, email, passwordHash string, role models.Role) (
 		return nil, errors.New("email already registered")
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	u := &models.User{
 		ID:           newID(),
 		Name:         name,
@@ -181,7 +190,12 @@ func (s *Store) CreateRating(fromUserID, toUserID string, score int, comment str
 		Comment:    comment,
 		CreatedAt:  time.Now(),
 	}
-	if err := s.db.Create(r).Error; err != nil {
+	if err := s.Transaction(func(tx *Store) error {
+		if err := tx.db.Create(r).Error; err != nil {
+			return err
+		}
+		return tx.QueueFraudEvent(toUserID, "rating_created", nil, "rating:"+r.ID)
+	}); err != nil {
 		return nil, err
 	}
 	s.recompute(toUserID)

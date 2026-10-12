@@ -14,6 +14,19 @@ import (
 )
 
 type Config struct {
+	DeviceHashPepper string
+
+	PaymentProviderName          string
+	PaymentGatewayURL            string
+	PaymentGatewayKey            string
+	PaymentWebhookSecret         string
+	PaymentWebhookPreviousSecret string
+	PaymentEncryptionKey         []byte
+	DriverMaxNegativeBalance     int
+	PayoutMin                    int
+	PayoutAutoApproveMax         int
+	RefundSupportLimit           int
+
 	Port                    string
 	JWTSecret               string
 	StaffJWTSecret          string
@@ -27,17 +40,24 @@ type Config struct {
 	GoogleClientSecret string
 	GoogleRedirectURL  string
 
-	DBHost                  string
-	DBPort                  string
-	DBUser                  string
-	DBPassword              string
-	DBName                  string
-	DBSSLMode               string
-	DeletionGraceDays       int
-	ExportTTLHours          int
-	ExportDir               string
-	FinancialRetentionYears int
-	RunBackgroundJobs       bool
+	DBHost                   string
+	DBPort                   string
+	DBUser                   string
+	DBPassword               string
+	DBName                   string
+	DBSSLMode                string
+	DeletionGraceDays        int
+	ExportTTLHours           int
+	ExportDir                string
+	FinancialRetentionYears  int
+	RunBackgroundJobs        bool
+	ReportFlagThreshold      int
+	ReportFlagWindowDays     int
+	SOSAckSLASeconds         int
+	SOSOncallPhones          string
+	SOSLocationRetentionDays int
+	SOSFalseAlarmThreshold   int
+	PublicBaseURL            string
 }
 
 // DSN builds a Postgres connection string for the pgx/gorm driver.
@@ -88,6 +108,18 @@ func NewConfigFromEnv() (*Config, error) {
 	}
 
 	cfg := &Config{
+		DeviceHashPepper:             getEnv("DEVICE_HASH_PEPPER", ""),
+		PaymentProviderName:          getEnv("PAYMENT_PROVIDER", "mock"),
+		PaymentGatewayURL:            getEnv("PAYMENT_GATEWAY_URL", ""),
+		PaymentGatewayKey:            getEnv("PAYMENT_GATEWAY_KEY", ""),
+		PaymentWebhookSecret:         getEnv("PAYMENT_WEBHOOK_SECRET", ""),
+		PaymentWebhookPreviousSecret: getEnv("PAYMENT_WEBHOOK_PREVIOUS_SECRET", ""),
+		PaymentEncryptionKey:         []byte(getEnv("PAYMENT_ENCRYPTION_KEY", "")),
+		DriverMaxNegativeBalance:     getEnvInt("DRIVER_MAX_NEGATIVE_BALANCE", 10000),
+		PayoutMin:                    getEnvInt("PAYOUT_MIN", 1000),
+		PayoutAutoApproveMax:         getEnvInt("PAYOUT_AUTO_APPROVE_MAX", 10000),
+		RefundSupportLimit:           getEnvInt("REFUND_SUPPORT_LIMIT", 5000),
+
 		Port:                    getEnv("PORT", "3000"),
 		JWTSecret:               os.Getenv("JWT_SECRET"),
 		StaffJWTSecret:          os.Getenv("STAFF_JWT_SECRET"),
@@ -101,17 +133,24 @@ func NewConfigFromEnv() (*Config, error) {
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
 
-		DBHost:                  getEnv("DB_HOST", "127.0.0.1"),
-		DBPort:                  getEnv("DB_PORT", "5432"),
-		DBUser:                  getEnv("DB_USER", "postgres"),
-		DBPassword:              os.Getenv("DB_PASSWORD"),
-		DBName:                  getEnv("DB_NAME", "ride_db"),
-		DBSSLMode:               getEnv("DB_SSLMODE", "disable"),
-		DeletionGraceDays:       getEnvInt("DELETION_GRACE_DAYS", 14),
-		ExportTTLHours:          getEnvInt("EXPORT_TTL_HOURS", 168),
-		ExportDir:               getEnv("EXPORT_DIR", "./uploads/private/exports"),
-		FinancialRetentionYears: getEnvInt("FINANCIAL_RETENTION_YEARS", 0),
-		RunBackgroundJobs:       parseBool(os.Getenv("RUN_BACKGROUND_JOBS"), false),
+		DBHost:                   getEnv("DB_HOST", "127.0.0.1"),
+		DBPort:                   getEnv("DB_PORT", "5432"),
+		DBUser:                   getEnv("DB_USER", "postgres"),
+		DBPassword:               os.Getenv("DB_PASSWORD"),
+		DBName:                   getEnv("DB_NAME", "ride_db"),
+		DBSSLMode:                getEnv("DB_SSLMODE", "disable"),
+		DeletionGraceDays:        getEnvInt("DELETION_GRACE_DAYS", 14),
+		ExportTTLHours:           getEnvInt("EXPORT_TTL_HOURS", 168),
+		ExportDir:                getEnv("EXPORT_DIR", "./uploads/private/exports"),
+		FinancialRetentionYears:  getEnvInt("FINANCIAL_RETENTION_YEARS", 0),
+		RunBackgroundJobs:        parseBool(os.Getenv("RUN_BACKGROUND_JOBS"), false),
+		ReportFlagThreshold:      getEnvInt("REPORT_FLAG_THRESHOLD", 3),
+		ReportFlagWindowDays:     getEnvInt("REPORT_FLAG_WINDOW_DAYS", 30),
+		SOSAckSLASeconds:         getEnvInt("SOS_ACK_SLA_SECONDS", 60),
+		SOSOncallPhones:          getEnv("SOS_ONCALL_PHONES", ""),
+		SOSLocationRetentionDays: getEnvInt("SOS_LOCATION_RETENTION_DAYS", 30),
+		SOSFalseAlarmThreshold:   getEnvInt("SOS_FALSE_ALARM_THRESHOLD", 3),
+		PublicBaseURL:            getEnv("PUBLIC_BASE_URL", "http://localhost:3000"),
 	}
 
 	if err := cfg.Validate(); err != nil {

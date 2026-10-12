@@ -62,6 +62,14 @@ func (s *Store) ChangeAccountStatus(id string, actor *models.StaffUser, status, 
 	if status == "banned" && actor.Role != models.StaffRoleAdmin {
 		return conflict("only an admin can permanently ban an account")
 	}
+	if status == "suspended" && actor.Role == models.StaffRoleSupport {
+		if until == nil {
+			end := s.now().Add(7 * 24 * time.Hour)
+			until = &end
+		} else if until.After(s.now().Add(7 * 24 * time.Hour)) {
+			return invalid("support suspensions cannot exceed 7 days")
+		}
+	}
 	if until != nil && (status != "suspended" || !until.After(time.Now())) {
 		return invalid("until must be a future timestamp for a suspension")
 	}

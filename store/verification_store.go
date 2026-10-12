@@ -500,6 +500,11 @@ func (s *Store) ExpireDriverDocuments(now time.Time, driverID string) error {
 }
 
 func (s *Store) SetDriverOnline(id string, online bool) error {
+	if online {
+		if err := s.checkFinancialEligibility(id); err != nil {
+			return err
+		}
+	}
 	if err := s.ExpireDriverDocuments(time.Now().UTC(), id); err != nil {
 		return err
 	}

@@ -126,6 +126,15 @@ func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handle
 		if account != nil && account.Status == "pending_deletion" && !pendingDeletionPathAllowed(c.Method(), c.Path(), uid) {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Account deletion is pending", "code": "ACCOUNT_PENDING_DELETION"})
 		}
+		if len(accounts) > 0 {
+			if observer, ok := accounts[0].(interface {
+				ObserveDevice(string, string, string, string) error
+			}); ok {
+				if err := observer.ObserveDevice(uid, c.Get("X-Device-ID"), c.Get("X-Platform"), c.IP()); err != nil {
+					return c.Status(500).JSON(fiber.Map{"error": "unable to record device event"})
+				}
+			}
+		}
 		c.Locals("user_id", uid)
 		c.Locals("user_role", role)
 		if issued, ok := claims["iat"].(float64); ok {
@@ -223,6 +232,9 @@ func StaffProtected(cfg *config.Config, s StaffGetter) fiber.Handler {
 			}
 		}
 
+		if exp, ok := claims["exp"].(float64); ok {
+			c.Locals("staff_expires_at", time.Unix(int64(exp), 0))
+		}
 		c.Locals("staff_user", staff)
 		c.Locals("staff_id", staff.ID)
 		c.Locals("staff_role", staff.Role)

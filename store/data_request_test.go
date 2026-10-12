@@ -119,6 +119,28 @@ func TestDeletionAnonymizesPersonalColumnsAndIsIdempotent(t *testing.T) {
 	}
 	_ = s.DB().Create(&models.Rating{ID: "given-" + u.ID, FromUserID: u.ID, ToUserID: other.ID, Score: 4, Comment: "Miriam Test " + phone}).Error
 	_ = s.DB().Create(&models.Rating{ID: "received-" + u.ID, FromUserID: other.ID, ToUserID: u.ID, Score: 5, Comment: "Miriam Test " + phone}).Error
+
+	save := func(v any) {
+		t.Helper()
+		if err := s.DB().Create(v).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	rideID, reportID, sosID, incidentID, fraudID := uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()
+	save(&models.Ride{ID: rideID, DriverID: u.ID, PassengerID: other.ID, Status: "completed", Pickup: "Miriam Test " + phone, Dropoff: plate, RouteGeometry: "Miriam Test"})
+	save(&models.Report{ID: reportID, ReporterID: other.ID, ReportedID: u.ID, RideID: rideID, Description: "Miriam Test " + phone, Status: "open"})
+	save(&models.ReportNote{ID: uuid.NewString(), ReportID: reportID, StaffID: uuid.NewString(), Note: "Miriam Test " + phone})
+	save(&models.EmergencyContact{ID: uuid.NewString(), UserID: u.ID, Name: "Miriam Test", Phone: phone})
+	save(&models.SOSAlert{ID: sosID, RideID: rideID, TriggeredBy: u.ID, Status: "resolved", ResolutionNote: "Miriam Test " + phone})
+	save(&models.SOSEvent{ID: uuid.NewString(), AlertID: sosID, Type: "note", Note: plate})
+	save(&models.IncidentReport{ID: incidentID, ReporterID: u.ID, RideID: rideID, Description: "Miriam Test", Location: plate, ResolutionNote: phone})
+	save(&models.IncidentNote{ID: uuid.NewString(), IncidentID: incidentID, StaffID: uuid.NewString(), Note: phone})
+	save(&models.UserDevice{ID: uuid.NewString(), UserID: u.ID, DeviceHash: "opaque", LastIP: phone})
+	save(&models.FraudFlag{ID: fraudID, UserID: u.ID, Status: "dismissed", Evidence: "{}", RelatedUserIDs: "[]", ResolutionNote: "Miriam Test"})
+	save(&models.FraudNote{ID: uuid.NewString(), FlagID: fraudID, StaffID: uuid.NewString(), Note: phone})
+	save(&models.PaymentTransaction{ID: uuid.NewString(), PayerID: other.ID, DriverID: &u.ID, Status: "failed", MaskedPhone: phone, PhoneEncrypted: "Miriam Test", IdempotencyKey: uuid.NewString()})
+	save(&models.DriverPayout{ID: uuid.NewString(), DriverID: u.ID, Status: "rejected", MaskedDestination: phone, DestinationHash: plate, DestinationEncrypted: "Miriam Test", RejectReason: phone, IdempotencyKey: uuid.NewString()})
+	save(&models.NotificationDelivery{ID: uuid.NewString(), UserID: u.ID, Phone: phone, Link: "Miriam Test", Template: "sos_contact", Status: "delivered"})
 	dir := filepath.Join("..", "uploads", "private", "test-exports")
 	_ = os.RemoveAll(dir)
 	defer os.RemoveAll(dir)

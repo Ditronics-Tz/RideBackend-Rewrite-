@@ -129,17 +129,12 @@ func (ac *AdminController) ListRides(c *fiber.Ctx) error {
 
 // ListComplaints — support/admin
 func (ac *AdminController) ListComplaints(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"count": 0, "complaints": []interface{}{}})
+	return NewOperationsController(ac.Cfg, ac.Store).Reports(c)
 }
 
 // UpdateComplaint — support/admin
 func (ac *AdminController) UpdateComplaint(c *fiber.Ctx) error {
-	id := c.Params("id")
-	staff := middleware.CurrentStaff(c)
-	if staff != nil {
-		_ = ac.Store.CreateAuditLog(staff.ID, "work_complaint", "complaint", id, c.IP(), nil)
-	}
-	return c.JSON(fiber.Map{"message": "complaint updated", "id": id, "status": "resolved"})
+	return NewOperationsController(ac.Cfg, ac.Store).ReportAction(c)
 }
 
 // ListTickets — support/admin
@@ -213,7 +208,7 @@ func (ac *AdminController) CreateStaff(c *fiber.Ctx) error {
 
 	// Never log the one-time password!
 	_ = ac.Store.CreateAuditLog(caller.ID, "create_staff", "staff_user", staff.ID, c.IP(), fiber.Map{
-		"role":  staff.Role,
+		"role": staff.Role,
 	})
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{

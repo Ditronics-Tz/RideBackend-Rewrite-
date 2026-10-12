@@ -3,12 +3,10 @@ package store_test
 import (
 	"errors"
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"os"
-	"ride-backend/config"
 	"ride-backend/db"
 	"ride-backend/models"
 	"ride-backend/store"
@@ -18,15 +16,11 @@ import (
 )
 
 func TestPostgresConcurrentPromoReservations(t *testing.T) {
-	if os.Getenv("RUN_POSTGRES_PROMO_TESTS") != "1" {
-		t.Skip("Set RUN_POSTGRES_PROMO_TESTS=1 for isolated-schema Postgres concurrency test; SQLite runs the SQL guard sequentially")
+	dsn := os.Getenv("POSTGRES_TEST_DSN")
+	if os.Getenv("RUN_POSTGRES_PROMO_TESTS") != "1" || dsn == "" {
+		t.Skip("Set RUN_POSTGRES_PROMO_TESTS=1 and POSTGRES_TEST_DSN for isolated-schema Postgres concurrency test; SQLite runs the SQL guard sequentially")
 	}
-	_ = godotenv.Load("../.env") // Read configuration only; never modify it.
-	cfg, err := config.NewConfigFromEnv()
-	if err != nil {
-		t.Fatal(err)
-	}
-	root, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	root, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +38,7 @@ func TestPostgresConcurrentPromoReservations(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	gdb, err := gorm.Open(postgres.Open(cfg.DSN()+" search_path="+schema), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	gdb, err := gorm.Open(postgres.Open(dsn+" search_path="+schema), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatal(err)
 	}
