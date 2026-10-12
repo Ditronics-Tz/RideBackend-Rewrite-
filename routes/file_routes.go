@@ -9,4 +9,5 @@ import (
 func SetupFileRoutes(router fiber.Router, fc *controllers.FileController) {
 	files := router.Group("/files")
 	files.Get("/licences/:id", fc.GetLicence)
+	files.Get("/documents/:id", fc.GetDocument)
 }

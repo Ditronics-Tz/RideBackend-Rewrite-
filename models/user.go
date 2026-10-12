@@ -43,30 +43,37 @@ func ParseRole(s string) (Role, error) {
 
 // User is the core account record for realm "app".
 type User struct {
-	ID           string    `json:"id" gorm:"primaryKey;type:uuid"`
-	Name         string    `json:"name" gorm:"not null"`
-	Email        string    `json:"email" gorm:"uniqueIndex;not null"`
-	PasswordHash string    `json:"-" gorm:"column:password_hash;default:''"`
-	Role         Role      `json:"role" gorm:"type:varchar(20);not null;default:'passenger'"`
-	IsActive     bool      `json:"is_active" gorm:"default:true"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID              string     `json:"id" gorm:"primaryKey;type:uuid"`
+	Name            string     `json:"name" gorm:"not null"`
+	Email           string     `json:"email" gorm:"uniqueIndex;not null"`
+	PasswordHash    string     `json:"-" gorm:"column:password_hash;default:''"`
+	Role            Role       `json:"role" gorm:"type:varchar(20);not null;default:'passenger'"`
+	IsActive        bool       `json:"is_active" gorm:"default:true"`
+	Status          string     `json:"status" gorm:"not null;default:active;index"`
+	SuspendedUntil  *time.Time `json:"suspended_until"`
+	Phone           string     `json:"phone"`
+	PhoneVerifiedAt *time.Time `json:"phone_verified_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // DriverProfile holds driver-specific fields:
 // licence, kadi ya gari (vehicle card), plate number + images.
 type DriverProfile struct {
-	UserID            string    `json:"user_id" gorm:"primaryKey;type:uuid"`
-	LicenceNumber     string    `json:"licence_number"`
-	VehicleCardNumber string    `json:"vehicle_card_number"` // kadi ya gari
-	PlateNumber       string    `json:"plate_number"`
-	LicenceImageURL   string    `json:"licence_image_url"`
-	ProfilePictureURL string    `json:"profile_picture_url"`
-	Verified          bool      `json:"verified" gorm:"default:false"`
-	AverageRating     float64   `json:"average_rating" gorm:"default:0"`
-	TotalRatings      int       `json:"total_ratings" gorm:"default:0"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	UserID             string             `json:"user_id" gorm:"primaryKey;type:uuid"`
+	LicenceNumber      string             `json:"licence_number"`
+	VehicleCardNumber  string             `json:"vehicle_card_number"` // kadi ya gari
+	PlateNumber        string             `json:"plate_number"`
+	LicenceImageURL    string             `json:"licence_image_url"`
+	ProfilePictureURL  string             `json:"profile_picture_url"`
+	VerificationStatus VerificationStatus `json:"verification_status" gorm:"not null;default:pending_documents;index"`
+	AssignedTo         *string            `json:"assigned_to" gorm:"type:uuid;index"`
+	AssignedAt         *time.Time         `json:"assigned_at"`
+	IsOnline           bool               `json:"is_online" gorm:"not null;default:false"`
+	AverageRating      float64            `json:"average_rating" gorm:"default:0"`
+	TotalRatings       int                `json:"total_ratings" gorm:"default:0"`
+	CreatedAt          time.Time          `json:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at"`
 }
 
 // PassengerProfile holds passenger-specific fields.
@@ -120,10 +127,6 @@ type PassengerProfileInput struct {
 	Phone    string `json:"phone"`
 }
 
-type VerifyDriverInput struct {
-	Verified bool `json:"verified"`
-}
-
 type RatingInput struct {
 	ToUserID string `json:"to_user_id"`
 	Score    int    `json:"score"`
@@ -131,11 +134,15 @@ type RatingInput struct {
 }
 
 type UserResponse struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Role     Role   `json:"role"`
-	IsActive bool   `json:"is_active"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Email           string     `json:"email"`
+	Role            Role       `json:"role"`
+	IsActive        bool       `json:"is_active"`
+	Status          string     `json:"status"`
+	SuspendedUntil  *time.Time `json:"suspended_until"`
+	Phone           string     `json:"phone"`
+	PhoneVerifiedAt *time.Time `json:"phone_verified_at"`
 }
 
 func ToUserResponse(u *User) UserResponse {
@@ -145,6 +152,7 @@ func ToUserResponse(u *User) UserResponse {
 		Email:    u.Email,
 		Role:     u.Role,
 		IsActive: u.IsActive,
+		Status:   u.Status, SuspendedUntil: u.SuspendedUntil, Phone: u.Phone, PhoneVerifiedAt: u.PhoneVerifiedAt,
 	}
 }
 

@@ -447,16 +447,11 @@
               }
             },
             {
-              "name": "Verify Driver (Support/Admin)",
+              "name": "Final Driver Approval (Claim Owner, After Document Review)",
               "request": {
-                "method": "PATCH",
-                "url": "{{base_url}}/api/v1/admin/drivers/{{driver_id}}/verify",
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] },
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"verified\": true\n}"
-                }
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/admin/drivers/{{driver_id}}/approve",
+                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
               }
             },
             {

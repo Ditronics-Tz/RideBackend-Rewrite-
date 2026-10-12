@@ -9,13 +9,18 @@ import (
 )
 
 func SetupProfileRoutes(router fiber.Router, pc *controllers.ProfileController, cfg *config.Config) {
-	protected := middleware.AppProtected(cfg)
+	protected := middleware.AppProtected(cfg, pc.Store)
 
 	driver := router.Group("/driver", protected)
 	// Driver self-service (driver role only — enforced in controller)
 	driver.Get("/profile/me", pc.GetMyDriverProfile)
 	driver.Put("/profile/me", pc.UpdateMyDriverProfile)
 	driver.Post("/profile/me/images", pc.UploadMyDriverImages)
+	driver.Get("/verification/me", pc.GetMyVerification)
+	driver.Post("/verification/me/submit", pc.SubmitMyVerification)
+	driver.Post("/documents", pc.UploadDriverDocument)
+	driver.Patch("/availability", pc.SetMyAvailability)
+	driver.Get("/notifications", pc.MyVerificationNotifications)
 	// Public driver lookup (any logged-in app user)
 	driver.Get("/profile/:userId", pc.GetDriverProfileByID)
 

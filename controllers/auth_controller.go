@@ -85,7 +85,8 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 	}
-	if !user.IsActive {
+	user, err := ac.Store.ActiveAccount(user.ID)
+	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Account is disabled"})
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
@@ -164,8 +165,10 @@ func (ac *AuthController) GoogleCallback(c *fiber.Ctx) error {
 				_ = pp
 			})
 		}
-	} else if !user.IsActive {
+	} else if active, activeErr := ac.Store.ActiveAccount(user.ID); activeErr != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Account is disabled"})
+	} else {
+		user = active
 	}
 
 	jwtToken, err := utils.GenerateAppToken(user.ID, user.Role, ac.Cfg.JWTSecret, utils.DefaultAppTTL)

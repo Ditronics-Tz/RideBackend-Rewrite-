@@ -59,7 +59,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req)
+		resp, _ := app.Test(req, 10000)
 
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401, got %d", resp.StatusCode)
@@ -73,7 +73,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req)
+		resp, _ := app.Test(req, 10000)
 
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401, got %d", resp.StatusCode)
@@ -92,7 +92,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			})
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
-			resp, _ := app.Test(req)
+			resp, _ := app.Test(req, 10000)
 			if resp.StatusCode != http.StatusUnauthorized {
 				t.Fatalf("Attempt %d: expected 401, got %d", i, resp.StatusCode)
 			}
@@ -111,7 +111,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req)
+		resp, _ := app.Test(req, 10000)
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401 for locked account, got %d", resp.StatusCode)
 		}
@@ -125,7 +125,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req)
+		resp, _ := app.Test(req, 10000)
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401 for missing TOTP, got %d", resp.StatusCode)
 		}
@@ -160,7 +160,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			})
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
-			_, _ = app.Test(req)
+			_, _ = app.Test(req, 10000)
 		}
 
 		// 11th request must receive 429
@@ -170,7 +170,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req)
+		resp, _ := app.Test(req, 10000)
 		if resp.StatusCode != http.StatusTooManyRequests {
 			t.Fatalf("Expected 429 after 10 requests, got %d", resp.StatusCode)
 		}
@@ -356,7 +356,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/staff", bytes.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+adminTok)
 		req.Header.Set("Content-Type", "application/json")
-		resp, err := app.Test(req)
+		resp, err := app.Test(req, 10000)
 		if err != nil || resp.StatusCode != http.StatusCreated {
 			t.Fatalf("Expected 201, got %d", resp.StatusCode)
 		}

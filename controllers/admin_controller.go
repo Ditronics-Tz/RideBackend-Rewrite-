@@ -30,6 +30,19 @@ func NewAdminController(cfg *config.Config, s *store.Store) *AdminController {
 func (ac *AdminController) ListUsers(c *fiber.Ctx) error {
 	role := strings.ToLower(c.Query("role"))
 	users := ac.Store.ListUsers(role)
+	if search := strings.ToLower(strings.TrimSpace(c.Query("q"))); search != "" {
+		filtered := make([]*models.User, 0)
+		for _, u := range users {
+			plate := ""
+			if p, ok := ac.Store.GetDriverProfile(u.ID); ok {
+				plate = strings.ToLower(p.PlateNumber)
+			}
+			if strings.Contains(strings.ToLower(u.Email), search) || strings.Contains(strings.ToLower(u.Name), search) || strings.Contains(u.Phone, search) || strings.Contains(plate, strings.ToLower(store.CanonicalIdentifier(search))) {
+				filtered = append(filtered, u)
+			}
+		}
+		users = filtered
+	}
 	out := make([]models.UserResponse, 0, len(users))
 	for _, u := range users {
 		out = append(out, models.ToUserResponse(u))
@@ -45,8 +58,13 @@ func (ac *AdminController) GetUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 	resp := fiber.Map{"user": models.ToUserResponse(u)}
-	if dp, ok := ac.Store.GetDriverProfile(id); ok {
-		resp["driver_profile"] = dp
+	if _, ok := ac.Store.GetDriverProfile(id); ok {
+		detail, err := ac.Store.VerificationDetail(id, true)
+		if err != nil {
+			return verificationError(c, err)
+		}
+		resp["driver_profile"] = detail.Profile
+		resp["driver_documents"] = detail.Documents
 	}
 	if pp, ok := ac.Store.GetPassengerProfile(id); ok {
 		resp["passenger_profile"] = pp
@@ -85,22 +103,7 @@ func (ac *AdminController) UpdateUserRole(c *fiber.Ctx) error {
 
 // VerifyDriver — support/admin verify a driver's documents.
 func (ac *AdminController) VerifyDriver(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var input models.VerifyDriverInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	}
-	p, err := ac.Store.SetDriverVerified(id, input.Verified)
-	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
-	}
-	staff := middleware.CurrentStaff(c)
-	if staff != nil {
-		_ = ac.Store.CreateAuditLog(staff.ID, "verify_driver", "driver_profile", id, c.IP(), fiber.Map{
-			"verified": input.Verified,
-		})
-	}
-	return c.JSON(fiber.Map{"message": "driver verification updated", "driver_profile": p})
+	return c.Status(fiber.StatusGone).JSON(fiber.Map{"error": "Boolean verification has been retired. Claim the driver and review each document through /admin/drivers/:id/verification."})
 }
 
 // ---------- Dashboard Work: Stats, Rides, Complaints, Tickets ----------
@@ -214,8 +217,8 @@ func (ac *AdminController) CreateStaff(c *fiber.Ctx) error {
 	})
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message":            "Staff account created successfully",
-		"staff":              models.ToStaffUserResponse(staff),
+		"message":           "Staff account created successfully",
+		"staff":             models.ToStaffUserResponse(staff),
 		"one_time_password": otp,
 	})
 }
@@ -364,7 +367,7 @@ func (ac *AdminController) ResetStaffPassword(c *fiber.Ctx) error {
 	_ = ac.Store.CreateAuditLog(caller.ID, "reset_password", "staff_user", id, c.IP(), nil)
 
 	return c.JSON(fiber.Map{
-		"message":            "Password reset successfully",
+		"message":           "Password reset successfully",
 		"one_time_password": otp,
 	})
 }

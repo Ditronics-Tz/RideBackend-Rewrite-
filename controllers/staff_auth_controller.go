@@ -80,10 +80,10 @@ func ResetLoginRateLimiters() {
 }
 
 var commonPasswords = map[string]bool{
-	"password1234": true,
-	"123456789012": true,
+	"password1234":  true,
+	"123456789012":  true,
 	"admin1234567":  true,
-	"qwerty123456": true,
+	"qwerty123456":  true,
 	"letmein12345":  true,
 	"welcome12345":  true,
 	"administrator": true,
@@ -208,10 +208,10 @@ func (sc *StaffAuthController) Login(c *fiber.Ctx) error {
 	_ = sc.Store.CreateAuditLog(staff.ID, "login_success", "staff_user", staff.ID, ip, nil)
 
 	return c.JSON(fiber.Map{
-		"access_token":          accessToken,
-		"refresh_token":         refreshToken,
+		"access_token":         accessToken,
+		"refresh_token":        refreshToken,
 		"must_change_password": staff.MustChangePassword,
-		"user":                  models.ToStaffUserResponse(staff),
+		"user":                 models.ToStaffUserResponse(staff),
 	})
 }
 

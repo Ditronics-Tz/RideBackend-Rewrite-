@@ -9,7 +9,7 @@ import (
 )
 
 func SetupRatingRoutes(router fiber.Router, rc *controllers.RatingController, cfg *config.Config) {
-	protected := middleware.AppProtected(cfg)
+	protected := middleware.AppProtected(cfg, rc.Store)
 
 	r := router.Group("/ratings", protected)
 	r.Post("/", rc.CreateRating)

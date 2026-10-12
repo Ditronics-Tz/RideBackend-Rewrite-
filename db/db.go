@@ -41,7 +41,7 @@ func Connect(cfg *config.Config) *gorm.DB {
 
 // AutoMigrate runs schema migrations for both app and staff realms.
 func AutoMigrate(gdb *gorm.DB) error {
-	return gdb.AutoMigrate(
+	if err := gdb.AutoMigrate(
 		&models.User{},
 		&models.DriverProfile{},
 		&models.PassengerProfile{},
@@ -49,5 +49,16 @@ func AutoMigrate(gdb *gorm.DB) error {
 		&models.StaffUser{},
 		&models.StaffSession{},
 		&models.StaffAuditLog{},
-	)
+		&models.DriverDocument{},
+		&models.VerificationReview{},
+		&models.DriverDuplicateFlag{},
+		&models.DriverNotification{},
+		&models.UserStatusEvent{}, &models.SupportNote{}, &models.PhoneChallenge{},
+	); err != nil {
+		return err
+	}
+	if err := MigrateVerification(gdb); err != nil {
+		return err
+	}
+	return MigrateAccounts(gdb)
 }

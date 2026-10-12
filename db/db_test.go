@@ -9,6 +9,11 @@ import (
 )
 
 func TestPostgresConnect(t *testing.T) {
+	// This legacy smoke test invokes startup migrations on the configured database.
+	// The isolated-schema store integration test is the safe default for migrations.
+	if os.Getenv("RUN_LEGACY_DB_SMOKE_TEST") != "1" {
+		t.Skip("Use the isolated PostgreSQL verification test; opt into this test only for a disposable database")
+	}
 	if os.Getenv("STAFF_JWT_SECRET") == "" {
 		t.Setenv("STAFF_JWT_SECRET", "test_staff_secret_key_12345678901234567890_min_32_bytes")
 	}

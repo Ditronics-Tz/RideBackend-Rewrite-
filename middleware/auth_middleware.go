@@ -32,7 +32,11 @@ func InvalidateStaffCache(staffID string) {
 
 // AppProtected validates the Bearer JWT for the "app" realm (passengers and drivers).
 // Rejects staff tokens or invalid/expired tokens with 401.
-func AppProtected(cfg *config.Config) fiber.Handler {
+type AppAccountGetter interface {
+	ActiveAccount(string) (*models.User, error)
+}
+
+func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
@@ -63,6 +67,12 @@ func AppProtected(cfg *config.Config) fiber.Handler {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized role"})
 		}
 
+		if len(accounts) > 0 {
+			u, err := accounts[0].ActiveAccount(uid)
+			if err != nil || u.Role != role {
+				return c.Status(403).JSON(fiber.Map{"error": "Account unavailable or token role changed"})
+			}
+		}
 		c.Locals("user_id", uid)
 		c.Locals("user_role", role)
 

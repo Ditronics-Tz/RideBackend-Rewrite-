@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"ride-backend/config"
 	"ride-backend/db"
+	"ride-backend/jobs"
 	"ride-backend/routes"
 	"ride-backend/store"
 	"ride-backend/utils"
@@ -19,6 +21,7 @@ func main() {
 	// Postgres connection + auto-migrations
 	gdb := db.Connect(cfg)
 	appStore := store.New(gdb)
+	go jobs.RunDocumentExpiry(context.Background(), appStore)
 
 	app := routes.BuildApp(cfg, appStore)
 

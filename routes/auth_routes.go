@@ -14,6 +14,8 @@ func SetupAuthRoutes(router fiber.Router, authController *controllers.AuthContro
 	// Public app auth routes
 	api.Post("/register", authController.Register)
 	api.Post("/login", authController.Login)
+	api.Post("/phone/request-otp", middleware.AppProtected(cfg, authController.Store), authController.RequestPhoneOTP)
+	api.Post("/phone/verify-otp", middleware.AppProtected(cfg, authController.Store), authController.VerifyPhoneOTP)
 
 	// OAuth routes
 	api.Get("/google", authController.GoogleLogin)
@@ -21,7 +23,7 @@ func SetupAuthRoutes(router fiber.Router, authController *controllers.AuthContro
 
 	// Logged-in app user info
 	api.Get("/me",
-		middleware.AppProtected(cfg),
+		middleware.AppProtected(cfg, authController.Store),
 		authController.Me,
 	)
 }

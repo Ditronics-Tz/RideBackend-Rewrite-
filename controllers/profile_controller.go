@@ -45,45 +45,35 @@ func (pc *ProfileController) UpdateMyDriverProfile(c *fiber.Ctx) error {
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
-	p := pc.Store.UpdateDriverProfile(uid, func(p *models.DriverProfile) {
-		if input.LicenceNumber != "" {
-			p.LicenceNumber = input.LicenceNumber
-		}
-		if input.VehicleCardNumber != "" {
-			p.VehicleCardNumber = input.VehicleCardNumber
-		}
-		if input.PlateNumber != "" {
-			p.PlateNumber = input.PlateNumber
-		}
-	})
+	p, err := pc.Store.UpdateDriverIdentifiers(uid, input)
+	if err != nil {
+		return verificationError(c, err)
+	}
 	return c.JSON(p)
 }
 
-// UploadMyDriverImages — multipart: licence_image, profile_picture.
+// UploadMyDriverImages — multipart: profile_picture. Documents use their own route.
 func (pc *ProfileController) UploadMyDriverImages(c *fiber.Ctx) error {
 	uid, role := middleware.CurrentUser(c)
 	if role != models.RoleDriver {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "driver role required"})
 	}
-	licURL, err := utils.SaveLicenceImage(c, "licence_image", "licence_"+uid)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	if _, err := c.FormFile("licence_image"); err == nil {
+		return c.Status(410).JSON(fiber.Map{"error": "Upload each document through /driver/documents with type, file and expires_at. Profile pictures still use this endpoint."})
 	}
 	profURL, err := utils.SavePublicImage(c, "profile_picture", "driver_"+uid)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
-	if licURL == "" && profURL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "provide licence_image and/or profile_picture"})
+	if profURL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "provide profile_picture"})
 	}
-	p := pc.Store.UpdateDriverProfile(uid, func(p *models.DriverProfile) {
-		if licURL != "" {
-			p.LicenceImageURL = licURL
-		}
-		if profURL != "" {
-			p.ProfilePictureURL = profURL
-		}
-	})
+	pc.Store.EnsureDriverProfile(uid)
+	// A picture update must not overwrite a concurrent verification decision.
+	if err := pc.Store.DB().Model(&models.DriverProfile{}).Where("user_id = ?", uid).Update("profile_picture_url", profURL).Error; err != nil {
+		return verificationError(c, err)
+	}
+	p, _ := pc.Store.GetDriverProfile(uid)
 	return c.JSON(p)
 }
 
@@ -126,12 +116,12 @@ func (pc *ProfileController) UpdateMyPassengerProfile(c *fiber.Ctx) error {
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
+	if input.Phone != "" {
+		return fiber.NewError(400, "Verify phone through /auth/phone/request-otp and /auth/phone/verify-otp")
+	}
 	p := pc.Store.UpdatePassengerProfile(uid, func(p *models.PassengerProfile) {
 		if input.FullName != "" {
 			p.FullName = input.FullName
-		}
-		if input.Phone != "" {
-			p.Phone = input.Phone
 		}
 	})
 	return c.JSON(p)

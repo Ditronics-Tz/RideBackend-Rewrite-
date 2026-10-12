@@ -47,7 +47,7 @@ func (fc *FileController) GetLicence(c *fiber.Ctx) error {
 	// Check if token is a valid staff token
 	if claims, err := utils.ParseStaffToken(tokenStr, fc.Cfg.StaffJWTSecret); err == nil {
 		staffID, _ := claims["sub"].(string)
-		if staff, ok := fc.Store.GetStaffUserByID(staffID); ok && staff.IsActive {
+		if staff, ok := fc.Store.GetStaffUserByID(staffID); ok && staff.IsActive && !staff.MustChangePassword && !(fc.Cfg.StaffRequire2FAForAdmin && staff.Role == models.StaffRoleAdmin && !staff.TOTPEnabled) {
 			isStaff = true
 		}
 	}
@@ -55,8 +55,10 @@ func (fc *FileController) GetLicence(c *fiber.Ctx) error {
 	// If not staff, check if token is a valid app token
 	if !isStaff {
 		if uid, role, err := utils.ParseToken(tokenStr, fc.Cfg.JWTSecret); err == nil {
-			appUserID = uid
-			appRole = role
+			if user, err := fc.Store.ActiveAccount(uid); err == nil && user.Role == role {
+				appUserID = uid
+				appRole = role
+			}
 		}
 	}
 
@@ -107,5 +109,13 @@ func (fc *FileController) GetLicence(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Licence document not found"})
 	}
 
+	c.Set("Cache-Control", "private, no-store")
+	if isStaff {
+		claims, _ := utils.ParseStaffToken(tokenStr, fc.Cfg.StaffJWTSecret)
+		actor, _ := claims["sub"].(string)
+		if err := fc.Store.CreateAuditLog(actor, "view_legacy_licence", "driver_profile", owningDriverID, c.IP(), nil); err != nil {
+			return fiber.NewError(500, "Unable to record document access")
+		}
+	}
 	return c.SendFile(cleanPath)
 }

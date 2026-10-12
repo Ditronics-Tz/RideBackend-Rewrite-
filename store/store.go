@@ -14,7 +14,8 @@ import (
 // Controllers only depend on these methods, so the DB engine
 // can be swapped without touching them.
 type Store struct {
-	db *gorm.DB
+	db  *gorm.DB
+	SMS SMSSender
 }
 
 func New(db *gorm.DB) *Store {
@@ -92,11 +93,10 @@ func (s *Store) UpdateUserRole(id string, role models.Role) (*models.User, error
 	if !ok {
 		return nil, errors.New("user not found")
 	}
-	u.Role = role
-	u.UpdatedAt = time.Now()
-	if err := s.db.Save(u).Error; err != nil {
+	if err := s.db.Model(u).Updates(map[string]interface{}{"role": role, "updated_at": time.Now()}).Error; err != nil {
 		return nil, err
 	}
+	u.Role = role
 	// ensure matching profile exists
 	switch role {
 	case models.RoleDriver:
@@ -155,19 +155,6 @@ func (s *Store) UpdatePassengerProfile(userID string, fn func(p *models.Passenge
 	p.UpdatedAt = time.Now()
 	_ = s.db.Save(p).Error
 	return p
-}
-
-func (s *Store) SetDriverVerified(userID string, verified bool) (*models.DriverProfile, error) {
-	p, ok := s.GetDriverProfile(userID)
-	if !ok {
-		return nil, errors.New("driver profile not found")
-	}
-	p.Verified = verified
-	p.UpdatedAt = time.Now()
-	if err := s.db.Save(p).Error; err != nil {
-		return nil, err
-	}
-	return p, nil
 }
 
 // ---------- Ratings ----------

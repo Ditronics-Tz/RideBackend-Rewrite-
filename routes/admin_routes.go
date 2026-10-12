@@ -15,12 +15,41 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 	adminOnly := middleware.RequireStaffRoles(cfg, models.StaffRoleAdmin)
 	supportAndAdmin := middleware.RequireStaffRoles(cfg, models.StaffRoleSupport, models.StaffRoleAdmin)
 
-	admin := router.Group("/admin", protected)
+	admin := router.Group("/admin", protected, func(c *fiber.Ctx) error {
+		err := c.Next()
+		if actor := middleware.CurrentStaff(c); actor != nil {
+			target := c.Params("id")
+			if target == "" {
+				target = c.Params("documentId")
+			}
+			if target == "" {
+				target = "collection"
+			}
+			if auditErr := s.CreateAuditLog(actor.ID, "admin_request", "route", target, c.IP(), fiber.Map{"route": c.Route().Path, "method": c.Method(), "status": c.Response().StatusCode(), "failed": err != nil}); auditErr != nil && err == nil {
+				return fiber.NewError(500, "Unable to record staff audit event")
+			}
+		}
+		return err
+	})
 
 	// Support + Admin permissions
 	admin.Get("/users", supportAndAdmin, ac.ListUsers)
 	admin.Get("/users/:id", supportAndAdmin, ac.GetUser)
+	admin.Post("/users/:id/suspend", supportAndAdmin, ac.ChangeAccountStatus)
+	admin.Post("/users/:id/reactivate", supportAndAdmin, ac.ChangeAccountStatus)
+	admin.Get("/users/:id/notes", supportAndAdmin, ac.UserNotes)
+	admin.Post("/users/:id/notes", supportAndAdmin, ac.UserNotes)
+	admin.Get("/users/:id/history", supportAndAdmin, ac.UserHistory)
+	admin.Get("/verifications", supportAndAdmin, ac.VerificationQueue)
+	admin.Post("/verifications/:id/claim", supportAndAdmin, ac.ClaimDriverVerification)
+	admin.Patch("/documents/:documentId/review", supportAndAdmin, ac.ReviewDocumentByID)
+	admin.Post("/drivers/:id/approve", supportAndAdmin, ac.FinalApproveDriver)
 	admin.Patch("/drivers/:id/verify", supportAndAdmin, ac.VerifyDriver)
+	admin.Get("/drivers/:id/verification", supportAndAdmin, ac.GetDriverVerification)
+	admin.Post("/drivers/:id/verification/claim", supportAndAdmin, ac.ClaimDriverVerification)
+	admin.Post("/drivers/:id/verification/release", supportAndAdmin, ac.ReleaseDriverVerification)
+	admin.Post("/drivers/:id/documents/:documentId/reviews", supportAndAdmin, ac.ReviewDriverDocument)
+	admin.Patch("/drivers/:id/suspension", supportAndAdmin, ac.SuspendDriverVerification)
 	admin.Get("/stats", supportAndAdmin, ac.GetStats)
 	admin.Get("/rides", supportAndAdmin, ac.ListRides)
 	admin.Get("/complaints", supportAndAdmin, ac.ListComplaints)
@@ -30,6 +59,8 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 
 	// Admin-only permissions
 	admin.Patch("/users/:id/role", adminOnly, ac.UpdateUserRole)
+	admin.Post("/users/:id/ban", adminOnly, ac.ChangeAccountStatus)
+	admin.Delete("/users/:id/notes/:noteId", adminOnly, ac.DeleteUserNote)
 	admin.Get("/audit-logs", adminOnly, ac.ListAuditLogs)
 
 	// Staff management (Admin only)

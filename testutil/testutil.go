@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"ride-backend/config"
+	backenddb "ride-backend/db"
 	"ride-backend/models"
 	"ride-backend/store"
 
@@ -29,8 +30,19 @@ func SetupTestStore() (*store.Store, *config.Config, error) {
 		&models.StaffUser{},
 		&models.StaffSession{},
 		&models.StaffAuditLog{},
+		&models.DriverDocument{},
+		&models.VerificationReview{},
+		&models.DriverDuplicateFlag{},
+		&models.DriverNotification{},
+		&models.UserStatusEvent{}, &models.SupportNote{}, &models.PhoneChallenge{},
 	)
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := backenddb.MigrateVerification(db); err != nil {
+		return nil, nil, err
+	}
+	if err := backenddb.MigrateAccounts(db); err != nil {
 		return nil, nil, err
 	}
 
