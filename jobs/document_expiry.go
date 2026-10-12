@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"log"
+	"ride-backend/config"
 	"ride-backend/store"
 	"time"
 )
@@ -23,6 +24,22 @@ func RunDocumentExpiry(ctx context.Context, s *store.Store) {
 			timer.Stop()
 			return
 		case <-timer.C:
+		}
+	}
+}
+
+// RunDataRequests performs an immediate catch-up and then polls every five minutes.
+func RunDataRequests(ctx context.Context, s *store.Store, cfg *config.Config) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		if err := s.ProcessDataRequests(cfg); err != nil {
+			log.Printf("Data request processing failed: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
 		}
 	}
 }

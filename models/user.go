@@ -53,6 +53,7 @@ type User struct {
 	SuspendedUntil  *time.Time `json:"suspended_until"`
 	Phone           string     `json:"phone"`
 	PhoneVerifiedAt *time.Time `json:"phone_verified_at"`
+	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }

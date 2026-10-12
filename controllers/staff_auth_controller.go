@@ -127,7 +127,7 @@ func (sc *StaffAuthController) Login(c *fiber.Ctx) error {
 	if !ok {
 		// Constant-time execution: compare against dummy hash
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(input.Password))
-		_ = sc.Store.CreateAuditLog("anonymous", "login_failure", "staff_user", email, ip, fiber.Map{"reason": "unknown_email"})
+		_ = sc.Store.CreateAuditLog("anonymous", "login_failure", "staff_user", "unknown", ip, fiber.Map{"reason": "unknown_email"})
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 

@@ -31,6 +31,13 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 		}
 		return err
 	})
+	dc := controllers.NewDataRequestController(cfg, s)
+	admin.Get("/data-requests", supportAndAdmin, dc.AdminList)
+	admin.Get("/data-requests/:id", supportAndAdmin, dc.AdminDetail)
+	admin.Post("/users/:id/deletion-request", adminOnly, dc.AdminRequestDeletion)
+	admin.Post("/data-requests/:id/hold", adminOnly, dc.Hold)
+	admin.Post("/data-requests/:id/release", adminOnly, dc.Release)
+	admin.Post("/data-requests/:id/execute", adminOnly, dc.Execute)
 
 	// Support + Admin permissions
 	SetupPromoAdminRoutes(admin, controllers.NewPromoController(cfg, s), cfg)

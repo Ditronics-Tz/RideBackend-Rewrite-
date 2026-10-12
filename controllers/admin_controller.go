@@ -213,7 +213,6 @@ func (ac *AdminController) CreateStaff(c *fiber.Ctx) error {
 
 	// Never log the one-time password!
 	_ = ac.Store.CreateAuditLog(caller.ID, "create_staff", "staff_user", staff.ID, c.IP(), fiber.Map{
-		"email": staff.Email,
 		"role":  staff.Role,
 	})
 

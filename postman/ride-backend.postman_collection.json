@@ -15,7 +15,10 @@
     { "key": "staff_id", "value": "" },
     { "key": "promo_id", "value": "" },
     { "key": "promo_code", "value": "WELCOME20" },
-    { "key": "referral_code", "value": "" }
+    { "key": "referral_code", "value": "" },
+    { "key": "passenger_password", "value": "" },
+    { "key": "data_request_id", "value": "" },
+    { "key": "export_request_id", "value": "" }
   ],
   "item": [
     {
@@ -1008,6 +1011,293 @@
                 "method": "POST",
                 "url": "{{base_url}}/api/v1/admin/staff/{{staff_id}}/revoke-sessions",
                 "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{staff_access_token}}", "type": "string" }] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Data Protection",
+      "description": "Passenger token for own-account actions. Request bodies require current_password, except passwordless Google users may use a token issued within five minutes. Admins manage requests; support is read-only.",
+      "item": [
+        {
+          "name": "Passenger Account Requests",
+          "item": [
+            {
+              "name": "Request Account Deletion",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/account/deletion-request",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"current_password\": \"{{passenger_password}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Get Deletion Request Status",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/account/deletion-request",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Cancel Deletion Request",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/v1/account/deletion-request",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Request Data Export",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/account/export-request",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"current_password\": \"{{passenger_password}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "List Data Exports",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/account/export-requests",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Download Data Export",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/account/export-requests/{{export_request_id}}/download",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passenger_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Data Requests",
+          "item": [
+            {
+              "name": "List Deletion Requests",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/admin/data-requests?type=deletion&limit=50&offset=0",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Export Requests",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/admin/data-requests?type=export&limit=50&offset=0",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Data Request",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/admin/data-requests/{{data_request_id}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Deletion Request for User",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/admin/users/{{passenger_id}}/deletion-request",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"verification_note\": \"User identity and deletion request confirmed by support call.\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Place Legal Hold",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/admin/data-requests/{{data_request_id}}/hold",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Open legal dispute\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Release Legal Hold",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/admin/data-requests/{{data_request_id}}/release",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Execute Deletion Immediately",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/admin/data-requests/{{data_request_id}}/execute",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{staff_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"verification_note\": \"User explicitly confirmed immediate deletion.\"\n}"
+                }
               }
             }
           ]

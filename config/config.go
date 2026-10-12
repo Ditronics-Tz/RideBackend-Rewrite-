@@ -27,12 +27,17 @@ type Config struct {
 	GoogleClientSecret string
 	GoogleRedirectURL  string
 
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBSSLMode  string
+	DBHost                  string
+	DBPort                  string
+	DBUser                  string
+	DBPassword              string
+	DBName                  string
+	DBSSLMode               string
+	DeletionGraceDays       int
+	ExportTTLHours          int
+	ExportDir               string
+	FinancialRetentionYears int
+	RunBackgroundJobs       bool
 }
 
 // DSN builds a Postgres connection string for the pgx/gorm driver.
@@ -96,18 +101,30 @@ func NewConfigFromEnv() (*Config, error) {
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
 
-		DBHost:     getEnv("DB_HOST", "127.0.0.1"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: os.Getenv("DB_PASSWORD"),
-		DBName:     getEnv("DB_NAME", "ride_db"),
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+		DBHost:                  getEnv("DB_HOST", "127.0.0.1"),
+		DBPort:                  getEnv("DB_PORT", "5432"),
+		DBUser:                  getEnv("DB_USER", "postgres"),
+		DBPassword:              os.Getenv("DB_PASSWORD"),
+		DBName:                  getEnv("DB_NAME", "ride_db"),
+		DBSSLMode:               getEnv("DB_SSLMODE", "disable"),
+		DeletionGraceDays:       getEnvInt("DELETION_GRACE_DAYS", 14),
+		ExportTTLHours:          getEnvInt("EXPORT_TTL_HOURS", 168),
+		ExportDir:               getEnv("EXPORT_DIR", "./uploads/private/exports"),
+		FinancialRetentionYears: getEnvInt("FINANCIAL_RETENTION_YEARS", 0),
+		RunBackgroundJobs:       parseBool(os.Getenv("RUN_BACKGROUND_JOBS"), false),
 	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+func getEnvInt(key string, fallback int) int {
+	if value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(key))); err == nil && value > 0 {
+		return value
+	}
+	return fallback
 }
 
 func LoadConfig() *Config {

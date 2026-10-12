@@ -318,3 +318,92 @@ go test ./store -run TestPostgresConcurrentPromoReservations -count=1 -v
 ```
 
 This opt-in test reads existing local DB configuration without modifying `.env`.
+
+## Data protection
+
+Passengers and drivers can request account deletion and a downloadable copy of
+their data. Deletion uses a configurable grace period (14 days by default),
+then anonymises the account in a transaction. The user UUID and retained
+financial/operational references remain stable. Already-issued app tokens are
+checked against current account status on every request: a pending account can
+only read its own profile/request state, cancel deletion, or request/download an
+export; deleted accounts cannot authenticate.
+
+| Data | Deletion treatment | Retention reason |
+| --- | --- | --- |
+| User name, email, phone, password hash | Cleared; email replaced with `deleted+<id>@deleted.invalid`; password removed | Keep account UUID and role to preserve references; release the original email and phone |
+| Passenger/driver profiles and uploaded images/documents | Names, phones, licence/card/plate values and image/file references cleared; owned files removed from disk | Keep profile/document UUIDs and verification decisions for referential integrity |
+| Ratings | Keep scores and dates; clear comments written by the account and comments written about it | Preserve rating aggregates without retaining free text |
+| Promos and referrals | Remove audience membership and referral code; clear referral free text and raw phone-reward ledger entries; retain redemption/referral UUID references | Keep discount and referral accounting linked to stable UUIDs |
+| Deletion/export request records | Keep request IDs, statuses and timestamps; clear free text, errors and file paths | Compliance evidence and idempotent cleanup |
+| Staff notes | Removed for the deleted user; never included in exports | Internal notes are not part of a user data package |
+| Staff audit logs | Never deleted; new data-protection audit metadata contains IDs only | Security and accountability history |
+| Rides/payments | Not implemented because those tables do not exist. Future modules must register exporters and anonymizers that retain only anonymised user IDs and required financial fields, clear comments/precise addresses, and enforce the configured financial retention period. | Financial retention obligations depend on jurisdiction and transaction type |
+| Staff users/sessions | Exempt from app-user export/anonymisation | Separate staff authentication realm; staff security records are not passenger/driver data |
+| Referral settings | Exempt | Global configuration has no individual user data |
+
+`FINANCIAL_RETENTION_YEARS` is a placeholder and must be confirmed with a
+lawyer before production. No account-deletion tombstone is retained; therefore
+this implementation does not prevent a former banned user from signing up
+again after anonymisation. That trade-off avoids keeping a re-identification
+hash without an approved retention policy.
+
+The privacy registry exposes `DataExporter` modules (`Name`, `Export(userID)`
+returning structured data and owned file paths) and `Anonymizer` modules
+(`Name`, `Description`, `Anonymize(tx, userID)`). Modules self-register from
+their own store files, so future rides/payments modules can register without
+changing a central coordinator. The migration-coverage test checks every model
+passed to `db.AutoMigrateModels()` against a registry entry or a written
+exemption. Export archives contain `data.json` plus owned uploads under a
+random filename in `EXPORT_DIR`, which must be outside `uploads/public`.
+Download access is authenticated and owner-only. Exports expire after 168
+hours by default. The notifier currently logs an acceptance without recipient
+details; production SMS/push can be added through the notifier interface.
+
+### Operator runbook
+
+1. Apply normal database migrations by starting the API. Set
+   `DELETION_GRACE_DAYS`, `EXPORT_TTL_HOURS`, `EXPORT_DIR`, and
+   `RUN_BACKGROUND_JOBS` in the deployment environment (do not serve
+   `EXPORT_DIR` as static content).
+2. Run one idempotent sweep with `go run ./cmd/process-data-requests`. A cron
+   or systemd timer may run it every few minutes. Alternatively set
+   `RUN_BACKGROUND_JOBS=true` to enable the in-process five-minute ticker.
+3. Support can inspect requests at `GET /api/v1/admin/data-requests?type=...`.
+   Admins place legal holds with `POST /api/v1/admin/data-requests/:id/hold`
+   and a reason. To resume, verify the hold has ended, then call
+   `POST /api/v1/admin/data-requests/:id/release`; the worker rechecks blockers
+   before anonymising. A blocked request remains blocked until an admin
+   releases it after resolving its blocker.
+4. Admin immediate execution requires a verification note confirming that the
+   user asked to skip the grace period. Investigate failed requests from the
+   stored generic error and server logs; do not add personal data to audit
+   metadata or operational logs.
+
+Deletion blockers are currently an extension registry. There are no ride,
+unpaid-balance, or payout tables in this repository, so those checks are
+explicit future hooks rather than guessed queries. New modules must register
+both export and anonymisation behavior, document retained fields, and extend
+blocker checks when those domains are added.
+
+### Data-protection endpoints
+
+App endpoints require a passenger/driver token. Request endpoints require the
+current password, or for passwordless Google accounts a token issued within
+the prior five minutes. A user may cancel only during the grace period. Export
+requests are limited to one active request and one new request per 24 hours.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| POST / DELETE / GET | `/account/deletion-request` | Request deletion, cancel it, or view current status |
+| POST | `/account/export-request` | Request a private data archive |
+| GET | `/account/export-requests` | List own export requests |
+| GET | `/account/export-requests/:id/download` | Download own ready, unexpired archive |
+| GET | `/admin/data-requests?type=deletion\|export&status=&limit=&offset=` | Support/admin queue |
+| GET | `/admin/data-requests/:id` | Request detail |
+| POST | `/admin/users/:id/deletion-request` | Admin request on behalf of user, with required verification note |
+| POST | `/admin/data-requests/:id/hold`, `/release`, `/execute` | Admin legal hold, release, or verified immediate execution |
+
+Every user/admin request transition writes a staff audit event containing only
+account/request IDs and fixed action names. Staff audit history is intentionally
+retained through account anonymisation.

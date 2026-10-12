@@ -22,6 +22,9 @@ func main() {
 	gdb := db.Connect(cfg)
 	appStore := store.New(gdb)
 	go jobs.RunDocumentExpiry(context.Background(), appStore)
+	if cfg.RunBackgroundJobs {
+		go jobs.RunDataRequests(context.Background(), appStore, cfg)
+	}
 
 	app := routes.BuildApp(cfg, appStore)
 

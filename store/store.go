@@ -15,13 +15,14 @@ import (
 // Controllers only depend on these methods, so the DB engine
 // can be swapped without touching them.
 type Store struct {
-	db       *gorm.DB
-	SMS      SMSSender
-	Notifier notifier.Notifier
+	db             *gorm.DB
+	SMS            SMSSender
+	Notifier       notifier.Notifier
+	ExportNotifier notifier.ExportReadyNotifier
 }
 
 func New(db *gorm.DB) *Store {
-	return &Store{db: db, Notifier: notifier.Logging{}}
+	return &Store{db: db, Notifier: notifier.Logging{}, ExportNotifier: notifier.Logging{}}
 }
 
 func newID() string { return uuid.NewString() }
@@ -46,6 +47,7 @@ func (s *Store) CreateUser(name, email, passwordHash string, role models.Role) (
 		PasswordHash: passwordHash,
 		Role:         role,
 		IsActive:     true,
+		Status:       "active",
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}

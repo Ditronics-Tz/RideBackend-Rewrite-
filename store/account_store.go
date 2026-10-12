@@ -32,10 +32,23 @@ func (s *Store) ActiveAccount(id string) (*models.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !u.IsActive || (u.Status != "active" && u.Status != "") {
+	if u.DeletedAt != nil || u.Status == "deleted" || !u.IsActive || (u.Status != "active" && u.Status != "") {
 		return nil, conflict("account is suspended or banned")
 	}
 	return &u, nil
+}
+
+// AccountForRequest performs an uncached account-state read so deletion and
+// suspension transitions take effect immediately for already-issued JWTs.
+func (s *Store) AccountForRequest(id string) (*models.User, error) {
+	var u models.User
+	if err := s.db.First(&u, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	if u.Status == "pending_deletion" || u.Status == "deleted" || u.DeletedAt != nil {
+		return &u, nil
+	}
+	return s.ActiveAccount(id)
 }
 
 func (s *Store) ChangeAccountStatus(id string, actor *models.StaffUser, status, reason string, until *time.Time) error {

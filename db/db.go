@@ -41,7 +41,19 @@ func Connect(cfg *config.Config) *gorm.DB {
 
 // AutoMigrate runs schema migrations for both app and staff realms.
 func AutoMigrate(gdb *gorm.DB) error {
-	if err := gdb.AutoMigrate(
+	if err := gdb.AutoMigrate(AutoMigrateModels()...); err != nil {
+		return err
+	}
+	if err := MigrateVerification(gdb); err != nil {
+		return err
+	}
+	return MigrateAccounts(gdb)
+}
+
+// AutoMigrateModels is the authoritative table inventory used by migrations and
+// the privacy registry coverage test.
+func AutoMigrateModels() []interface{} {
+	return []interface{}{
 		&models.User{},
 		&models.DriverProfile{},
 		&models.PassengerProfile{},
@@ -57,11 +69,6 @@ func AutoMigrate(gdb *gorm.DB) error {
 		&models.PromoCode{}, &models.PromoAudience{}, &models.PromoRedemption{},
 		&models.ReferralSettings{}, &models.UserReferralCode{}, &models.Referral{},
 		&models.RideCompletionReceipt{}, &models.ReferralRewardPhone{},
-	); err != nil {
-		return err
+		&models.AccountDeletionRequest{}, &models.DataExportRequest{},
 	}
-	if err := MigrateVerification(gdb); err != nil {
-		return err
-	}
-	return MigrateAccounts(gdb)
 }

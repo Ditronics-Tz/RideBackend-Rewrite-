@@ -12,6 +12,43 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// AccountRequestLimiter limits credential-sensitive deletion/export POSTs per
+// authenticated account. Persistent daily export limits are also enforced by Store.
+func AccountRequestLimiter() fiber.Handler {
+	var mu sync.Mutex
+	buckets := map[string][]time.Time{}
+	lastSweep := time.Now()
+	return func(c *fiber.Ctx) error {
+		id, _ := CurrentUser(c)
+		key := id + ":" + c.Path()
+		now := time.Now()
+		cutoff := now.Add(-time.Minute)
+		mu.Lock()
+		if now.Sub(lastSweep) >= time.Minute {
+			for k, times := range buckets {
+				if len(times) == 0 || !times[len(times)-1].After(cutoff) {
+					delete(buckets, k)
+				}
+			}
+			lastSweep = now
+		}
+		recent := buckets[key]
+		start := 0
+		for start < len(recent) && !recent[start].After(cutoff) {
+			start++
+		}
+		recent = recent[start:]
+		if len(recent) >= 5 {
+			mu.Unlock()
+			c.Set("Retry-After", "60")
+			return c.Status(429).JSON(fiber.Map{"error": "Too many account requests; try again in a minute"})
+		}
+		buckets[key] = append(recent, now)
+		mu.Unlock()
+		return c.Next()
+	}
+}
+
 // In-memory cache for staff users (reloaded every 30s as required).
 type staffCacheEntry struct {
 	staff     *models.StaffUser
@@ -34,6 +71,9 @@ func InvalidateStaffCache(staffID string) {
 // Rejects staff tokens or invalid/expired tokens with 401.
 type AppAccountGetter interface {
 	ActiveAccount(string) (*models.User, error)
+}
+type appRequestAccountGetter interface {
+	AccountForRequest(string) (*models.User, error)
 }
 
 func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handler {
@@ -67,16 +107,47 @@ func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handle
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized role"})
 		}
 
+		var account *models.User
 		if len(accounts) > 0 {
-			u, err := accounts[0].ActiveAccount(uid)
+			var u *models.User
+			if current, ok := accounts[0].(appRequestAccountGetter); ok {
+				u, err = current.AccountForRequest(uid)
+			} else {
+				u, err = accounts[0].ActiveAccount(uid)
+			}
 			if err != nil || u.Role != role {
 				return c.Status(403).JSON(fiber.Map{"error": "Account unavailable or token role changed"})
 			}
+			account = u
+		}
+		if account != nil && (account.DeletedAt != nil || account.Status == "deleted") {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Account is deleted"})
+		}
+		if account != nil && account.Status == "pending_deletion" && !pendingDeletionPathAllowed(c.Method(), c.Path(), uid) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Account deletion is pending", "code": "ACCOUNT_PENDING_DELETION"})
 		}
 		c.Locals("user_id", uid)
 		c.Locals("user_role", role)
+		if issued, ok := claims["iat"].(float64); ok {
+			c.Locals("token_issued_at", time.Unix(int64(issued), 0))
+		}
 
 		return c.Next()
+	}
+}
+
+func pendingDeletionPathAllowed(method, path, userID string) bool {
+	switch {
+	case method == "GET" && (path == "/api/v1/auth/me" || path == "/api/v1/driver/profile/me" || path == "/api/v1/passenger/profile/me" || path == "/api/v1/account/deletion-request" || path == "/api/v1/account/export-requests"):
+		return true
+	case method == "DELETE" && path == "/api/v1/account/deletion-request":
+		return true
+	case method == "POST" && path == "/api/v1/account/export-request":
+		return true
+	case method == "GET" && strings.HasPrefix(path, "/api/v1/account/export-requests/") && strings.HasSuffix(path, "/download"):
+		return true
+	default:
+		return false
 	}
 }
 

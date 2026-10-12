@@ -99,7 +99,7 @@ func (ac *AdminController) SuspendDriverVerification(c *fiber.Ctx) error {
 	if err := ac.Store.ChangeAccountStatus(c.Params("id"), actor, status, input.Note, nil); err != nil {
 		return verificationError(c, err)
 	}
-	_ = ac.Store.CreateAuditLog(actor.ID, "driver_suspension", "driver_profile", c.Params("id"), c.IP(), fiber.Map{"suspended": *input.Suspended, "note": input.Note})
+	_ = ac.Store.CreateAuditLog(actor.ID, "driver_suspension", "driver_profile", c.Params("id"), c.IP(), fiber.Map{"suspended": *input.Suspended})
 	return ac.GetDriverVerification(c)
 }
 
