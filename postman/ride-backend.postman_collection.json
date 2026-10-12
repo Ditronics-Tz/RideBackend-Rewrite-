@@ -12,9 +12,428 @@
     { "key": "staff_refresh_token", "value": "" },
     { "key": "driver_id", "value": "" },
     { "key": "passenger_id", "value": "" },
-    { "key": "staff_id", "value": "" }
+    { "key": "staff_id", "value": "" },
+    { "key": "promo_id", "value": "" },
+    { "key": "promo_code", "value": "WELCOME20" },
+    { "key": "referral_code", "value": "" }
   ],
   "item": [
+    {
+      "name": "Promos and Referrals",
+      "description": "Staff realm: admin writes; support GET only. App realm: passenger only. Share uses a no-op notifier. Dates in examples may need updating. For referral apply, use a DIFFERENT new verified passenger token from the referrer. No ride endpoints exist; integration hooks are documented in README.",
+      "item": [
+        {
+          "name": "Create promo (all passengers)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WELCOME20\",\n  \"title\": \"Welcome aboard\",\n  \"description\": \"First ride discount\",\n  \"discount_type\": \"percent\",\n  \"discount_value\": 20,\n  \"max_discount\": 3000,\n  \"min_fare\": 2000,\n  \"audience\": \"all\",\n  \"first_ride_only\": true,\n  \"starts_at\": \"2026-10-01T00:00:00Z\",\n  \"expires_at\": \"2026-12-31T23:59:59Z\",\n  \"max_redemptions\": 1000,\n  \"max_per_user\": 1,\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { const p = pm.response.json(); pm.collectionVariables.set('promo_id', p.id); pm.collectionVariables.set('promo_code', p.code); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create promo (selected passengers)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SELECTED10\",\n  \"title\": \"Passenger offer\",\n  \"discount_type\": \"fixed\",\n  \"discount_value\": 1000,\n  \"min_fare\": 2000,\n  \"audience\": \"selected\",\n  \"audience_user_ids\": [\n    \"{{passenger_id}}\"\n  ],\n  \"starts_at\": \"2026-10-01T00:00:00Z\",\n  \"expires_at\": \"2026-12-31T23:59:59Z\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { const p = pm.response.json(); pm.collectionVariables.set('promo_id', p.id); pm.collectionVariables.set('promo_code', p.code); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List promos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos?status=active&audience=all&q=&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Promo detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}"
+          }
+        },
+        {
+          "name": "Update promo",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated passenger offer\",\n  \"description\": \"Offer details\",\n  \"expires_at\": \"2027-01-31T23:59:59Z\",\n  \"max_redemptions\": 2000,\n  \"max_per_user\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "pause promo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}/pause"
+          }
+        },
+        {
+          "name": "resume promo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}/resume"
+          }
+        },
+        {
+          "name": "archive promo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}/archive"
+          }
+        },
+        {
+          "name": "List selected audience",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}/audience?q=&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Add selected audience",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}/audience",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [\n    \"{{passenger_id}}\"\n  ],\n  \"phones\": [],\n  \"emails\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove selected recipient",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}/audience/{{passenger_id}}"
+          }
+        },
+        {
+          "name": "Share active promo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}/share"
+          }
+        },
+        {
+          "name": "Promo redemptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}/redemptions?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Passenger promo history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/users/{{passenger_id}}/promos"
+          }
+        },
+        {
+          "name": "Search passengers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/users?role=passenger&q=&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Get referral settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/referral-settings"
+          }
+        },
+        {
+          "name": "Update referral settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/referral-settings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"referee_reward_type\": \"fixed\",\n  \"referee_reward_value\": 1000,\n  \"referrer_reward_type\": \"fixed\",\n  \"referrer_reward_value\": 2000,\n  \"qualifying_min_fare\": 3000,\n  \"max_rewards_per_referrer\": 10,\n  \"reward_valid_days\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List referrals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/referrals?status=pending&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "Eligible passenger promos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/promos/available?fare=5000"
+          }
+        },
+        {
+          "name": "Validate passenger promo (10 per minute)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/promos/validate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{promo_code}}\",\n  \"fare\": 5000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "My invitation code and stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/referral/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) pm.collectionVariables.set('referral_code', pm.response.json().code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply someone else's invitation code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/referral/apply",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{referral_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "System",
       "item": [

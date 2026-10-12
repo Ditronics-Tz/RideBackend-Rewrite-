@@ -29,25 +29,26 @@ func NewAdminController(cfg *config.Config, s *store.Store) *AdminController {
 // ListUsers — support/admin. Optional ?role=driver|passenger
 func (ac *AdminController) ListUsers(c *fiber.Ctx) error {
 	role := strings.ToLower(c.Query("role"))
-	users := ac.Store.ListUsers(role)
-	if search := strings.ToLower(strings.TrimSpace(c.Query("q"))); search != "" {
-		filtered := make([]*models.User, 0)
-		for _, u := range users {
-			plate := ""
-			if p, ok := ac.Store.GetDriverProfile(u.ID); ok {
-				plate = strings.ToLower(p.PlateNumber)
-			}
-			if strings.Contains(strings.ToLower(u.Email), search) || strings.Contains(strings.ToLower(u.Name), search) || strings.Contains(u.Phone, search) || strings.Contains(plate, strings.ToLower(store.CanonicalIdentifier(search))) {
-				filtered = append(filtered, u)
-			}
+	if role != "" && role != "driver" && role != "passenger" {
+		return invalidPromoBody(c, "role", "role must be driver or passenger")
+	}
+	limit, offset := -1, 0
+	if c.Query("limit") != "" || c.Query("offset") != "" {
+		var err error
+		limit, offset, err = promoPage(c)
+		if err != nil {
+			return promoError(c, err)
 		}
-		users = filtered
+	}
+	users, total, err := ac.Store.SearchUsers(role, c.Query("q"), limit, offset)
+	if err != nil {
+		return promoError(c, err)
 	}
 	out := make([]models.UserResponse, 0, len(users))
 	for _, u := range users {
 		out = append(out, models.ToUserResponse(u))
 	}
-	return c.JSON(fiber.Map{"count": len(out), "users": out})
+	return c.JSON(fiber.Map{"count": len(out), "total": total, "limit": limit, "offset": offset, "users": out})
 }
 
 // GetUser — support/admin. Includes profiles + rating summary.

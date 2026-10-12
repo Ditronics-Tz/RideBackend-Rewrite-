@@ -54,6 +54,9 @@ func AutoMigrate(gdb *gorm.DB) error {
 		&models.DriverDuplicateFlag{},
 		&models.DriverNotification{},
 		&models.UserStatusEvent{}, &models.SupportNote{}, &models.PhoneChallenge{},
+		&models.PromoCode{}, &models.PromoAudience{}, &models.PromoRedemption{},
+		&models.ReferralSettings{}, &models.UserReferralCode{}, &models.Referral{},
+		&models.RideCompletionReceipt{}, &models.ReferralRewardPhone{},
 	); err != nil {
 		return err
 	}

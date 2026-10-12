@@ -73,6 +73,7 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	SetupStaffAuthRoutes(v1, staffAuthController, cfg, appStore)
 	SetupAdminRoutes(v1, adminController, cfg, appStore)
 	SetupFileRoutes(v1, fileController)
+	SetupPromoAppRoutes(v1, controllers.NewPromoController(cfg, appStore), cfg, appStore)
 
 	return app
 }

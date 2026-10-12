@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"ride-backend/models"
+	"ride-backend/notifier"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -14,12 +15,13 @@ import (
 // Controllers only depend on these methods, so the DB engine
 // can be swapped without touching them.
 type Store struct {
-	db  *gorm.DB
-	SMS SMSSender
+	db       *gorm.DB
+	SMS      SMSSender
+	Notifier notifier.Notifier
 }
 
 func New(db *gorm.DB) *Store {
-	return &Store{db: db}
+	return &Store{db: db, Notifier: notifier.Logging{}}
 }
 
 func newID() string { return uuid.NewString() }
