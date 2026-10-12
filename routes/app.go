@@ -40,11 +40,12 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	v1.Use(recover.New())
 	v1.Use(helmet.New())
 	v1.Use(logger.New())
-	if cfg.CORSAllowedOrigins != "" {
-		v1.Use(cors.New(cors.Config{
-			AllowOrigins: cfg.CORSAllowedOrigins,
-		}))
-	}
+	// Allow cross-origin clients and answer preflight before authentication.
+	v1.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+	}))
 
 	// Health endpoint (no auth)
 	v1.Get("/health", func(c *fiber.Ctx) error {
