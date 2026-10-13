@@ -1,4 +1,4 @@
-"""Verify the CI scanner using isolated repositories and synthetic fixtures."""
+"""Verify Gitleaks locally using isolated repositories and synthetic fixtures."""
 import json
 import pathlib
 import shutil
@@ -12,7 +12,7 @@ if scanner is None:
     if candidate.is_file():
         scanner = str(candidate)
 if scanner is None:
-    raise SystemExit("Install the pinned Gitleaks version from the CI workflow first")
+    raise SystemExit("Install Gitleaks and ensure it is available on PATH first")
 
 fixture_root = repo.parent / ".tmp" / "secret-scan-fixtures"
 fixture_root.mkdir(parents=True, exist_ok=True)

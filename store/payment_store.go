@@ -5,13 +5,8 @@ import (
 	"gorm.io/gorm/clause"
 	"ride-backend/models"
 	"ride-backend/payments"
-	"ride-backend/utils"
 	"time"
 )
-
-func mobileMethod(method string) bool {
-	return method == "mpesa" || method == "tigopesa" || method == "airtelmoney"
-}
 
 type PayInput struct {
 	Method    string `json:"method"`
@@ -21,11 +16,11 @@ type PayInput struct {
 }
 
 func (s *Store) InitiatePayment(user, ride, key string, in PayInput) (*models.PaymentTransaction, error) {
-	if !mobileMethod(in.Method) && in.Method != "wallet" && in.Method != "cash" {
-		return nil, FieldError("method", "invalid payment method")
+	if in.Method != "cash" {
+		return nil, FieldError("method", "cash is the only supported payment method")
 	}
-	if ride == "" && !mobileMethod(in.Method) {
-		return nil, FieldError("method", "top-ups require mobile money")
+	if ride == "" {
+		return nil, FieldError("ride", "wallet top-ups are unavailable until a local payment provider is integrated")
 	}
 	k, err := idempotency(user, key)
 	if err != nil {
@@ -54,87 +49,55 @@ func (s *Store) InitiatePayment(user, ride, key string, in PayInput) (*models.Pa
 			return err
 		}
 		p = models.PaymentTransaction{ID: newID(), PayerID: user, Method: in.Method, Status: "initiated", Provider: "internal", IdempotencyKey: k, RequestHash: hash, WorkStatus: "pending", CreatedAt: tx.now(), ExpiresAt: tx.now().Add(3 * time.Minute)}
-		if ride != "" {
-			r, err := tx.RideForUser(ride, user)
+		r, err := tx.RideForUser(ride, user)
+		if err != nil {
+			return err
+		}
+		if r.PassengerID != user || r.Status != "completed" {
+			return OpError(409, "payment requires a completed passenger ride")
+		}
+		if !MoneyValid(r.Fare) {
+			return FieldError("fare", "server fare is invalid")
+		}
+		p.RideID = &r.ID
+		p.DriverID = &r.DriverID
+		p.Fare = r.Fare
+		p.Commission, err = tx.rideCommission(r)
+		if err != nil {
+			return err
+		}
+		var active int64
+		if err := tx.db.Model(&models.PaymentTransaction{}).Where("ride_id = ? AND status IN ?", ride, []string{"initiated", "pending", "succeeded", "partially_refunded", "refunded"}).Count(&active).Error; err != nil {
+			return err
+		}
+		if active > 0 {
+			return OpError(409, "this ride already has an active or completed payment")
+		}
+		if in.PromoCode != "" {
+			redemption, err := tx.ReservePromo(user, in.PromoCode, p.Fare, ride)
 			if err != nil {
 				return err
 			}
-			if r.PassengerID != user || r.Status != "completed" {
-				return OpError(409, "payment requires a completed passenger ride")
-			}
-			if !MoneyValid(r.Fare) {
-				return FieldError("fare", "server fare is invalid")
-			}
-			p.RideID = &r.ID
-			p.DriverID = &r.DriverID
-			p.Fare = r.Fare
-			p.Commission, err = tx.rideCommission(r)
-			if err != nil {
-				return err
-			}
-			var active int64
-			if err := tx.db.Model(&models.PaymentTransaction{}).Where("ride_id = ? AND status IN ?", ride, []string{"initiated", "pending", "succeeded", "partially_refunded", "refunded"}).Count(&active).Error; err != nil {
-				return err
-			}
-			if active > 0 {
-				return OpError(409, "this ride already has an active or completed payment")
-			}
-			if in.PromoCode != "" {
-				redemption, err := tx.ReservePromo(user, in.PromoCode, p.Fare, ride)
-				if err != nil {
-					return err
-				}
-				p.DiscountAmount = redemption.DiscountAmount
-			} else {
-				var redemption models.PromoRedemption
-				err := tx.db.First(&redemption, "ride_id = ? AND user_id = ? AND status IN ?", ride, user, []string{"reserved", "applied"}).Error
-				if err == nil {
-					p.DiscountAmount = redemption.DiscountAmount
-				} else if !notFound(err) {
-					return err
-				}
-			}
-			p.Amount = p.Fare - p.DiscountAmount
+			p.DiscountAmount = redemption.DiscountAmount
 		} else {
-			if !MoneyValid(in.Amount) {
-				return FieldError("amount", "top-up amount must be positive whole TZS")
-			}
-			p.Fare = in.Amount
-			p.Amount = in.Amount
-		}
-		if mobileMethod(in.Method) && p.Amount > 0 {
-			if !e164.MatchString(in.Phone) {
-				return FieldError("phone", "phone must use E.164")
-			}
-			if tx.Policy == nil || len(tx.Policy.PaymentEncryptionKey) != 32 {
-				return OpError(503, "payment phone encryption is not configured")
-			}
-			encrypted, err := utils.EncryptAESGCM(in.Phone, tx.Policy.PaymentEncryptionKey)
-			if err != nil {
+			var redemption models.PromoRedemption
+			err := tx.db.First(&redemption, "ride_id = ? AND user_id = ? AND status IN ?", ride, user, []string{"reserved", "applied"}).Error
+			if err == nil {
+				p.DiscountAmount = redemption.DiscountAmount
+			} else if !notFound(err) {
 				return err
 			}
-			p.PhoneEncrypted = encrypted
-			p.MaskedPhone = maskPhone(in.Phone)
-			p.Provider = tx.Policy.PaymentProviderName
-			if p.Provider == "" {
-				p.Provider = "mock"
-			}
 		}
+		p.Amount = p.Fare - p.DiscountAmount
 		if err := tx.db.Create(&p).Error; err != nil {
 			return err
 		}
-		if in.Method == "cash" || in.Method == "wallet" || p.Amount == 0 {
+		if p.Amount == 0 || in.Method == "cash" {
 			return tx.settlePayment(&p)
 		}
 		return nil
 	})
 	return &p, err
-}
-func maskPhone(phone string) string {
-	if len(phone) < 7 {
-		return "***"
-	}
-	return phone[:5] + "** *** " + phone[len(phone)-3:]
 }
 func (s *Store) settlePayment(p *models.PaymentTransaction) error {
 	if p.Status == "succeeded" || p.Status == "refunded" || p.Status == "partially_refunded" {

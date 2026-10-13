@@ -468,7 +468,9 @@ retention notes, and the mobile app changes.
 `FINANCIAL_RETENTION_YEARS` is a deployment placeholder. Configure unique
 secrets for `PAYMENT_ENCRYPTION_KEY` (32 bytes), webhook secrets and
 `DEVICE_HASH_PEPPER`; never commit them. `PAYMENT_PROVIDER=mock` is for local
-offline development and must not be used to accept real payments.
+offline development and must not be used to accept real payments. Ride payments
+currently accept cash only; wallet top-ups and provider-backed methods are disabled
+until local providers are integrated.
 
 ### Ride integration contract for phases 6–9
 
