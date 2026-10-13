@@ -14,6 +14,7 @@ import (
 )
 
 type Config struct {
+	AppEnv           string
 	DeviceHashPepper string
 
 	PaymentProviderName          string
@@ -69,6 +70,9 @@ func (c *Config) DSN() string {
 }
 
 func (c *Config) Validate() error {
+	if c.AppEnv != "" && c.AppEnv != "development" && c.AppEnv != "production" {
+		return errors.New("APP_ENV must be development or production")
+	}
 	if strings.TrimSpace(c.JWTSecret) == "" {
 		return errors.New("JWT_SECRET is required")
 	}
@@ -80,6 +84,21 @@ func (c *Config) Validate() error {
 	}
 	if c.StaffJWTSecret == c.JWTSecret {
 		return errors.New("STAFF_JWT_SECRET must differ from JWT_SECRET")
+	}
+	if c.AppEnv == "production" {
+		for _, secret := range []struct{ name, value string }{
+			{"JWT_SECRET", c.JWTSecret}, {"STAFF_JWT_SECRET", c.StaffJWTSecret},
+		} {
+			if len([]byte(secret.value)) < 32 {
+				return fmt.Errorf("%s must be at least 32 bytes in production", secret.name)
+			}
+			lower := strings.ToLower(secret.value)
+			for _, marker := range []string{"example", "changeme", "change_me", "change-me", "replace", "placeholder", "test_", "test-", "your-secret", "your_secret"} {
+				if strings.Contains(lower, marker) {
+					return fmt.Errorf("%s must not use an example value in production", secret.name)
+				}
+			}
+		}
 	}
 	if strings.TrimSpace(c.DBPassword) == "" {
 		return errors.New("DB_PASSWORD is required")
@@ -108,6 +127,7 @@ func NewConfigFromEnv() (*Config, error) {
 	}
 
 	cfg := &Config{
+		AppEnv:                       getEnv("APP_ENV", "development"),
 		DeviceHashPepper:             getEnv("DEVICE_HASH_PEPPER", ""),
 		PaymentProviderName:          getEnv("PAYMENT_PROVIDER", "mock"),
 		PaymentGatewayURL:            getEnv("PAYMENT_GATEWAY_URL", ""),

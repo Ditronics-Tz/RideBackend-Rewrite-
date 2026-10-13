@@ -496,3 +496,13 @@ refund rounding, device-platform capture, and shared-device false positives.
 Postman token variables were repaired and are covered by go test ./postman.
 Device capture accepts X-Device-Platform with X-Platform as a legacy fallback.
 See docs/OPERATIONS_PHASES_6_9.md for permissions and mobile integration notes.
+
+### Ship hardening: deployment environment
+
+APP_ENV defaults to development. Set APP_ENV=production for deployment;
+production validates independent app/staff JWT secrets of at least 32 bytes
+and rejects example-like values. Secrets come from the deployment environment,
+not from examples committed to this repository. See docs/ship/needs-owner.md
+for owner credential-rotation actions. The push/PR CI runs a fully redacted
+Gitleaks history scan; it intentionally has no exemption for tracked .env files.
+The scanner fixture can be checked with python scripts/check-secret-scan.py.

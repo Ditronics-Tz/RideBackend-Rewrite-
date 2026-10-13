@@ -1,0 +1,11 @@
+title = "Rida secret leak prevention"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "rida-env-credential"
+description = "Populated application credential assignment"
+regex = '''(?m)^(JWT_SECRET|STAFF_JWT_SECRET|STAFF_TOTP_KEY|DB_PASSWORD|GOOGLE_CLIENT_SECRET|R2_ACCESS_KEY_ID|R2_SECRET_ACCESS_KEY|PAYMENT_GATEWAY_KEY|PAYMENT_WEBHOOK_SECRET)\s*=\s*["']?([^\s"'\r\n]+)'''
+secretGroup = 2
+keywords = ["JWT_SECRET", "STAFF_JWT_SECRET", "STAFF_TOTP_KEY", "DB_PASSWORD", "GOOGLE_CLIENT_SECRET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "PAYMENT_GATEWAY_KEY", "PAYMENT_WEBHOOK_SECRET"]
