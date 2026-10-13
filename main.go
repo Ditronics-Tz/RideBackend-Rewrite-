@@ -9,14 +9,10 @@ import (
 	"ride-backend/jobs"
 	"ride-backend/routes"
 	"ride-backend/store"
-	"ride-backend/utils"
 )
 
 func main() {
 	cfg := config.LoadConfig()
-
-	// Ensure upload directories and migrate existing files
-	utils.MigrateExistingUploads()
 
 	// Postgres connection + auto-migrations
 	gdb := db.Connect(cfg)

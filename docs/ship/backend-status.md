@@ -3,7 +3,7 @@
 | Task | Status | Branch | Live endpoints / result |
 | --- | --- | --- | --- |
 | B1 | done | ship/be-secrets | Production config validation and redacted CI secret scan; owner credential work remains |
-| B2 | not started | - | Upload migration |
+| B2 | done | ship/be-upload-quarantine | Startup migration removed; metadata inventory, private quarantine and restart journal; tests pass |
 | B3 | not started | - | Storage/presign |
 | B4 | not started | - | Runtime, request IDs, pagination and readiness |
 | B5 | not started | - | Auth/sessions |

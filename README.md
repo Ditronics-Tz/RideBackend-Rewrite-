@@ -506,3 +506,18 @@ not from examples committed to this repository. See docs/ship/needs-owner.md
 for owner credential-rotation actions. The push/PR CI runs a fully redacted
 Gitleaks history scan; it intentionally has no exemption for tracked .env files.
 The scanner fixture can be checked with python scripts/check-secret-scan.py.
+
+### One-shot legacy upload migration
+
+Startup no longer classifies or moves legacy uploads. Stop the API first, inject
+configuration through the environment, and inventory with:
+
+    go run ./cmd/migrate-uploads --dry-run
+
+The command outputs counts only and does not migrate the database schema or
+load .env. Run without --dry-run to move unknown files to private quarantine,
+known documents to private storage, and only database-confirmed profile photos
+to public storage. It also inspects files already under uploads/public. File
+names do not determine visibility. Keep the private upload-migration journal
+until the command succeeds; rerun it to recover interrupted metadata updates.
+No file is overwritten. Quarantine review and deletion are operator decisions.

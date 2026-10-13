@@ -14,30 +14,6 @@ var allowedImageExt = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".webp": true,
 }
 
-// MigrateExistingUploads moves any existing licence images from ./uploads to ./uploads/licences
-// and moves other files to ./uploads/public.
-func MigrateExistingUploads() {
-	_ = os.MkdirAll("./uploads/public", 0o755)
-	_ = os.MkdirAll("./uploads/licences", 0o755)
-
-	entries, err := os.ReadDir("./uploads")
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		oldPath := filepath.Join("./uploads", name)
-		if strings.HasPrefix(name, "licence_") {
-			_ = os.Rename(oldPath, filepath.Join("./uploads/licences", name))
-		} else {
-			_ = os.Rename(oldPath, filepath.Join("./uploads/public", name))
-		}
-	}
-}
-
 // SavePublicImage saves an image to ./uploads/public and returns "/api/v1/uploads/" + filename.
 // Returns ("", nil) if field is absent.
 func SavePublicImage(c *fiber.Ctx, field, prefix string) (string, error) {
