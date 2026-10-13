@@ -168,9 +168,14 @@ func TestCurrentContractRetainsActualKeysAndLabelsPlaceholders(t *testing.T) {
 		t.Fatal("ticket update persistence was promised")
 	}
 	for _, path := range []string{"/api/v1/driver/profile/{userId}", "/api/v1/passenger/profile/{userId}"} {
-		if get(path, "get")["x-known-security-gap"] == nil {
-			t.Fatal("profile privacy gap is missing")
+		operation := get(path, "get")
+		if operation["x-privacy-contract"] != "public DTO for other users; full profile for owner" {
+			t.Fatal("public profile DTO contract is missing")
 		}
+	}
+	publicDriver := get("/api/v1/driver/profile/{userId}", "get")["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+	if publicDriver["$ref"] != "#/components/schemas/PublicDriverProfile" {
+		t.Fatal("cross-user driver lookup does not use its public DTO")
 	}
 	for _, path := range []string{"/health", "/ready", "/api/v1/health", "/api/v1/ready"} {
 		if paths[path] == nil {
@@ -182,6 +187,12 @@ func TestCurrentContractRetainsActualKeysAndLabelsPlaceholders(t *testing.T) {
 		fields := schemas[name].(map[string]any)["properties"].(map[string]any)
 		if fields["object_key"] != nil || fields["staging_object_key"] != nil || fields["profile_picture_key"] != nil || fields["file_path"] != nil {
 			t.Fatal("private object metadata appears in API schema")
+		}
+	}
+	publicFields := schemas["PublicDriverProfile"].(map[string]any)["properties"].(map[string]any)
+	for _, sensitive := range []string{"phone", "licence_number", "vehicle_card_number", "plate_number", "licence_image_url"} {
+		if publicFields[sensitive] != nil {
+			t.Fatalf("public driver schema exposes %s", sensitive)
 		}
 	}
 }

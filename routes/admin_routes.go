@@ -32,6 +32,7 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 		return err
 	})
 	dc := controllers.NewDataRequestController(cfg, s)
+	pc := controllers.NewProfileController(cfg, s)
 	admin.Get("/data-requests", supportAndAdmin, dc.AdminList)
 	admin.Get("/data-requests/:id", supportAndAdmin, dc.AdminDetail)
 	admin.Post("/users/:id/deletion-request", adminOnly, dc.AdminRequestDeletion)
@@ -45,6 +46,7 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 	SetupOperationsAdminRoutes(admin, controllers.NewOperationsController(cfg, s), cfg)
 	admin.Get("/users", supportAndAdmin, ac.ListUsers)
 	admin.Get("/users/:id", supportAndAdmin, ac.GetUser)
+	admin.Get("/users/:id/profile", supportAndAdmin, pc.GetFullProfileForStaff)
 	admin.Get("/users/:id/sessions", supportAndAdmin, ac.UserSessions)
 	admin.Post("/users/:id/revoke-sessions", supportAndAdmin, ac.RevokeUserSessions)
 	admin.Get("/users/:id/security-events", supportAndAdmin, ac.UserSecurityEvents)

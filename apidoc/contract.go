@@ -156,7 +156,7 @@ func describeCurrent(route Route, operation, schemas object) {
 		if strings.HasPrefix(path, "/driver") {
 			name = "DriverProfile"
 		}
-		set("200", "Multipart profile_picture, maximum 5 MiB. R2 accepts JPEG, PNG or WebP by magic bytes and returns a profile whose profile_picture_url is a derived API redirect. Local mode returns the legacy public upload URL.", ref(name))
+		set("200", "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.", ref(name))
 		operation["requestBody"] = multipart(properties(object{"profile_picture": object{"type": "string", "format": "binary"}}, "profile_picture"))
 		if name == "DriverProfile" {
 			responses["410"] = jsonResponse("licence_image uploads moved to the document endpoint.", ref("Error"))
@@ -170,10 +170,18 @@ func describeCurrent(route Route, operation, schemas object) {
 		}
 		description := "Current profile response."
 		if strings.Contains(path, ":userId") {
-			description = "Any authenticated app user currently receives the full profile. Sensitive field exposure is a documented B6 gap; no public DTO is implemented yet."
-			operation["x-known-security-gap"] = "full profile exposed to other app users"
+			name = "PublicPassengerProfile"
+			if strings.HasPrefix(path, "/driver") {
+				name = "PublicDriverProfile"
+			}
+			description = "Other app users receive only the public profile DTO. The owner receives their full profile. Contact, licence, plate and document-reference fields are excluded from public responses."
+			operation["x-privacy-contract"] = "public DTO for other users; full profile for owner"
 		}
 		set("200", description, ref(name))
+		return
+	}
+	if path == "/admin/users/:id/profile" {
+		set("200", "Support and admin staff can inspect the complete user and driver or passenger profile. The staff request is audit logged.", ref("StaffFullProfile"))
 		return
 	}
 	if path == "/admin/drivers/:id/verify" {

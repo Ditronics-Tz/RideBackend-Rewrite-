@@ -122,3 +122,21 @@ admin/support account security screens. Apply migrations before server startup.
 Frontend auth/settings and admin-session screens are implemented on
 `ship/fe-auth-integration`; production provider and PostgreSQL concurrency checks
 remain deployment work.
+
+## 2026-10-13 - B6
+
+- `GET /api/v1/driver/profile/:userId` returns only `user_id`, `name`,
+  `vehicle_type`, `profile_picture_url`, and rating fields to other app users.
+  The driver owner keeps the full profile. Passenger lookups return name, image,
+  and rating fields; phone remains owner-only. Support/admin receive the complete
+  profile through the audit-logged `GET /api/v1/admin/users/:id/profile` route.
+- `vehicle_type` is now an optional driver profile field, maximum 50 characters,
+  and is added by migration version 6. Apply migrations before server startup.
+- Profile image uploads accept JPEG, PNG or WebP detected from file bytes,
+  fully decode and re-encode to PNG, strip source metadata, limit decoded images
+  to 4096x4096 and 16 megapixels, and cap source/output files at 5 MiB. Each
+  account may upload at most three valid profile images per hour; rate-limited
+  requests return 429 and Retry-After. R2 and local storage use the same checks.
+
+Affected: profile viewers and driver onboarding apps; staff profile inspection
+uses the admin user detail area. Public schemas and route guards are regenerated.

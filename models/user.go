@@ -68,6 +68,7 @@ type DriverProfile struct {
 	LicenceNumber      string             `json:"licence_number"`
 	VehicleCardNumber  string             `json:"vehicle_card_number"` // kadi ya gari
 	PlateNumber        string             `json:"plate_number"`
+	VehicleType        string             `json:"vehicle_type" gorm:"size:50"`
 	LicenceImageURL    string             `json:"licence_image_url"`
 	ProfilePictureURL  string             `json:"profile_picture_url"`
 	VerificationStatus VerificationStatus `json:"verification_status" gorm:"not null;default:pending_documents;index"`
@@ -91,6 +92,25 @@ type PassengerProfile struct {
 	TotalRatings      int       `json:"total_ratings" gorm:"default:0"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+// PublicDriverProfile deliberately excludes contact and compliance identifiers.
+type PublicDriverProfile struct {
+	UserID            string  `json:"user_id"`
+	Name              string  `json:"name"`
+	VehicleType       string  `json:"vehicle_type"`
+	ProfilePictureURL string  `json:"profile_picture_url"`
+	AverageRating     float64 `json:"average_rating"`
+	TotalRatings      int     `json:"total_ratings"`
+}
+
+// PublicPassengerProfile excludes phone and other account-only fields.
+type PublicPassengerProfile struct {
+	UserID            string  `json:"user_id"`
+	Name              string  `json:"name"`
+	ProfilePictureURL string  `json:"profile_picture_url"`
+	AverageRating     float64 `json:"average_rating"`
+	TotalRatings      int     `json:"total_ratings"`
 }
 
 // Rating is a rating from one user to another (either direction).
@@ -125,6 +145,7 @@ type DriverProfileInput struct {
 	LicenceNumber     string `json:"licence_number"`
 	VehicleCardNumber string `json:"vehicle_card_number"`
 	PlateNumber       string `json:"plate_number"`
+	VehicleType       string `json:"vehicle_type"`
 }
 
 type PassengerProfileInput struct {

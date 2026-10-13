@@ -1,0 +1,8 @@
+{
+  "driver_profiles": [
+    {
+      "name": "vehicle_type",
+      "type": "varchar(50)"
+    }
+  ]
+}

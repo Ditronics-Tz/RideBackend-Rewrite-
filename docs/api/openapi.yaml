@@ -553,6 +553,9 @@
           "vehicle_card_number": {
             "type": "string"
           },
+          "vehicle_type": {
+            "type": "string"
+          },
           "verification_status": {
             "type": "string"
           }
@@ -571,6 +574,7 @@
           "updated_at",
           "user_id",
           "vehicle_card_number",
+          "vehicle_type",
           "verification_status"
         ],
         "type": "object"
@@ -1257,6 +1261,68 @@
         ],
         "type": "object"
       },
+      "PublicDriverProfile": {
+        "properties": {
+          "average_rating": {
+            "format": "double",
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "profile_picture_url": {
+            "type": "string"
+          },
+          "total_ratings": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "vehicle_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "average_rating",
+          "name",
+          "profile_picture_url",
+          "total_ratings",
+          "user_id",
+          "vehicle_type"
+        ],
+        "type": "object"
+      },
+      "PublicPassengerProfile": {
+        "properties": {
+          "average_rating": {
+            "format": "double",
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "profile_picture_url": {
+            "type": "string"
+          },
+          "total_ratings": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "average_rating",
+          "name",
+          "profile_picture_url",
+          "total_ratings",
+          "user_id"
+        ],
+        "type": "object"
+      },
       "Rating": {
         "properties": {
           "comment": {
@@ -1638,6 +1704,23 @@
           "meta",
           "target_id",
           "target_type"
+        ],
+        "type": "object"
+      },
+      "StaffFullProfile": {
+        "properties": {
+          "driver_profile": {
+            "$ref": "#/components/schemas/DriverProfile"
+          },
+          "passenger_profile": {
+            "$ref": "#/components/schemas/PassengerProfile"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "required": [
+          "user"
         ],
         "type": "object"
       },
@@ -7870,6 +7953,69 @@
         "x-go-handler": "ride-backend/controllers.(*AdminController).DeleteUserNote"
       }
     },
+    "/api/v1/admin/users/{id}/profile": {
+      "get": {
+        "description": "Support and admin staff can inspect the complete user and driver or passenger profile. The staff request is audit logged.",
+        "operationId": "get_api_v1_admin_users_id_profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffFullProfile"
+                }
+              }
+            },
+            "description": "Support and admin staff can inspect the complete user and driver or passenger profile. The staff request is audit logged.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/users/{id}/profile",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/users/:id/profile",
+        "x-go-handler": "ride-backend/controllers.(*ProfileController).GetFullProfileForStaff"
+      }
+    },
     "/api/v1/admin/users/{id}/promos": {
       "get": {
         "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
@@ -10438,7 +10584,7 @@
     },
     "/api/v1/driver/profile/me/images": {
       "post": {
-        "description": "Multipart profile_picture, maximum 5 MiB. R2 accepts JPEG, PNG or WebP by magic bytes and returns a profile whose profile_picture_url is a derived API redirect. Local mode returns the legacy public upload URL.",
+        "description": "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.",
         "operationId": "post_api_v1_driver_profile_me_images",
         "parameters": [
           {
@@ -10481,7 +10627,7 @@
                 }
               }
             },
-            "description": "Multipart profile_picture, maximum 5 MiB. R2 accepts JPEG, PNG or WebP by magic bytes and returns a profile whose profile_picture_url is a derived API redirect. Local mode returns the legacy public upload URL.",
+            "description": "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -10524,7 +10670,7 @@
     },
     "/api/v1/driver/profile/{userId}": {
       "get": {
-        "description": "Any authenticated app user currently receives the full profile. Sensitive field exposure is a documented B6 gap; no public DTO is implemented yet.",
+        "description": "Other app users receive only the public profile DTO. The owner receives their full profile. Contact, licence, plate and document-reference fields are excluded from public responses.",
         "operationId": "get_api_v1_driver_profile_userid",
         "parameters": [
           {
@@ -10553,11 +10699,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DriverProfile"
+                  "$ref": "#/components/schemas/PublicDriverProfile"
                 }
               }
             },
-            "description": "Any authenticated app user currently receives the full profile. Sensitive field exposure is a documented B6 gap; no public DTO is implemented yet.",
+            "description": "Other app users receive only the public profile DTO. The owner receives their full profile. Contact, licence, plate and document-reference fields are excluded from public responses.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -10579,7 +10725,7 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/driver/profile/:userId",
         "x-go-handler": "ride-backend/controllers.(*ProfileController).GetDriverProfileByID",
-        "x-known-security-gap": "full profile exposed to other app users"
+        "x-privacy-contract": "public DTO for other users; full profile for owner"
       }
     },
     "/api/v1/driver/verification/me": {
@@ -11449,7 +11595,7 @@
     },
     "/api/v1/passenger/profile/me/image": {
       "post": {
-        "description": "Multipart profile_picture, maximum 5 MiB. R2 accepts JPEG, PNG or WebP by magic bytes and returns a profile whose profile_picture_url is a derived API redirect. Local mode returns the legacy public upload URL.",
+        "description": "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.",
         "operationId": "post_api_v1_passenger_profile_me_image",
         "parameters": [
           {
@@ -11492,7 +11638,7 @@
                 }
               }
             },
-            "description": "Multipart profile_picture, maximum 5 MiB. R2 accepts JPEG, PNG or WebP by magic bytes and returns a profile whose profile_picture_url is a derived API redirect. Local mode returns the legacy public upload URL.",
+            "description": "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -11518,7 +11664,7 @@
     },
     "/api/v1/passenger/profile/{userId}": {
       "get": {
-        "description": "Any authenticated app user currently receives the full profile. Sensitive field exposure is a documented B6 gap; no public DTO is implemented yet.",
+        "description": "Other app users receive only the public profile DTO. The owner receives their full profile. Contact, licence, plate and document-reference fields are excluded from public responses.",
         "operationId": "get_api_v1_passenger_profile_userid",
         "parameters": [
           {
@@ -11547,11 +11693,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PassengerProfile"
+                  "$ref": "#/components/schemas/PublicPassengerProfile"
                 }
               }
             },
-            "description": "Any authenticated app user currently receives the full profile. Sensitive field exposure is a documented B6 gap; no public DTO is implemented yet.",
+            "description": "Other app users receive only the public profile DTO. The owner receives their full profile. Contact, licence, plate and document-reference fields are excluded from public responses.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -11573,7 +11719,7 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/passenger/profile/:userId",
         "x-go-handler": "ride-backend/controllers.(*ProfileController).GetPassengerProfileByID",
-        "x-known-security-gap": "full profile exposed to other app users"
+        "x-privacy-contract": "public DTO for other users; full profile for owner"
       }
     },
     "/api/v1/payments": {

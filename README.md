@@ -548,3 +548,11 @@ refresh replaces both tokens. Reuse revokes the session family. Logout and
 logout-all revoke server sessions immediately. Apply database migrations before
 starting the API. Google sign-in requires GOOGLE_REDIRECT_ALLOWED_URLS to contain
 the exact configured redirect URI; production redirects must use HTTPS.
+Public profiles and pictures
+
+Cross-user driver and passenger profile lookups return safe public fields only.
+Phone, licence, vehicle-card, plate, and document references remain owner or
+staff data. Staff use the audited admin user profile route. Profile image uploads
+accept JPEG, PNG, or WebP bytes, are decoded and rewritten as metadata-free PNG,
+and allow three valid images per account per hour. Run go run ./cmd/migrate up
+before startup to apply schema version 6.

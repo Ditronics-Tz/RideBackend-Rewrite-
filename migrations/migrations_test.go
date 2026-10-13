@@ -54,7 +54,7 @@ func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) 
 		t.Fatal(err)
 	}
 	defer sqlDB.Close()
-	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql"} {
+	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql"} {
 		for _, statement := range schemaStatements(t, name) {
 			// SQLite metadata fixtures lack PostgreSQL's ADD COLUMN IF NOT EXISTS.
 			statement = strings.Replace(statement, " ADD COLUMN IF NOT EXISTS ", " ADD COLUMN ", 1)

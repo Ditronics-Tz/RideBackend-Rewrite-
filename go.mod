@@ -16,6 +16,7 @@ require (
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/valyala/fasthttp v1.74.0
 	golang.org/x/crypto v0.58.0
+	golang.org/x/image v0.47.0
 	golang.org/x/oauth2 v0.37.0
 	gorm.io/driver/postgres v1.6.3
 	gorm.io/gorm v1.31.2

@@ -54,7 +54,7 @@ func (e profileExporter) Export(id string) (any, []string, error) {
 		notifyOut = append(notifyOut, map[string]any{"message": n.Message, "created_at": n.CreatedAt})
 	}
 	passenger := map[string]any{"full_name": pp.FullName, "profile_picture_url": pp.ProfilePictureURL, "phone": pp.Phone, "average_rating": pp.AverageRating, "total_ratings": pp.TotalRatings, "created_at": pp.CreatedAt}
-	driver := map[string]any{"licence_number": dp.LicenceNumber, "vehicle_card_number": dp.VehicleCardNumber, "plate_number": dp.PlateNumber, "licence_image_url": dp.LicenceImageURL, "profile_picture_url": dp.ProfilePictureURL, "verification_status": dp.VerificationStatus, "is_online": dp.IsOnline, "average_rating": dp.AverageRating, "total_ratings": dp.TotalRatings, "created_at": dp.CreatedAt}
+	driver := map[string]any{"licence_number": dp.LicenceNumber, "vehicle_card_number": dp.VehicleCardNumber, "plate_number": dp.PlateNumber, "vehicle_type": dp.VehicleType, "licence_image_url": dp.LicenceImageURL, "profile_picture_url": dp.ProfilePictureURL, "verification_status": dp.VerificationStatus, "is_online": dp.IsOnline, "average_rating": dp.AverageRating, "total_ratings": dp.TotalRatings, "created_at": dp.CreatedAt}
 	return map[string]any{"passenger_profile": passenger, "driver_profile": driver, "documents": docOut, "reviews": reviewOut, "notifications": notifyOut}, files, nil
 }
 func publicPath(url string) string {
@@ -85,7 +85,7 @@ func (profileAnonymizer) Anonymize(tx *gorm.DB, id string) error {
 	if err := tx.Model(&models.PassengerProfile{}).Where("user_id = ?", id).Updates(map[string]any{"full_name": "", "phone": "", "profile_picture_url": ""}).Error; err != nil {
 		return err
 	}
-	if err := tx.Model(&models.DriverProfile{}).Where("user_id = ?", id).Updates(map[string]any{"licence_number": "", "vehicle_card_number": "", "plate_number": "", "licence_image_url": "", "profile_picture_url": "", "is_online": false}).Error; err != nil {
+	if err := tx.Model(&models.DriverProfile{}).Where("user_id = ?", id).Updates(map[string]any{"licence_number": "", "vehicle_card_number": "", "plate_number": "", "vehicle_type": "", "licence_image_url": "", "profile_picture_url": "", "is_online": false}).Error; err != nil {
 		return err
 	}
 	if err := tx.Model(&models.DriverDocument{}).Where("driver_id = ?", id).Updates(map[string]any{"file_path": "", "file_url": "", "rejection_note": ""}).Error; err != nil {

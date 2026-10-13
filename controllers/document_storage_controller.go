@@ -1,16 +1,12 @@
 package controllers
 
 import (
-	"bytes"
 	"errors"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"ride-backend/models"
 	"ride-backend/storage"
 	"ride-backend/store"
 )
@@ -23,55 +19,6 @@ func objectStorageError(c *fiber.Ctx, err error) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Stored file not found"})
 	}
 	return verificationError(c, err)
-}
-
-func (pc *ProfileController) objectProfileImage(c *fiber.Ctx, user string, driver bool) error {
-	file, err := c.FormFile("profile_picture")
-	if err != nil {
-		return operationError(c, store.FieldError("profile_picture", "provide a profile picture"))
-	}
-	if file.Size < 1 || file.Size > 5*1024*1024 {
-		return operationError(c, store.FieldError("profile_picture", "profile picture must contain 1-5242880 bytes"))
-	}
-	stream, err := file.Open()
-	if err != nil {
-		return operationError(c, store.FieldError("profile_picture", "unable to read picture"))
-	}
-	data, readErr := io.ReadAll(io.LimitReader(stream, 5*1024*1024+1))
-	closeErr := stream.Close()
-	if readErr != nil || closeErr != nil || int64(len(data)) != file.Size {
-		return operationError(c, store.FieldError("profile_picture", "unable to read picture"))
-	}
-	mime := http.DetectContentType(data)
-	ext, ok := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[mime]
-	if !ok {
-		return operationError(c, store.FieldError("profile_picture", "JPEG, PNG or WebP image required"))
-	}
-	if pc.Store.Storage == nil {
-		return operationError(c, store.OpError(503, "object storage is not configured"))
-	}
-	key := "profile/" + user + "/" + uuid.NewString() + ext
-	if _, err := pc.Store.Storage.Put(c.UserContext(), storage.Public, key, storage.Upload{Body: bytes.NewReader(data), Size: int64(len(data)), ContentType: mime}); err != nil {
-		return objectStorageError(c, err)
-	}
-	model := any(&models.PassengerProfile{})
-	if driver {
-		pc.Store.EnsureDriverProfile(user)
-		model = &models.DriverProfile{}
-	} else {
-		pc.Store.EnsurePassengerProfile(user, "")
-	}
-	result := pc.Store.DB().Model(model).Where("user_id = ?", user).Updates(map[string]any{"profile_picture_key": key, "profile_picture_url": ""})
-	if result.Error != nil {
-		return verificationError(c, result.Error)
-	}
-	if result.RowsAffected != 1 {
-		return operationError(c, store.OpError(409, "profile picture changed"))
-	}
-	if driver {
-		return pc.GetMyDriverProfile(c)
-	}
-	return pc.GetMyPassengerProfile(c)
 }
 
 func (fc *FileController) PublicProfileImage(c *fiber.Ctx) error {

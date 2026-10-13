@@ -46,9 +46,11 @@ func guardFor(route Route) (access, guard, status string) {
 	guard, status = "Resource scope needs an endpoint-specific review.", "review"
 	switch {
 	case path == "/driver/profile/:userId":
-		guard, status = "Authentication only; full driver profile exposes licence/plate/document reference fields to another app user.", "B6 privacy gap"
+		guard, status = "Other app users receive name, vehicle type, picture and rating only; matching driver owner receives the full profile. Staff full profile access uses the audited admin route.", "public DTO; owner scoped"
 	case path == "/passenger/profile/:userId":
-		guard, status = "Authentication only; full passenger profile exposes phone to another app user.", "B6 privacy gap"
+		guard, status = "Other app users receive name, picture and rating only; matching passenger owner receives the full profile. Phone is excluded from the public DTO.", "public DTO; owner scoped"
+	case path == "/admin/users/:id/profile":
+		guard, status = "StaffProtected plus support/admin role; request audit log is written by the admin route group.", "staff scoped and audited"
 	case path == "/driver/documents/:id/confirm":
 		guard, status = "Driver identity and document driver_id match; UUID validated; pending state, expiry, size and content validation before submission.", "owner scoped"
 	case path == "/files/documents/:id":

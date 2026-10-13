@@ -381,6 +381,10 @@ func (s *Store) UpdateDriverIdentifiers(id string, input models.DriverProfileInp
 
 func (s *Store) updateDriverIdentifiers(id string, input models.DriverProfileInput, retry bool) (*models.DriverProfile, error) {
 	values := map[string]string{"licence_number": CanonicalIdentifier(input.LicenceNumber), "plate_number": CanonicalIdentifier(input.PlateNumber)}
+	vehicleType := strings.TrimSpace(input.VehicleType)
+	if len([]rune(vehicleType)) > 50 {
+		return nil, FieldError("vehicle_type", "vehicle type must be at most 50 characters")
+	}
 	duplicates := []models.DriverDuplicateFlag{}
 	for field, value := range values {
 		if value == "" {
@@ -409,20 +413,23 @@ func (s *Store) updateDriverIdentifiers(id string, input models.DriverProfileInp
 		if p.AssignedTo != nil {
 			return conflict("profile cannot change during a claimed review")
 		}
-		changed := false
+		changedIdentifiers := false
 		if v := values["licence_number"]; v != "" && v != p.LicenceNumber {
 			p.LicenceNumber = v
-			changed = true
+			changedIdentifiers = true
 		}
 		if v := values["plate_number"]; v != "" && v != p.PlateNumber {
 			p.PlateNumber = v
-			changed = true
+			changedIdentifiers = true
 		}
 		if v := strings.TrimSpace(input.VehicleCardNumber); v != "" && v != p.VehicleCardNumber {
 			p.VehicleCardNumber = v
-			changed = true
+			changedIdentifiers = true
 		}
-		if changed {
+		if vehicleType != "" && vehicleType != p.VehicleType {
+			p.VehicleType = vehicleType
+		}
+		if changedIdentifiers {
 			if p.VerificationStatus != models.Suspended {
 				p.VerificationStatus = models.PendingDocuments
 			}

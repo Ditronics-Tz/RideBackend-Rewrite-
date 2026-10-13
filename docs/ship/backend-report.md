@@ -224,3 +224,22 @@ pass; opt-in PostgreSQL migration, locking, and refresh-concurrency tests were
 skipped because no isolated PostgreSQL service is configured locally. Frontend
 B5 auth/settings/admin-session integration and its checks are on
 `ship/fe-auth-integration`.
+## B6 - Public profile privacy and image uploads
+
+Implemented explicit public driver/passenger profile DTOs. Public lookups exclude
+phone, licence, vehicle-card, plate, verification assignment and document URLs;
+owners retain full profile access. Support/admin full-profile lookup is mounted
+behind staff session/role checks and existing admin route auditing. Driver
+vehicle_type is now an explicit profile field, introduced by migration version 6.
+
+Profile image upload now validates JPEG/PNG/WebP magic, decodes the full image,
+limits dimensions/pixels, and re-encodes as PNG to strip source metadata. Both
+local and R2 storage share the same validation. SQL-backed account quotas allow
+three valid uploads per hour with Retry-After responses. Public profile schemas
+and parameterized route guard inventory are regenerated.
+
+Validation: profile privacy and upload-quota route tests, image normalization
+unit tests, migration manifest checks, OpenAPI freshness/contract tests,
+`go test ./... -count=1`, `go vet ./...`, and `go build ./...` pass.
+`govulncheck ./...` found no vulnerabilities in reachable code. PostgreSQL
+opt-in migration/concurrency checks require the owner test service.
