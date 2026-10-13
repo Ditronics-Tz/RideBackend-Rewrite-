@@ -28,3 +28,27 @@ Targeted migration/privacy/restart/dry-run tests, `go vet ./...` and
 The symlink test skips on Windows when creating a
 symlink requires privileges unavailable to the process. Operator must stop the
 API before the migration so static-file caches cannot serve old exposed files.
+
+## B3 - Storage and document uploads
+
+Implemented local and R2 adapters with confined keys, bucket separation, bounded
+presign expiry, redacted provider errors and fake S3 tests. Existing local upload
+and protected document reads remain available in development. R2 document PUTs
+target temporary keys; confirmation verifies HEAD and actual bytes, copies to a
+fresh immutable evidence key, and atomically submits the record. Reusing the PUT
+cannot replace submitted evidence. Owner/staff authorization and staff read
+audits are retained. Profile photos persist keys and resolve through the public
+custom domain. No signed URLs are persisted.
+
+Added a retryable one-shot migration for existing document/profile metadata. Its
+dry run requires only injected database configuration, writes nothing, returns
+counts and never deletes source files. Migration avoids unknown files and
+external URLs. Existing incidents, exports and backups remain outside this run.
+Accounts containing new object references cannot finish deletion until an
+operator integrates storage cleanup/export; the explicit blocker preserves the
+references instead of silently leaving untracked private objects.
+
+Validation: storage fake-S3 tests, document lifecycle/ownership/audit tests,
+migration retry/dry-run tests, `go vet ./...` and `go test ./... -count=1` passed.
+Real Cloudflare, bucket CORS/lifecycle and PostgreSQL deployment checks require
+owner configuration. Windows symlink coverage skips when privilege is absent.

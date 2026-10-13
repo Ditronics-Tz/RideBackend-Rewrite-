@@ -4,7 +4,7 @@
 | --- | --- | --- | --- |
 | B1 | done | ship/be-secrets | Production config validation and redacted CI secret scan; owner credential work remains |
 | B2 | done | ship/be-upload-quarantine | Startup migration removed; metadata inventory, private quarantine and restart journal; tests pass |
-| B3 | not started | - | Storage/presign |
+| B3 | done | ship/be-storage | Local/R2 adapters; private document presign/confirm; immutable evidence; count-only migration; provider setup pending |
 | B4 | not started | - | Runtime, request IDs, pagination and readiness |
 | B5 | not started | - | Auth/sessions |
 | B6 | not started | - | Public profile DTOs and upload safeguards |

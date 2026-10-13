@@ -521,3 +521,7 @@ to public storage. It also inspects files already under uploads/public. File
 names do not determine visibility. Keep the private upload-migration journal
 until the command succeeds; rerun it to recover interrupted metadata updates.
 No file is overwritten. Quarantine review and deletion are operator decisions.
+
+## Object storage
+
+STORAGE_DRIVER=local retains development multipart handlers. R2 requires separate public/private buckets and an HTTPS public domain. Driver documents use presign, direct PUT, confirm; GET private documents requires owner/staff authentication and short-lived links. Temporary PUT keys never become evidence keys. See docs/ship/api-changes.md and needs-owner.md for contracts and lifecycle requirements. Run go run ./cmd/migrate-files-to-r2 --dry-run with injected database configuration before maintenance migration. The command never deletes source files. New object references block deletion completion until operator cleanup/export integration is supplied.
