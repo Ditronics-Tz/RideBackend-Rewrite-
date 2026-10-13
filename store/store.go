@@ -9,6 +9,7 @@ import (
 	"ride-backend/notifications"
 	"ride-backend/notifier"
 	"ride-backend/payments"
+	"ride-backend/storage"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -18,6 +19,7 @@ import (
 // Controllers only depend on these methods, so the DB engine
 // can be swapped without touching them.
 type Store struct {
+	Storage         storage.Storage
 	Policy          *config.Config
 	PaymentProvider payments.Provider
 

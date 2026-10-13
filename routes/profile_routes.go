@@ -19,6 +19,8 @@ func SetupProfileRoutes(router fiber.Router, pc *controllers.ProfileController, 
 	driver.Get("/verification/me", pc.GetMyVerification)
 	driver.Post("/verification/me/submit", pc.SubmitMyVerification)
 	driver.Post("/documents", pc.UploadDriverDocument)
+	driver.Post("/documents/presign", pc.PresignDriverDocument)
+	driver.Post("/documents/:id/confirm", pc.ConfirmDriverDocument)
 	driver.Patch("/availability", pc.SetMyAvailability)
 	driver.Get("/notifications", pc.MyVerificationNotifications)
 	// Public driver lookup (any logged-in app user)

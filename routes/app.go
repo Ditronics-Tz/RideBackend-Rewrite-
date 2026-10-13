@@ -17,6 +17,13 @@ import (
 // BuildApp initializes the Fiber app with all middlewares and mounts all routes under /api/v1.
 func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	appStore.ConfigureOperations(cfg)
+	// Tests may inject an offline storage adapter. Startup configures real
+	// storage before BuildApp; local development retains legacy upload routes.
+	if appStore.Storage == nil && cfg.StorageDriver != "r2" {
+		if err := appStore.ConfigureStorage(cfg); err != nil {
+			panic("Unable to configure local object storage")
+		}
+	}
 	app := fiber.New(fiber.Config{
 		AppName:   "Ride Backend Service",
 		BodyLimit: 10 * 1024 * 1024,

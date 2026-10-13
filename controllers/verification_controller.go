@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"ride-backend/middleware"
 	"ride-backend/models"
+	"ride-backend/storage"
 	"ride-backend/store"
 	"ride-backend/utils"
 	"strings"
@@ -130,6 +131,9 @@ func (pc *ProfileController) UploadDriverDocument(c *fiber.Ctx) error {
 	id, err := pc.driverIdentity(c)
 	if err != nil {
 		return err
+	}
+	if pc.Cfg.StorageDriver == "r2" {
+		return fiber.NewError(410, "Use /driver/documents/presign then /driver/documents/:id/confirm for object-backed uploads")
 	}
 	kind := c.FormValue("type")
 	if !models.ValidDocumentType(kind) {
@@ -253,6 +257,25 @@ func (fc *FileController) GetDocument(c *fiber.Ctx) error {
 	}
 	if !isStaff && doc.DriverID != ownerID {
 		return fiber.NewError(403, "Document belongs to another driver")
+	}
+	if doc.Status == "pending_upload" {
+		return fiber.NewError(409, "Document upload is not confirmed")
+	}
+	if doc.ObjectKey != "" {
+		if isStaff {
+			claims, err := utils.ParseStaffToken(parts[1], fc.Cfg.StaffJWTSecret)
+			if err != nil {
+				return fiber.NewError(401, "Active staff token required")
+			}
+			actor, _ := claims["sub"].(string)
+			if err := fc.Store.CreateAuditLog(actor, "view_driver_document", "driver_document", doc.ID, c.IP(), nil); err != nil {
+				return fiber.NewError(500, "Unable to record document access")
+			}
+		}
+		return fc.objectDocument(c, doc.ObjectKey, doc.ContentType, doc.ExpectedSize)
+	}
+	if c.QueryBool("presign") {
+		return objectStorageError(c, storage.ErrPresignUnsupported)
 	}
 	absolute, err := filepath.Abs(doc.FilePath)
 	if err != nil {

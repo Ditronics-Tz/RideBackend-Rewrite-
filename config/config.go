@@ -14,8 +14,15 @@ import (
 )
 
 type Config struct {
-	AppEnv           string
-	DeviceHashPepper string
+	StorageDriver     string
+	R2AccountID       string
+	R2AccessKeyID     string
+	R2SecretAccessKey string
+	R2PublicBucket    string
+	R2PrivateBucket   string
+	R2PublicBaseURL   string
+	AppEnv            string
+	DeviceHashPepper  string
 
 	PaymentProviderName          string
 	PaymentGatewayURL            string
@@ -70,6 +77,21 @@ func (c *Config) DSN() string {
 }
 
 func (c *Config) Validate() error {
+	if c.StorageDriver != "" && c.StorageDriver != "local" && c.StorageDriver != "r2" {
+		return errors.New("STORAGE_DRIVER must be local or r2")
+	}
+	if c.StorageDriver == "r2" {
+		for _, setting := range []struct{ name, value string }{
+			{"R2_ACCOUNT_ID", c.R2AccountID}, {"R2_ACCESS_KEY_ID", c.R2AccessKeyID}, {"R2_SECRET_ACCESS_KEY", c.R2SecretAccessKey}, {"R2_PUBLIC_BUCKET", c.R2PublicBucket}, {"R2_PRIVATE_BUCKET", c.R2PrivateBucket}, {"R2_PUBLIC_BASE_URL", c.R2PublicBaseURL},
+		} {
+			if strings.TrimSpace(setting.value) == "" {
+				return fmt.Errorf("%s is required for R2 storage", setting.name)
+			}
+		}
+		if c.R2PublicBucket == c.R2PrivateBucket {
+			return errors.New("R2 public and private buckets must differ")
+		}
+	}
 	if c.AppEnv != "" && c.AppEnv != "development" && c.AppEnv != "production" {
 		return errors.New("APP_ENV must be development or production")
 	}
@@ -127,6 +149,13 @@ func NewConfigFromEnv() (*Config, error) {
 	}
 
 	cfg := &Config{
+		StorageDriver:                getEnv("STORAGE_DRIVER", "local"),
+		R2AccountID:                  getEnv("R2_ACCOUNT_ID", ""),
+		R2AccessKeyID:                getEnv("R2_ACCESS_KEY_ID", ""),
+		R2SecretAccessKey:            getEnv("R2_SECRET_ACCESS_KEY", ""),
+		R2PublicBucket:               getEnv("R2_PUBLIC_BUCKET", ""),
+		R2PrivateBucket:              getEnv("R2_PRIVATE_BUCKET", ""),
+		R2PublicBaseURL:              getEnv("R2_PUBLIC_BASE_URL", ""),
 		AppEnv:                       getEnv("APP_ENV", "development"),
 		DeviceHashPepper:             getEnv("DEVICE_HASH_PEPPER", ""),
 		PaymentProviderName:          getEnv("PAYMENT_PROVIDER", "mock"),

@@ -17,6 +17,9 @@ func main() {
 	// Postgres connection + auto-migrations
 	gdb := db.Connect(cfg)
 	appStore := store.New(gdb)
+	if err := appStore.ConfigureStorage(cfg); err != nil {
+		log.Fatal("Unable to configure object storage")
+	}
 	go jobs.RunDocumentExpiry(context.Background(), appStore)
 	if cfg.RunBackgroundJobs {
 		go jobs.RunOperations(context.Background(), appStore, cfg)

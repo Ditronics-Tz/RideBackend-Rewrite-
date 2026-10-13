@@ -61,6 +61,9 @@ func (pc *ProfileController) UploadMyDriverImages(c *fiber.Ctx) error {
 	if _, err := c.FormFile("licence_image"); err == nil {
 		return c.Status(410).JSON(fiber.Map{"error": "Upload each document through /driver/documents with type, file and expires_at. Profile pictures still use this endpoint."})
 	}
+	if pc.Cfg.StorageDriver == "r2" {
+		return pc.objectProfileImage(c, uid, true)
+	}
 	profURL, err := utils.SavePublicImage(c, "profile_picture", "driver_"+uid)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
@@ -132,6 +135,9 @@ func (pc *ProfileController) UploadMyPassengerImage(c *fiber.Ctx) error {
 	uid, role := middleware.CurrentUser(c)
 	if role != models.RolePassenger {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "passenger role required"})
+	}
+	if pc.Cfg.StorageDriver == "r2" {
+		return pc.objectProfileImage(c, uid, false)
 	}
 	url, err := utils.SavePublicImage(c, "profile_picture", "passenger_"+uid)
 	if err != nil {

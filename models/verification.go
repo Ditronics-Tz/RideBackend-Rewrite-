@@ -41,19 +41,24 @@ func RequiresExpiry(kind string) bool { return kind == "driving_licence" || kind
 
 // Replacement uploads create new rows. Old files and decisions remain addressable.
 type DriverDocument struct {
-	ID            string     `json:"id" gorm:"primaryKey;type:uuid"`
-	DriverID      string     `json:"driver_id" gorm:"type:uuid;not null;index:idx_document_driver_type,priority:1"`
-	Type          string     `json:"type" gorm:"not null;index:idx_document_driver_type,priority:2"`
-	FilePath      string     `json:"-" gorm:"not null"`
-	FileURL       string     `json:"file_url"`
-	Status        string     `json:"status" gorm:"not null;default:submitted"`
-	IsCurrent     bool       `json:"is_current" gorm:"not null"`
-	RejectionCode string     `json:"rejection_code"`
-	RejectionNote string     `json:"rejection_note"`
-	ExpiresAt     *time.Time `json:"expires_at" gorm:"index"`
-	ReviewedBy    *string    `json:"reviewed_by" gorm:"type:uuid"`
-	ReviewedAt    *time.Time `json:"reviewed_at"`
-	CreatedAt     time.Time  `json:"created_at"`
+	ObjectKey        string     `json:"-"`
+	StagingObjectKey string     `json:"-"`
+	ContentType      string     `json:"content_type,omitempty"`
+	ExpectedSize     int64      `json:"expected_size,omitempty"`
+	UploadExpiresAt  *time.Time `json:"upload_expires_at,omitempty"`
+	ID               string     `json:"id" gorm:"primaryKey;type:uuid"`
+	DriverID         string     `json:"driver_id" gorm:"type:uuid;not null;index:idx_document_driver_type,priority:1"`
+	Type             string     `json:"type" gorm:"not null;index:idx_document_driver_type,priority:2"`
+	FilePath         string     `json:"-" gorm:"not null"`
+	FileURL          string     `json:"file_url"`
+	Status           string     `json:"status" gorm:"not null;default:submitted"`
+	IsCurrent        bool       `json:"is_current" gorm:"not null"`
+	RejectionCode    string     `json:"rejection_code"`
+	RejectionNote    string     `json:"rejection_note"`
+	ExpiresAt        *time.Time `json:"expires_at" gorm:"index"`
+	ReviewedBy       *string    `json:"reviewed_by" gorm:"type:uuid"`
+	ReviewedAt       *time.Time `json:"reviewed_at"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 type VerificationReview struct {
