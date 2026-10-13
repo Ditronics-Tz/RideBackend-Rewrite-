@@ -14,7 +14,7 @@ type fraudPrivacy struct{ s *Store }
 
 func (fraudPrivacy) Name() string { return "devices_and_location" }
 func (fraudPrivacy) Tables() []string {
-	return []string{"user_devices", "ride_location_points", "fraud_flags", "fraud_rules", "fraud_actions", "fraud_notes", "fraud_mitigations", "fraud_events"}
+	return []string{"user_devices", "driver_locations", "ride_location_points", "fraud_flags", "fraud_rules", "fraud_actions", "fraud_notes", "fraud_mitigations", "fraud_events"}
 }
 func (fraudPrivacy) Description() string {
 	return "removes raw IP/device hashes and location points; clears internal fraud notes; retains anonymous rule decisions, action history and financial-hold IDs; rules are global settings"
@@ -35,6 +35,9 @@ func (e fraudPrivacy) Export(id string) (any, []string, error) {
 	return map[string]any{"devices": devices, "location_points": points}, nil, nil
 }
 func (fraudPrivacy) Anonymize(tx *gorm.DB, id string) error {
+	if err := tx.Where("driver_id = ?", id).Delete(&models.DriverLocation{}).Error; err != nil {
+		return err
+	}
 	for _, model := range []any{&models.UserDevice{}, &models.RideLocationPoint{}} {
 		if err := tx.Where("user_id = ?", id).Delete(model).Error; err != nil {
 			return err

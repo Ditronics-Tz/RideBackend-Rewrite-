@@ -99,6 +99,62 @@ func describeCurrent(route Route, operation, schemas object) {
 	pagination := func() {
 		params(query("limit", object{"type": "integer", "default": 50, "minimum": 1, "maximum": 200}), query("offset", object{"type": "integer", "default": 0, "minimum": 0}))
 	}
+	if (strings.HasPrefix(path, "/rides") && !strings.Contains(path, ":rideId")) || path == "/driver/offers" || path == "/driver/availability" || path == "/driver/location" {
+		mutation := route.Method == "POST" || route.Method == "PUT"
+		if mutation {
+			params(object{"name": "Idempotency-Key", "in": "header", "required": true, "schema": object{"type": "string", "minLength": 8, "maxLength": 100}})
+		}
+		operation["x-required-role"] = "passenger or driver"
+		if path == "/rides" && route.Method == "POST" {
+			operation["x-required-role"] = "passenger"
+			set("201", "Create a ride using server-validated coordinates and configured TZS fare rates. The server selects one eligible nearby driver at a time; client fare values are ignored.", ref("RideResponse"))
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("CreateRideInput")}}}
+			responses["409"] = jsonResponse("Passenger already has an active ride or the idempotency key conflicts.", ref("Error"))
+			responses["503"] = jsonResponse("Fare rates are not configured or dispatch is unavailable.", ref("Error"))
+			return
+		}
+		if path == "/rides" && route.Method == "GET" {
+			pagination()
+			params(query("status", scalar("string")), query("from", object{"type": "string", "format": "date-time"}), query("to", object{"type": "string", "format": "date-time"}))
+			set("200", "List only rides where the authenticated app user is a passenger or assigned driver.", ref("RidePage"))
+			return
+		}
+		if path == "/rides/:id" && route.Method == "GET" {
+			set("200", "Return the ride and event timeline only to its passenger or assigned driver.", ref("RideResponse"))
+			responses["404"] = jsonResponse("Ride not found for this participant.", ref("Error"))
+			return
+		}
+		if path == "/rides/:id/cancel" {
+			operation["x-required-role"] = "ride participant"
+			set("200", "Cancel an eligible ride with a required reason. The caller must be its passenger or assigned driver.", ref("RideResponse"))
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("CancelRideInput")}}}
+			responses["409"] = jsonResponse("Ride cannot be cancelled from its current state.", ref("Error"))
+			return
+		}
+		if path == "/driver/offers" {
+			operation["x-required-role"] = "driver"
+			set("200", "List unexpired offers assigned to the authenticated driver. Expired offers are advanced by the server.", ref("RideOffers"))
+			return
+		}
+		if path == "/driver/availability" {
+			operation["x-required-role"] = "driver"
+			set("200", "Set driver availability. Going online requires an active approved driver with current documents and no active ride.", object{"type": "object", "required": []string{"online"}, "properties": object{"online": scalar("boolean")}})
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("SetAvailabilityInput")}}}
+			return
+		}
+		if path == "/driver/location" {
+			operation["x-required-role"] = "driver"
+			set("200", "Store the authenticated online driver's latest location for five-minute matching freshness.", object{"type": "object", "required": []string{"updated"}, "properties": object{"updated": object{"type": "boolean", "enum": []bool{true}}}})
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("DriverLocationInput")}}}
+			return
+		}
+		if strings.HasPrefix(path, "/rides/:id/") {
+			operation["x-required-role"] = "driver"
+			set("200", "Apply one server-authoritative ride transition. Each action and event is committed atomically and retries require the same idempotency key.", ref("RideResponse"))
+			responses["409"] = jsonResponse("The offer expired or this transition is not valid in the current ride state.", ref("Error"))
+			return
+		}
+	}
 	if path == "/health" || path == "/ready" {
 		name := "Health"
 		description := "Cheap liveness probe; does not contact the database."

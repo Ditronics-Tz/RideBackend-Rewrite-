@@ -8,6 +8,6 @@
 | B4 | done | ship/be-runtime | Frozen goose migrations, readiness, request IDs, scoped CORS, worker cancellation, paging, Go 1.27.2 and early API inventory; local checks pass |
 | B5 | done | ship/be-auth | App login/register/Google OAuth, rotating 15m/30d sessions, lockout/unlock, admin session/security events, immediate staff revocation and pending TOTP replacement; local checks pass, PostgreSQL concurrency checks await owner service |
 | B6 | done | ship/be-b6-pii | Public profile DTOs, staff full-profile view, image normalization and per-user upload quota; local checks pass, PostgreSQL test service remains owner action |
-| B7 | not started | - | Authoritative ride lifecycle |
+| B7 | done | ship/be-b7-rides | Server-authoritative ride lifecycle, dispatch worker, participant reads, driver availability/location, generated contracts and route guards; local tests/vet/build/vulnerability scan pass; opt-in PostgreSQL concurrency test added, service not configured locally |
 | B8 | not started | - | Support, admin rides and ratings |
 | B9 | not started | - | Early route inventory/coverage provided under B4; PostgreSQL CI and completed endpoint contracts remain |

@@ -81,6 +81,20 @@ func guardFor(route Route) (access, guard, status string) {
 		guard, status = "Passenger role; RideForUser and passenger_id require caller to own a completed passenger ride; idempotency header required.", "passenger scoped"
 	case path == "/rides/:rideId/location":
 		guard, status = "RideForUser plus assigned driver_id and in_progress status; valid coordinates and per-ride rate limit.", "assigned driver scoped"
+	case path == "/rides" && route.Method == "POST":
+		guard, status = "Passenger role; idempotency key; server-calculated fare; serialized active ride check and transactional event creation.", "passenger scoped and idempotent"
+	case path == "/rides" && route.Method == "GET", path == "/rides/:id":
+		guard, status = "Authenticated participant query includes passenger_id or assigned driver_id; other users receive 404.", "ride participant scoped"
+	case path == "/rides/:id/cancel":
+		guard, status = "Passenger or assigned driver only; legal state and cancellation reason checked in the same transaction as event and idempotency record.", "ride participant scoped and idempotent"
+	case path == "/rides/:id/accept", path == "/rides/:id/decline", path == "/rides/:id/arrived", path == "/rides/:id/start", path == "/rides/:id/complete":
+		guard, status = "Driver role; current offer/assignment and eligibility rechecked under row lock; state, event and idempotency key commit atomically.", "assigned driver scoped and idempotent"
+	case path == "/driver/offers":
+		guard, status = "Driver role; only unexpired offers assigned to the caller are returned.", "assigned driver scoped"
+	case path == "/driver/availability":
+		guard, status = "Driver role; going online requires current approval/documents and no active ride.", "owner scoped and idempotent"
+	case path == "/driver/location":
+		guard, status = "Online driver role; bounded coordinates are stored by driver_id with an idempotency key.", "owner scoped and idempotent"
 	case path == "/share/:token":
 		guard, status = "Rate limited capability token is hashed, expiry checked; current public share DTO restricts exposed trip fields.", "intentional capability access"
 	case path == "/incidents/files/:id":

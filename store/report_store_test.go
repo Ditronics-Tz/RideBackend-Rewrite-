@@ -32,7 +32,7 @@ func TestReportsBlocksAndAutoFlag(t *testing.T) {
 		if err := s.BlockUser(passenger.ID, driver.ID); err == nil {
 			t.Fatal("non-participants can block")
 		}
-		ride := models.Ride{ID: uuid.NewString(), PassengerID: passenger.ID, DriverID: driver.ID, Status: "in_progress", Fare: 5000, CreatedAt: now}
+		ride := models.Ride{ID: uuid.NewString(), PassengerID: passenger.ID, DriverID: driver.ID, Status: "completed", Fare: 5000, CreatedAt: now}
 		if err := s.DB().Create(&ride).Error; err != nil {
 			t.Fatal(err)
 		}
@@ -46,7 +46,7 @@ func TestReportsBlocksAndAutoFlag(t *testing.T) {
 		if err := s.DB().First(&saved, "id = ?", ride.ID).Error; err != nil {
 			t.Fatal(err)
 		}
-		if saved.Status != "in_progress" {
+		if saved.Status != "completed" {
 			t.Fatal("blocking cancelled a ride")
 		}
 		r := models.Report{ReportedID: driver.ID, RideID: ride.ID, Category: "unsafe_driving", Description: "Please investigate"}

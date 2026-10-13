@@ -10,10 +10,11 @@ type Ride struct {
 	AcceptedAt       *time.Time `json:"accepted_at"`
 	CancelledBy      *string    `json:"cancelled_by" gorm:"type:uuid"`
 	ID               string     `json:"id" gorm:"primaryKey;type:uuid"`
-	PassengerID      string     `json:"passenger_id" gorm:"type:uuid;index;not null"`
-	DriverID         string     `json:"driver_id" gorm:"type:uuid;index;not null"`
+	PassengerID      string     `json:"passenger_id" gorm:"type:uuid;index;not null;uniqueIndex:idx_active_passenger_ride,where: status <> 'completed' AND status <> 'cancelled' AND status <> 'cancelled_by_passenger' AND status <> 'cancelled_by_driver' AND status <> 'cancelled_by_admin' AND status <> 'no_driver_found' AND status <> 'expired'"`
+	DriverID         string     `json:"driver_id" gorm:"type:uuid;index;not null;uniqueIndex:idx_active_driver_ride,where: driver_id <> '00000000-0000-0000-0000-000000000000' AND status <> 'completed' AND status <> 'cancelled' AND status <> 'cancelled_by_passenger' AND status <> 'cancelled_by_driver' AND status <> 'cancelled_by_admin' AND status <> 'no_driver_found' AND status <> 'expired'"`
 	Status           string     `json:"status" gorm:"index;not null"`
 	Fare             int64      `json:"fare"`
+	EstimatedFare    int64      `json:"estimated_fare"`
 	VehicleType      string     `json:"vehicle_type"`
 	Pickup           string     `json:"pickup"`
 	Dropoff          string     `json:"dropoff"`
@@ -25,9 +26,40 @@ type Ride struct {
 	LastLat          float64    `json:"last_lat"`
 	LastLng          float64    `json:"last_lng"`
 	LastLocationAt   *time.Time `json:"last_location_at"`
+	StartedAt        *time.Time `json:"started_at"`
 	CompletedAt      *time.Time `json:"completed_at"`
+	CancelledAt      *time.Time `json:"cancelled_at"`
+	OfferExpiresAt   *time.Time `json:"offer_expires_at"`
+	CancelReason     string     `json:"cancel_reason"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+type RideEvent struct {
+	ID        string    `json:"id" gorm:"primaryKey;type:uuid"`
+	RideID    string    `json:"ride_id" gorm:"type:uuid;not null;index:idx_ride_events_timeline,priority:1"`
+	Type      string    `json:"type" gorm:"size:64;not null"`
+	ActorID   *string   `json:"actor_id,omitempty" gorm:"type:uuid;index"`
+	ActorType string    `json:"actor_type" gorm:"size:16;not null"`
+	At        time.Time `json:"at" gorm:"not null;index:idx_ride_events_timeline,priority:2"`
+	Meta      string    `json:"meta,omitempty" gorm:"type:text"`
+}
+
+type DriverLocation struct {
+	DriverID  string    `json:"driver_id" gorm:"primaryKey;type:uuid"`
+	Lat       float64   `json:"lat"`
+	Lng       float64   `json:"lng"`
+	Accuracy  float64   `json:"accuracy"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"index"`
+}
+
+type RideIdempotencyKey struct {
+	ActorID     string    `json:"-" gorm:"primaryKey;type:uuid"`
+	Key         string    `json:"-" gorm:"primaryKey;size:100"`
+	Operation   string    `json:"-" gorm:"size:32;not null"`
+	RequestHash string    `json:"-" gorm:"size:64;not null"`
+	RideID      string    `json:"-" gorm:"type:uuid;not null"`
+	CreatedAt   time.Time `json:"-" gorm:"not null;index"`
 }
 type UserBlock struct {
 	BlockerID string    `json:"blocker_id" gorm:"primaryKey;type:uuid"`

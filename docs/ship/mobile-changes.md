@@ -1,6 +1,6 @@
 # Mobile app changes
 
-## Implemented backend contracts (B3/B4/B5/B6)
+## Implemented backend contracts (B3/B4/B5/B6/B7)
 
 - Driver: when R2 is enabled, request document presign with type/content_type/size/
   expires_at, PUT bytes to the returned URL with its headers, then confirm by ID.
@@ -26,13 +26,21 @@
 - Profile image uploads accept JPEG/PNG/WebP bytes and return a PNG-backed
   profile image URL. The account quota is three valid uploads per hour; clients
   should display the 429 Retry-After value and let users retry later.
+- Passengers create rides with pickup/dropoff points and vehicle type. The
+  server returns the estimated fare, status, current driver (when offered), and
+  event timeline. Send a unique `Idempotency-Key` on create, cancel, driver
+  offer actions, lifecycle transitions, availability changes and location
+  updates. Do not send a final fare; the server computes it at completion.
+- Drivers must set availability with `PUT /api/v1/driver/availability`, publish
+  fresh coordinates with `POST /api/v1/driver/location`, poll
+  `GET /api/v1/driver/offers`, and use the accept/decline/arrived/start/complete
+  actions. Ride reads are restricted to participants. Configure fare rates on
+  the backend before enabling ride creation; no payment, rating, promo or
+  notification side effects run on completion yet.
 
 ## Future contracts (not implemented in this milestone)
 
-- B6: public profile DTOs and upload safeguards.
-- B7/B8: server-authoritative ride creation, offers, transitions, availability,
-  location, participant reads and ride-bound ratings. Mobile clients must adopt
-  those endpoints after they are implemented; no new dispatch flow is live yet.
+- B8: ride-bound ratings and operational support/admin workflows.
 
 No mobile source code was changed in this run. Consult api-changes.md and the
 current OpenAPI inventory before integrating a deployed backend.

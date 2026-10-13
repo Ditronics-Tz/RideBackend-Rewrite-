@@ -140,3 +140,26 @@ remain deployment work.
 
 Affected: profile viewers and driver onboarding apps; staff profile inspection
 uses the admin user detail area. Public schemas and route guards are regenerated.
+
+## 2026-10-13 - B7
+
+- Added passenger `POST /api/v1/rides` with server-calculated estimated TZS fare,
+  participant-only `GET /rides` and `GET /rides/:id`, and cancellation with a
+  required reason. Every mutating ride request requires an `Idempotency-Key`.
+- Drivers receive nearest eligible offers one at a time through
+  `GET /driver/offers`, and can accept, decline, mark arrival, start and complete
+  rides. A background worker advances expired offers every five seconds; driver
+  availability and fresh location use `PUT /driver/availability` and
+  `POST /driver/location`.
+- Ride transitions, timeline events and idempotency records commit together.
+  Active ride uniqueness is enforced by partial indexes. The final fare is
+  calculated by the server from configured base, distance and time rates;
+  clients must not provide it. Configure `RIDE_BASE_FARE_TZS`,
+  `RIDE_PER_KM_FARE_TZS`, and `RIDE_PER_MINUTE_FARE_TZS` before enabling ride
+  creation. Apply migration version 7 before startup.
+- Payments, ratings, promotions and notifications are not triggered by ride
+  completion in this milestone. OpenAPI and the route guard inventory include
+  the current ride routes and participant/driver scope.
+
+Affected: passenger and driver apps. Driver availability now rejects drivers
+with incomplete or expired approval documents or an active ride.

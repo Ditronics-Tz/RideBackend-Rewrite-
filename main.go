@@ -60,6 +60,7 @@ func run() error {
 	var workers sync.WaitGroup
 	start := func(job func()) { workers.Add(1); go func() { defer workers.Done(); job() }() }
 	start(func() { jobs.RunDocumentExpiry(ctx, workerStore) })
+	start(func() { jobs.RunRideDispatch(ctx, workerStore, cfg) })
 	if cfg.RunBackgroundJobs {
 		start(func() { jobs.RunOperations(ctx, workerStore, cfg) })
 		start(func() { jobs.RunDataRequests(ctx, workerStore, cfg) })

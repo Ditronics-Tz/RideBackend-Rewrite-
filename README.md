@@ -556,3 +556,6 @@ staff data. Staff use the audited admin user profile route. Profile image upload
 accept JPEG, PNG, or WebP bytes, are decoded and rewritten as metadata-free PNG,
 and allow three valid images per account per hour. Run go run ./cmd/migrate up
 before startup to apply schema version 6.
+## Server-authoritative rides
+
+Passengers create rides through `POST /api/v1/rides`; drivers publish availability and location, receive one-at-a-time offers, and advance rides through the ride lifecycle endpoints. Reads are limited to ride participants. Every mutating ride request uses an `Idempotency-Key`, and the server calculates estimated and final fares from configured TZS rates. Set `RIDE_BASE_FARE_TZS`, `RIDE_PER_KM_FARE_TZS`, and `RIDE_PER_MINUTE_FARE_TZS`, then apply migration version 7 before enabling ride creation. Ride completion does not yet trigger payment, rating, promo, or notification work.

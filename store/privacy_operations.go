@@ -14,7 +14,7 @@ type operationsPrivacy struct{ s *Store }
 
 func (operationsPrivacy) Name() string { return "reports_and_rides" }
 func (operationsPrivacy) Tables() []string {
-	return []string{"rides", "user_blocks", "reports", "report_notes", "account_flags", "notification_deliveries"}
+	return []string{"rides", "ride_events", "ride_idempotency_keys", "user_blocks", "reports", "report_notes", "account_flags", "notification_deliveries"}
 }
 func (operationsPrivacy) Description() string {
 	return "retains anonymous ride/report IDs and counts; clears routes, locations, report free text, staff notes, blocks and notifications"
@@ -29,6 +29,14 @@ func (e operationsPrivacy) Export(id string) (any, []string, error) {
 	for _, r := range rides {
 		rideOut = append(rideOut, map[string]any{"id": r.ID, "status": r.Status, "fare": r.Fare, "pickup": r.Pickup, "dropoff": r.Dropoff, "created_at": r.CreatedAt})
 	}
+	events := []models.RideEvent{}
+	if err := e.s.db.Where("ride_id IN ?", rideIDs(rides)).Order("at ASC, id ASC").Find(&events).Error; err != nil {
+		return nil, nil, err
+	}
+	eventOut := make([]map[string]any, 0, len(events))
+	for _, event := range events {
+		eventOut = append(eventOut, map[string]any{"ride_id": event.RideID, "type": event.Type, "at": event.At})
+	}
 	reports := []struct {
 		ID          string `json:"id"`
 		Status      string `json:"status"`
@@ -38,10 +46,31 @@ func (e operationsPrivacy) Export(id string) (any, []string, error) {
 	if err := e.s.db.Model(&models.Report{}).Select("id, status, category, description").Where("reporter_id = ?", id).Find(&reports).Error; err != nil {
 		return nil, nil, err
 	}
-	return map[string]any{"rides": rideOut, "reports_made": reports}, nil, nil
+	return map[string]any{"rides": rideOut, "ride_events": eventOut, "reports_made": reports}, nil, nil
+}
+
+func rideIDs(rides []models.Ride) []string {
+	ids := make([]string, 0, len(rides))
+	for _, ride := range rides {
+		ids = append(ids, ride.ID)
+	}
+	return ids
 }
 func (operationsPrivacy) Anonymize(tx *gorm.DB, id string) error {
-	if err := tx.Model(&models.Ride{}).Where("passenger_id = ? OR driver_id = ?", id, id).Updates(map[string]any{"pickup": "", "dropoff": "", "route_geometry": "", "pickup_lat": 0, "pickup_lng": 0, "dropoff_lat": 0, "dropoff_lng": 0, "last_lat": 0, "last_lng": 0}).Error; err != nil {
+	var rides []models.Ride
+	if err := tx.Where("passenger_id = ? OR driver_id = ?", id, id).Find(&rides).Error; err != nil {
+		return err
+	}
+	ids := rideIDs(rides)
+	if err := tx.Model(&models.Ride{}).Where("passenger_id = ? OR driver_id = ?", id, id).Updates(map[string]any{"pickup": "", "dropoff": "", "route_geometry": "", "pickup_lat": 0, "pickup_lng": 0, "dropoff_lat": 0, "dropoff_lng": 0, "last_lat": 0, "last_lng": 0, "cancel_reason": ""}).Error; err != nil {
+		return err
+	}
+	if len(ids) > 0 {
+		if err := tx.Model(&models.RideEvent{}).Where("ride_id IN ?", ids).Updates(map[string]any{"actor_id": nil, "meta": ""}).Error; err != nil {
+			return err
+		}
+	}
+	if err := tx.Where("actor_id = ?", id).Delete(&models.RideIdempotencyKey{}).Error; err != nil {
 		return err
 	}
 	if err := tx.Where("blocker_id = ? OR blocked_id = ?", id, id).Delete(&models.UserBlock{}).Error; err != nil {

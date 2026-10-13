@@ -86,9 +86,15 @@ func schemaFor(kind reflect.Type, schemas object) object {
 
 func components() object {
 	schemas := object{}
-	for _, value := range []any{models.UserResponse{}, models.DriverProfile{}, models.PassengerProfile{}, models.PublicDriverProfile{}, models.PublicPassengerProfile{}, models.DriverDocument{}, models.VerificationDetail{}, models.StaffUserResponse{}, models.StaffAuditLog{}, models.Rating{}, models.DriverNotification{}, models.SupportNote{}, models.UserStatusEvent{}, models.DataExportRequest{}, models.Report{}, models.UserBlock{}, models.EmergencyContact{}, models.AccountFlag{}, models.FraudFlag{}, models.IncidentReport{}, models.PaymentTransaction{}, models.DriverPayout{}, models.Refund{}, models.PromoCode{}, models.PromoAudience{}, models.PromoRedemption{}, models.Referral{}, models.ReconciliationRun{}, models.ReconciliationException{}, storage.PresignedURL{}} {
+	for _, value := range []any{models.UserResponse{}, models.DriverProfile{}, models.PassengerProfile{}, models.PublicDriverProfile{}, models.PublicPassengerProfile{}, models.DriverDocument{}, models.VerificationDetail{}, models.StaffUserResponse{}, models.StaffAuditLog{}, models.Rating{}, models.DriverNotification{}, models.SupportNote{}, models.UserStatusEvent{}, models.DataExportRequest{}, models.Report{}, models.UserBlock{}, models.EmergencyContact{}, models.AccountFlag{}, models.FraudFlag{}, models.IncidentReport{}, models.PaymentTransaction{}, models.DriverPayout{}, models.Refund{}, models.PromoCode{}, models.PromoAudience{}, models.PromoRedemption{}, models.Referral{}, models.ReconciliationRun{}, models.ReconciliationException{}, models.RideResponse{}, models.RidePoint{}, models.RideParty{}, models.RideEventResponse{}, storage.PresignedURL{}} {
 		schemaFor(reflect.TypeOf(value), schemas)
 	}
+	schemas["CreateRideInput"] = properties(object{"pickup": ref("RidePoint"), "dropoff": ref("RidePoint"), "vehicle_type": object{"type": "string", "maxLength": 50}}, "pickup", "dropoff")
+	schemas["CancelRideInput"] = properties(object{"reason": object{"type": "string", "minLength": 1, "maxLength": 250}}, "reason")
+	schemas["SetAvailabilityInput"] = properties(object{"online": scalar("boolean")}, "online")
+	schemas["DriverLocationInput"] = properties(object{"lat": object{"type": "number", "minimum": -90, "maximum": 90}, "lng": object{"type": "number", "minimum": -180, "maximum": 180}, "accuracy": object{"type": "number", "minimum": 0, "maximum": 10000}}, "lat", "lng")
+	schemas["RidePage"] = properties(object{"rides": array(ref("RideResponse")), "total": object{"type": "integer", "format": "int64"}, "limit": scalar("integer"), "offset": scalar("integer")}, "rides", "total", "limit", "offset")
+	schemas["RideOffers"] = properties(object{"offers": array(ref("RideResponse"))}, "offers")
 	schemas["Error"] = properties(object{"error": scalar("string"), "request_id": scalar("string"), "fields": object{"type": "object", "additionalProperties": scalar("string")}, "code": scalar("string")}, "error", "request_id")
 	schemas["Error"].(object)["additionalProperties"] = true
 	schemas["Health"] = properties(object{"status": object{"type": "string", "enum": []string{"ok"}}, "version": scalar("string")}, "status", "version")

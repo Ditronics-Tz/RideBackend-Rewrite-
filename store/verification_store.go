@@ -508,7 +508,7 @@ func (s *Store) ExpireDriverDocuments(now time.Time, driverID string) error {
 
 func (s *Store) SetDriverOnline(id string, online bool) error {
 	if online {
-		if err := s.checkFinancialEligibility(id); err != nil {
+		if err := s.CheckDispatchEligibility("", id); err != nil {
 			return err
 		}
 	}
@@ -535,6 +535,13 @@ func (s *Store) SetDriverOnline(id string, online bool) error {
 			if err := completeDocuments(p, docs, time.Now(), true); err != nil {
 				return err
 			}
+			var active int64
+			if err := tx.Model(&models.Ride{}).Where("driver_id = ? AND status IN ?", id, rideActiveStatuses).Count(&active).Error; err != nil {
+				return err
+			}
+			if active > 0 {
+				return conflict("driver cannot go online while a ride is active")
+			}
 		}
 		return tx.Model(p).Update("is_online", online).Error
 	})
@@ -551,4 +558,18 @@ func (s *Store) RequireDriverApproval(id string) error {
 		return invalid("driver approval is required")
 	}
 	return completeDocuments(detail.Profile, detail.Documents, time.Now(), true)
+}
+
+// CheckDispatchEligibility is the shared dispatch gate used before a driver
+// goes online, receives an offer, or accepts one. An empty passenger skips only
+// participant-pair checks; driver account, approval, document and financial
+// checks always run.
+func (s *Store) CheckDispatchEligibility(passengerID, driverID string) error {
+	if err := s.RequireDriverApproval(driverID); err != nil {
+		return err
+	}
+	if passengerID != "" {
+		return s.CheckRideEligibility(passengerID, driverID)
+	}
+	return nil
 }

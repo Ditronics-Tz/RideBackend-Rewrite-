@@ -1,0 +1,33 @@
+{
+  "driver_locations": [
+    {"name":"driver_id","type":"uuid","primary":true,"not_null":true},
+    {"name":"lat","type":"numeric","not_null":true},
+    {"name":"lng","type":"numeric","not_null":true},
+    {"name":"accuracy","type":"numeric","not_null":true},
+    {"name":"updated_at","type":"timestamptz","not_null":true}
+  ],
+  "ride_events": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"ride_id","type":"uuid","not_null":true},
+    {"name":"type","type":"varchar(64)","not_null":true},
+    {"name":"actor_id","type":"uuid"},
+    {"name":"actor_type","type":"varchar(16)","not_null":true},
+    {"name":"at","type":"timestamptz","not_null":true},
+    {"name":"meta","type":"text"}
+  ],
+  "ride_idempotency_keys": [
+    {"name":"actor_id","type":"uuid","primary":true,"not_null":true},
+    {"name":"key","type":"varchar(100)","primary":true,"not_null":true},
+    {"name":"operation","type":"varchar(32)","not_null":true},
+    {"name":"request_hash","type":"varchar(64)","not_null":true},
+    {"name":"ride_id","type":"uuid","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true}
+  ],
+  "rides": [
+    {"name":"estimated_fare","type":"bigint","not_null":true},
+    {"name":"started_at","type":"timestamptz"},
+    {"name":"cancelled_at","type":"timestamptz"},
+    {"name":"offer_expires_at","type":"timestamptz"},
+    {"name":"cancel_reason","type":"text","not_null":true}
+  ]
+}

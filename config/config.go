@@ -67,6 +67,12 @@ type Config struct {
 	SOSLocationRetentionDays int
 	SOSFalseAlarmThreshold   int
 	PublicBaseURL            string
+	RideBaseFareTZS          int64
+	RidePerKmFareTZS         int64
+	RidePerMinuteFareTZS     int64
+	RideEstimatedSpeedKMPH   int
+	RideOfferTimeoutSeconds  int
+	RideSearchRadiusKM       int
 }
 
 // DSN builds a Postgres connection string for the pgx/gorm driver.
@@ -211,6 +217,12 @@ func NewConfigFromEnv() (*Config, error) {
 		SOSLocationRetentionDays: getEnvInt("SOS_LOCATION_RETENTION_DAYS", 30),
 		SOSFalseAlarmThreshold:   getEnvInt("SOS_FALSE_ALARM_THRESHOLD", 3),
 		PublicBaseURL:            getEnv("PUBLIC_BASE_URL", "http://localhost:3000"),
+		RideBaseFareTZS:          int64(getEnvInt("RIDE_BASE_FARE_TZS", 0)),
+		RidePerKmFareTZS:         int64(getEnvInt("RIDE_PER_KM_FARE_TZS", 0)),
+		RidePerMinuteFareTZS:     int64(getEnvInt("RIDE_PER_MINUTE_FARE_TZS", 0)),
+		RideEstimatedSpeedKMPH:   getEnvInt("RIDE_ESTIMATED_SPEED_KMPH", 20),
+		RideOfferTimeoutSeconds:  getEnvInt("RIDE_OFFER_TIMEOUT_SECONDS", 30),
+		RideSearchRadiusKM:       getEnvInt("RIDE_SEARCH_RADIUS_KM", 10),
 	}
 
 	if err := cfg.Validate(); err != nil {
