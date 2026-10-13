@@ -71,11 +71,11 @@ are quoted and connection establishment is bounded. Existing list helpers now
 use default 50/max 200; new users/staff/audit/verification SQL filters and
 metadata are implemented. Banned/inactive status filters have regression tests.
 Notes, ratings, notifications, history and export lists are bounded. Existing
-detail resources retain their nested timelines; rides/tickets await B7/B8.
+detail resources retain their nested timelines; rides/tickets were not yet
+implemented at the B4 checkpoint described here.
 User counts and rating summaries use SQL aggregates.
-Ride/ticket placeholders return 501; the former ticket update success without
-saving is disabled. Stats explicitly mark unimplemented operational counts
-unavailable, so the admin UI cannot display a fabricated zero as real data.
+At the B4 checkpoint, ride/ticket placeholders returned 501 and operational
+counts were marked unavailable. B7 and B8 below replace those placeholders.
 
 Updated to Go 1.27.2 after the installed 1.27.1 failed vulnerability checks.
 `govulncheck ./...` now reports zero called/imported vulnerabilities. Its remaining
@@ -102,6 +102,25 @@ Known public profile field exposure remains explicitly mapped for B6. The admin
 UI contains controls for these contracts, but missing endpoints must stay honest
 unavailable states. Credential rotation, storage lifecycle, host/browser checks
 and production acceptance remain owner dependencies.
+
+## B8 - Support, admin operations and ratings
+
+Implemented persisted user-scoped support tickets, staff assignment/notes/status
+updates, filtered admin ride search/detail/cancel/reassignment, live operational
+counts, and ride-bound ratings. Each participant may rate once after completion;
+admins can hide or restore ratings, and public aggregates/lists exclude hidden
+ratings. The legacy user-to-user rating write can be disabled with
+DISABLE_LEGACY_RATINGS. Support actions and ride/rating moderation write audit
+records in the same transaction as their changes. Migration version 8 adds the
+ticket/note tables and ride-rating fields/indexes.
+
+## B9 - API contracts and CI
+
+OpenAPI now describes the persisted B8 workflows and route guard inventory tests
+cover the concrete routes. CI provisions PostgreSQL and enables migration,
+authentication, finance, promo, verification, and ride integration suites, in
+addition to vet, tests, vulnerability scanning, and build. Hosted CI has not yet
+run; PostgreSQL integration remains unverified in this local environment.
 
 Changed file groups: config and environment example; CI/scanner and fixtures;
 upload migration utilities/store/commands; storage adapters and tests;

@@ -34,6 +34,7 @@ func SetupRideRoutes(router fiber.Router, rc *controllers.RideController, cfg *c
 	router.Post("/rides/:id/arrived", protected, driver, rideIdempotencyKey, operationIDs, rc.Arrived)
 	router.Post("/rides/:id/start", protected, driver, rideIdempotencyKey, operationIDs, rc.Start)
 	router.Post("/rides/:id/complete", protected, driver, rideIdempotencyKey, operationIDs, rc.Complete)
+	router.Post("/rides/:id/rating", protected, participant, operationIDs, rc.Rate)
 	router.Put("/driver/availability", protected, driver, rideIdempotencyKey, rc.SetAvailability)
 	router.Post("/driver/location", protected, driver, rideIdempotencyKey, rc.Location)
 }

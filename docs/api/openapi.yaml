@@ -77,6 +77,64 @@
         ],
         "type": "object"
       },
+      "AdminCancelRideInput": {
+        "properties": {
+          "reason": {
+            "maxLength": 250,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "AdminReassignRideInput": {
+        "properties": {
+          "driver_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 250,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "driver_id",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "AdminRidePage": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "rides": {
+            "items": {
+              "$ref": "#/components/schemas/RideResponse"
+            },
+            "type": "array"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "offset",
+          "rides",
+          "total"
+        ],
+        "type": "object"
+      },
       "AppSecurityEvent": {
         "properties": {
           "created_at": {
@@ -260,6 +318,25 @@
         "required": [
           "dropoff",
           "pickup"
+        ],
+        "type": "object"
+      },
+      "CreateSupportTicketInput": {
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "description",
+          "subject"
         ],
         "type": "object"
       },
@@ -1379,6 +1456,22 @@
         ],
         "type": "object"
       },
+      "RateRideInput": {
+        "properties": {
+          "comment": {
+            "type": "string"
+          },
+          "score": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "comment",
+          "score"
+        ],
+        "type": "object"
+      },
       "Rating": {
         "properties": {
           "comment": {
@@ -1392,8 +1485,21 @@
             "format": "uuid",
             "type": "string"
           },
+          "hidden_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "hidden_by": {
+            "nullable": true,
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
+            "type": "string"
+          },
+          "ride_id": {
+            "nullable": true,
             "type": "string"
           },
           "score": {
@@ -2034,26 +2140,20 @@
       "Stats": {
         "properties": {
           "active_rides": {
-            "enum": [
-              0
-            ],
+            "minimum": 0,
             "type": "integer"
           },
           "open_complaints": {
-            "enum": [
-              0
-            ],
+            "minimum": 0,
             "type": "integer"
           },
           "open_tickets": {
-            "enum": [
-              0
-            ],
+            "minimum": 0,
             "type": "integer"
           },
           "operational_counts_available": {
             "enum": [
-              false
+              true
             ],
             "type": "boolean"
           },
@@ -2106,6 +2206,158 @@
           "created_at",
           "id",
           "user_id"
+        ],
+        "type": "object"
+      },
+      "SupportTicket": {
+        "properties": {
+          "assigned_to": {
+            "nullable": true,
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "resolution_note": {
+            "type": "string"
+          },
+          "resolution_outcome": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "resolved_by": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assigned_to",
+          "category",
+          "created_at",
+          "description",
+          "id",
+          "priority",
+          "resolution_note",
+          "resolution_outcome",
+          "resolved_at",
+          "resolved_by",
+          "status",
+          "subject",
+          "updated_at",
+          "user_id"
+        ],
+        "type": "object"
+      },
+      "SupportTicketDetail": {
+        "properties": {
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/SupportTicketNote"
+            },
+            "type": "array"
+          },
+          "notes_total": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ticket": {
+            "$ref": "#/components/schemas/SupportTicket"
+          }
+        },
+        "required": [
+          "notes",
+          "notes_total",
+          "ticket"
+        ],
+        "type": "object"
+      },
+      "SupportTicketNote": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "staff_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "ticket_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "id",
+          "note",
+          "staff_id",
+          "ticket_id"
+        ],
+        "type": "object"
+      },
+      "SupportTicketPage": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "tickets": {
+            "items": {
+              "$ref": "#/components/schemas/SupportTicket"
+            },
+            "type": "array"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "offset",
+          "tickets",
+          "total"
         ],
         "type": "object"
       },
@@ -2328,6 +2580,55 @@
           "reviewer_name"
         ],
         "type": "object"
+      },
+      "WorkSupportTicketInput": {
+        "properties": {
+          "action": {
+            "enum": [
+              "assign",
+              "note",
+              "update"
+            ],
+            "type": "string"
+          },
+          "assigned_to": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "resolution_note": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "resolution_outcome": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "in_review",
+              "resolved",
+              "closed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -2352,7 +2653,7 @@
     }
   },
   "info": {
-    "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3 storage, B4 runtime/list and B5 auth/session contracts are expanded; remaining modules have route inventory entries. Unimplemented admin rides/tickets handlers return 501. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0.",
+    "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3-B8 storage, runtime, auth, rides and persisted support contracts are expanded; remaining modules have route inventory entries. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0.",
     "title": "Rida Backend API",
     "version": "1.0.0"
   },
@@ -5804,6 +6105,272 @@
         "x-go-handler": "ride-backend/controllers.(*PromoController).SetStatus"
       }
     },
+    "/api/v1/admin/ratings": {
+      "get": {
+        "description": "Admin-only paged rating moderation queue. Hidden ratings are excluded from public profiles and averages.",
+        "operationId": "get_api_v1_admin_ratings",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hidden",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "enum": [
+                "false",
+                "true",
+                "all"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "limit": {
+                      "maximum": 200,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "ratings": {
+                      "items": {
+                        "$ref": "#/components/schemas/Rating"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "format": "int64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "limit",
+                    "offset",
+                    "ratings",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Admin-only paged rating moderation queue. Hidden ratings are excluded from public profiles and averages.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/ratings",
+        "x-allowed-roles": [
+          "admin"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/ratings",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).ListRatings"
+      }
+    },
+    "/api/v1/admin/ratings/{id}/hide": {
+      "post": {
+        "description": "Admin hide or restore updates rating visibility and recomputes the recipient's public average.",
+        "operationId": "post_api_v1_admin_ratings_id_hide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "hidden": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "hidden"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Admin hide or restore updates rating visibility and recomputes the recipient's public average.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/ratings/{id}/hide",
+        "x-allowed-roles": [
+          "admin"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/ratings/:id/hide",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).ModerateRating"
+      }
+    },
+    "/api/v1/admin/ratings/{id}/restore": {
+      "post": {
+        "description": "Admin hide or restore updates rating visibility and recomputes the recipient's public average.",
+        "operationId": "post_api_v1_admin_ratings_id_restore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "hidden": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "hidden"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Admin hide or restore updates rating visibility and recomputes the recipient's public average.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/ratings/{id}/restore",
+        "x-allowed-roles": [
+          "admin"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/ratings/:id/restore",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).ModerateRating"
+      }
+    },
     "/api/v1/admin/reconciliation/exceptions": {
       "get": {
         "description": "Current paged list; existing collection key is preserved alongside total, limit and offset.",
@@ -6445,7 +7012,7 @@
     },
     "/api/v1/admin/reports": {
       "get": {
-        "description": "Current paged list; existing collection key is preserved alongside total, limit and offset.",
+        "description": "Support/admin can filter persisted reports by status, category, assignee, priority and participant.",
         "operationId": "get_api_v1_admin_reports",
         "parameters": [
           {
@@ -6478,54 +7045,6 @@
               "default": 0,
               "minimum": 0,
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "category",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "assignee",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "priority",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "user",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "before",
-            "required": false,
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -6566,7 +7085,7 @@
                 }
               }
             },
-            "description": "Current paged list; existing collection key is preserved alongside total, limit and offset.",
+            "description": "Support/admin can filter persisted reports by status, category, assignee, priority and participant.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -6702,7 +7221,7 @@
     },
     "/api/v1/admin/rides": {
       "get": {
-        "description": "The persisted administration workflow is unavailable. This endpoint returns an error until B8 implements it; no list payload or pagination metadata is emitted.",
+        "description": "Support and admin can search, filter and page persisted rides. Every request is staff-audited.",
         "operationId": "get_api_v1_admin_rides",
         "parameters": [
           {
@@ -6715,18 +7234,91 @@
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "passenger",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "driver",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
           }
         ],
         "responses": {
-          "501": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/AdminRidePage"
                 }
               }
             },
-            "description": "The persisted administration workflow is unavailable. This endpoint returns an error until B8 implements it; no list payload or pagination metadata is emitted.",
+            "description": "Support and admin can search, filter and page persisted rides. Every request is staff-audited.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -6751,8 +7343,253 @@
         ],
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/admin/rides",
-        "x-go-handler": "ride-backend/controllers.(*AdminController).ListRides",
-        "x-implementation-status": "unavailable-until-B8"
+        "x-go-handler": "ride-backend/controllers.(*AdminController).ListRides"
+      }
+    },
+    "/api/v1/admin/rides/{id}": {
+      "get": {
+        "description": "Return the persisted ride with its event timeline for support/admin operations.",
+        "operationId": "get_api_v1_admin_rides_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideResponse"
+                }
+              }
+            },
+            "description": "Return the persisted ride with its event timeline for support/admin operations.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/rides/{id}",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/rides/:id",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).RideDetail"
+      }
+    },
+    "/api/v1/admin/rides/{id}/cancel": {
+      "post": {
+        "description": "Support/admin cancel an active ride with a required reason; status and event are saved atomically.",
+        "operationId": "post_api_v1_admin_rides_id_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCancelRideInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "cancelled_by_admin"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Support/admin cancel an active ride with a required reason; status and event are saved atomically.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/rides/{id}/cancel",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/rides/:id/cancel",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).CancelRide"
+      }
+    },
+    "/api/v1/admin/rides/{id}/reassign": {
+      "post": {
+        "description": "Support/admin assign an eligible online replacement driver with a required reason and a durable event.",
+        "operationId": "post_api_v1_admin_rides_id_reassign",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminReassignRideInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "driver_id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "assigned"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "driver_id",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Support/admin assign an eligible online replacement driver with a required reason and a durable event.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/rides/{id}/reassign",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/rides/:id/reassign",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).ReassignRide"
       }
     },
     "/api/v1/admin/sos": {
@@ -7355,7 +8192,7 @@
     },
     "/api/v1/admin/stats": {
       "get": {
-        "description": "Driver and passenger counts use SQL COUNT. operational_counts_available=false identifies the legacy zero active_rides/open_tickets/open_complaints fields until B8 implements real operational counts.",
+        "description": "Live SQL counts for users, active rides, open tickets and open complaints.",
         "operationId": "get_api_v1_admin_stats",
         "parameters": [
           {
@@ -7379,7 +8216,7 @@
                 }
               }
             },
-            "description": "Driver and passenger counts use SQL COUNT. operational_counts_available=false identifies the legacy zero active_rides/open_tickets/open_complaints fields until B8 implements real operational counts.",
+            "description": "Live SQL counts for users, active rides, open tickets and open complaints.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -7409,7 +8246,7 @@
     },
     "/api/v1/admin/tickets": {
       "get": {
-        "description": "The persisted administration workflow is unavailable. This endpoint returns an error until B8 implements it; no list payload or pagination metadata is emitted.",
+        "description": "List persisted support tickets with status, category, priority, assignment and text/date filters.",
         "operationId": "get_api_v1_admin_tickets",
         "parameters": [
           {
@@ -7422,18 +8259,103 @@
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assignee",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
-          "501": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/SupportTicketPage"
                 }
               }
             },
-            "description": "The persisted administration workflow is unavailable. This endpoint returns an error until B8 implements it; no list payload or pagination metadata is emitted.",
+            "description": "List persisted support tickets with status, category, priority, assignment and text/date filters.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -7458,13 +8380,94 @@
         ],
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/admin/tickets",
-        "x-go-handler": "ride-backend/controllers.(*AdminController).ListTickets",
-        "x-implementation-status": "unavailable-until-B8"
+        "x-go-handler": "ride-backend/controllers.(*AdminController).ListTickets"
       }
     },
     "/api/v1/admin/tickets/{id}": {
+      "get": {
+        "description": "Return a persisted support ticket and its paged staff note history.",
+        "operationId": "get_api_v1_admin_tickets_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicketDetail"
+                }
+              }
+            },
+            "description": "Return a persisted support ticket and its paged staff note history.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/tickets/{id}",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/tickets/:id",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).TicketDetail"
+      },
       "patch": {
-        "description": "The persisted ticket workflow is unavailable. The handler returns an error until B8 implements saved support work.",
+        "description": "Support/admin assign a ticket, add a staff note, or update status/priority and resolution. The change and note are persisted and audit logged.",
         "operationId": "patch_api_v1_admin_tickets_id",
         "parameters": [
           {
@@ -7488,16 +8491,43 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkSupportTicketInput"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "501": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "properties": {
+                    "action": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "updated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "action",
+                    "updated"
+                  ],
+                  "type": "object"
                 }
               }
             },
-            "description": "The persisted ticket workflow is unavailable. The handler returns an error until B8 implements saved support work.",
+            "description": "Support/admin assign a ticket, add a staff note, or update status/priority and resolution. The change and note are persisted and audit logged.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -7522,8 +8552,7 @@
         ],
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/admin/tickets/:id",
-        "x-go-handler": "ride-backend/controllers.(*AdminController).UpdateTicket",
-        "x-implementation-status": "unavailable-until-B8"
+        "x-go-handler": "ride-backend/controllers.(*AdminController).UpdateTicket"
       }
     },
     "/api/v1/admin/users": {
@@ -12513,7 +13542,7 @@
     },
     "/api/v1/ratings/": {
       "post": {
-        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "description": "Legacy user-to-user rating. Set DISABLE_LEGACY_RATINGS=true to return 410 and require completed ride ratings.",
         "operationId": "post_api_v1_ratings",
         "parameters": [
           {
@@ -12529,8 +13558,39 @@
           }
         ],
         "responses": {
-          "2XX": {
-            "description": "Existing handler response; see endpoint implementation for the current payload."
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rating"
+                }
+              }
+            },
+            "description": "Legacy user-to-user rating. Set DISABLE_LEGACY_RATINGS=true to return 410 and require completed ride ratings.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Legacy rating writes are disabled; rate a completed ride.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/Error"
@@ -12542,7 +13602,7 @@
           }
         ],
         "summary": "POST /api/v1/ratings/",
-        "x-contract-detail": "route-inventory",
+        "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/ratings/",
         "x-go-handler": "ride-backend/controllers.(*RatingController).CreateRating"
       }
@@ -13674,6 +14734,110 @@
         "x-required-role": "driver"
       }
     },
+    "/api/v1/rides/{id}/rating": {
+      "post": {
+        "description": "A passenger or driver who participated in this completed ride may rate the other participant once.",
+        "operationId": "post_api_v1_rides_id_rating",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateRideInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rating"
+                }
+              }
+            },
+            "description": "A passenger or driver who participated in this completed ride may rate the other participant once.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Caller is not a participant in this completed ride.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Caller already rated this ride or it is not completed.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/rides/{id}/rating",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/rides/:id/rating",
+        "x-go-handler": "ride-backend/controllers.(*RideController).Rate",
+        "x-required-role": "completed ride participant"
+      }
+    },
     "/api/v1/rides/{id}/start": {
       "post": {
         "description": "Apply one server-authoritative ride transition. Each action and event is committed atomically and retries require the same idempotency key.",
@@ -14476,6 +15640,135 @@
         "x-contract-detail": "route-inventory",
         "x-fiber-path": "/api/v1/staff/auth/refresh",
         "x-go-handler": "ride-backend/controllers.(*StaffAuthController).Refresh"
+      }
+    },
+    "/api/v1/support/tickets": {
+      "get": {
+        "description": "List only support tickets created by the authenticated user.",
+        "operationId": "get_api_v1_support_tickets",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicketPage"
+                }
+              }
+            },
+            "description": "List only support tickets created by the authenticated user.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/support/tickets",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/support/tickets",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).SupportTickets"
+      },
+      "post": {
+        "description": "Authenticated passengers and drivers can open a persisted support ticket.",
+        "operationId": "post_api_v1_support_tickets",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupportTicketInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicket"
+                }
+              }
+            },
+            "description": "Authenticated passengers and drivers can open a persisted support ticket.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/support/tickets",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/support/tickets",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).SupportTickets"
       }
     },
     "/api/v1/wallet": {

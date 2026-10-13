@@ -15,7 +15,7 @@ func GenerateRouteGuards() ([]byte, error) {
 	var result strings.Builder
 	result.WriteString("# Route guards\n\nGenerated with `go run ./cmd/generate-openapi`. Each row records a concrete registered route containing a path parameter. Fiber middleware, HEAD mirrors and OPTIONS handlers are excluded. The OpenAPI artifact records all concrete routes.\n\n")
 	result.WriteString("The two profile lookup routes return sensitive fields to other authenticated app users. B6 must introduce public DTOs and negative privacy tests. Legacy private file handlers use controller authentication, current app/staff session validation, and lexical local path checks; filesystem handling remains part of B6. Incident attachment reads have owner/staff checks but retain the existing local SendFile path handling; that existing module is outside this ship run.\n\n")
-	result.WriteString("Admin rides/tickets list handlers and ticket PATCH return 501 until B8 implements persisted administration workflows. Dashboard operational_counts_available=false identifies the legacy zero operational fields; driver/passenger counts are real SQL counts. Staff scope is intentionally broader than object ownership, with route roles and controller action policy enforced.\n\n")
+	result.WriteString("Admin ride, ticket, complaint, report and rating operations are persisted and staff-audited. Dashboard operational counts use live SQL counts. Staff scope is intentionally broader than object ownership, with route roles and controller action policy enforced.\n\n")
 	result.WriteString("| Route | Access realm / role | Resource guard observed | Status | Handler |\n| --- | --- | --- | --- | --- |\n")
 	for _, route := range inventory {
 		if len(route.Parameters) == 0 {
@@ -81,6 +81,8 @@ func guardFor(route Route) (access, guard, status string) {
 		guard, status = "Passenger role; RideForUser and passenger_id require caller to own a completed passenger ride; idempotency header required.", "passenger scoped"
 	case path == "/rides/:rideId/location":
 		guard, status = "RideForUser plus assigned driver_id and in_progress status; valid coordinates and per-ride rate limit.", "assigned driver scoped"
+	case path == "/rides/:id/rating":
+		guard, status = "Caller must be a participant in a completed ride; unique ride_id and rater constraint allows one rating per ride participant.", "completed ride participant scoped"
 	case path == "/rides" && route.Method == "POST":
 		guard, status = "Passenger role; idempotency key; server-calculated fare; serialized active ride check and transactional event creation.", "passenger scoped and idempotent"
 	case path == "/rides" && route.Method == "GET", path == "/rides/:id":
@@ -95,6 +97,12 @@ func guardFor(route Route) (access, guard, status string) {
 		guard, status = "Driver role; going online requires current approval/documents and no active ride.", "owner scoped and idempotent"
 	case path == "/driver/location":
 		guard, status = "Online driver role; bounded coordinates are stored by driver_id with an idempotency key.", "owner scoped and idempotent"
+	case path == "/admin/rides/:id" || path == "/admin/rides/:id/cancel" || path == "/admin/rides/:id/reassign":
+		guard, status = "Support/admin staff; ride is loaded from persistence, operational changes require reasons and write timeline events; staff requests are audit logged.", "staff scoped and audited"
+	case path == "/admin/tickets/:id":
+		guard, status = "Support/admin staff; persisted ticket ownership, assignment, status and resolution are checked; notes and changes are retained and audited.", "staff scoped and audited"
+	case path == "/admin/ratings/:id/hide" || path == "/admin/ratings/:id/restore":
+		guard, status = "Admin-only moderation; visibility changes recompute public rating aggregates and are audit logged.", "admin scoped and audited"
 	case path == "/share/:token":
 		guard, status = "Rate limited capability token is hashed, expiry checked; current public share DTO restricts exposed trip fields.", "intentional capability access"
 	case path == "/incidents/files/:id":
@@ -107,8 +115,6 @@ func guardFor(route Route) (access, guard, status string) {
 		guard, status = "AppProtected validates the active session; revocation query scopes the session id to the authenticated user.", "owner scoped"
 	case strings.HasPrefix(path, "/webhooks/payments/"):
 		guard, status = "Configured provider match, HMAC timestamp/signature verification of raw body before event processing.", "provider authenticated"
-	case path == "/admin/tickets/:id":
-		guard, status = "Staff support/admin route check; handler returns 501 and no ticket is looked up or updated.", "unavailable until B8"
 	case path == "/admin/drivers/:id/verify":
 		guard, status = "Staff support/admin route check; handler always returns 410.", "retired"
 	case path == "/admin/drivers/:id/documents/:documentId/reviews":

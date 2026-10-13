@@ -53,7 +53,7 @@ func Generate() ([]byte, error) {
 		describeCurrent(route, operation, component["schemas"].(object))
 		path[strings.ToLower(route.Method)] = operation
 	}
-	document := object{"openapi": "3.0.3", "info": object{"title": "Rida Backend API", "version": "1.0.0", "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3 storage, B4 runtime/list and B5 auth/session contracts are expanded; remaining modules have route inventory entries. Unimplemented admin rides/tickets handlers return 501. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0."}, "servers": []any{object{"url": "/"}}, "paths": paths, "components": component, "x-inventory-exclusions": []string{"Fiber Use middleware registrations (GetRoutes(true))", "Implicit framework HEAD mirrors", "Framework OPTIONS/CORS preflight registrations"}}
+	document := object{"openapi": "3.0.3", "info": object{"title": "Rida Backend API", "version": "1.0.0", "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3-B8 storage, runtime, auth, rides and persisted support contracts are expanded; remaining modules have route inventory entries. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0."}, "servers": []any{object{"url": "/"}}, "paths": paths, "components": component, "x-inventory-exclusions": []string{"Fiber Use middleware registrations (GetRoutes(true))", "Implicit framework HEAD mirrors", "Framework OPTIONS/CORS preflight registrations"}}
 	encoded, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func realm(route Route) ([]any, []string) {
 		return []any{object{"AppBearer": []string{}}, object{"StaffBearer": []string{}}}, []string{"owning driver or active staff"}
 	}
 	if strings.HasPrefix(path, "/admin/") {
-		adminOnly := strings.HasPrefix(path, "/admin/staff") || path == "/admin/audit-logs" || strings.HasSuffix(path, "/role") || strings.HasSuffix(path, "/ban") || route.Method == "DELETE" && strings.Contains(path, "/notes/") || route.Method == "POST" && (strings.Contains(path, "/data-requests/") || strings.HasSuffix(path, "/deletion-request")) || strings.HasPrefix(path, "/admin/payouts") || strings.HasPrefix(path, "/admin/wallets") || strings.HasPrefix(path, "/admin/reconciliation") || path == "/admin/payment-settings" || path == "/admin/payments/summary" || path == "/admin/payments/export" || path == "/admin/sos/export" || route.Method != "GET" && (strings.HasPrefix(path, "/admin/promos") || path == "/admin/referral-settings" || strings.HasPrefix(path, "/admin/fraud/rules"))
+		adminOnly := strings.HasPrefix(path, "/admin/staff") || strings.HasPrefix(path, "/admin/ratings") || path == "/admin/audit-logs" || strings.HasSuffix(path, "/role") || strings.HasSuffix(path, "/ban") || route.Method == "DELETE" && strings.Contains(path, "/notes/") || route.Method == "POST" && (strings.Contains(path, "/data-requests/") || strings.HasSuffix(path, "/deletion-request")) || strings.HasPrefix(path, "/admin/payouts") || strings.HasPrefix(path, "/admin/wallets") || strings.HasPrefix(path, "/admin/reconciliation") || path == "/admin/payment-settings" || path == "/admin/payments/summary" || path == "/admin/payments/export" || path == "/admin/sos/export" || route.Method != "GET" && (strings.HasPrefix(path, "/admin/promos") || path == "/admin/referral-settings" || strings.HasPrefix(path, "/admin/fraud/rules"))
 		roles := []string{"admin", "support"}
 		if adminOnly {
 			roles = []string{"admin"}
@@ -99,7 +99,15 @@ func describeCurrent(route Route, operation, schemas object) {
 	pagination := func() {
 		params(query("limit", object{"type": "integer", "default": 50, "minimum": 1, "maximum": 200}), query("offset", object{"type": "integer", "default": 0, "minimum": 0}))
 	}
-	if (strings.HasPrefix(path, "/rides") && !strings.Contains(path, ":rideId")) || path == "/driver/offers" || path == "/driver/availability" || path == "/driver/location" {
+	if path == "/rides/:id/rating" {
+		set("201", "A passenger or driver who participated in this completed ride may rate the other participant once.", ref("Rating"))
+		operation["x-required-role"] = "completed ride participant"
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("RateRideInput")}}}
+		responses["403"] = jsonResponse("Caller is not a participant in this completed ride.", ref("Error"))
+		responses["409"] = jsonResponse("Caller already rated this ride or it is not completed.", ref("Error"))
+		return
+	}
+	if (strings.HasPrefix(path, "/rides") && !strings.Contains(path, ":rideId") && path != "/rides/:id/rating") || path == "/driver/offers" || path == "/driver/availability" || path == "/driver/location" {
 		mutation := route.Method == "POST" || route.Method == "PUT"
 		if mutation {
 			params(object{"name": "Idempotency-Key", "in": "header", "required": true, "schema": object{"type": "string", "minLength": 8, "maxLength": 100}})
@@ -240,25 +248,83 @@ func describeCurrent(route Route, operation, schemas object) {
 		set("200", "Support and admin staff can inspect the complete user and driver or passenger profile. The staff request is audit logged.", ref("StaffFullProfile"))
 		return
 	}
+	if path == "/support/tickets" && route.Method == "POST" {
+		set("201", "Authenticated passengers and drivers can open a persisted support ticket.", ref("SupportTicket"))
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("CreateSupportTicketInput")}}}
+		return
+	}
+	if path == "/support/tickets" && route.Method == "GET" {
+		pagination()
+		set("200", "List only support tickets created by the authenticated user.", ref("SupportTicketPage"))
+		return
+	}
+	if path == "/admin/rides" && route.Method == "GET" {
+		pagination()
+		params(query("status", scalar("string")), query("passenger", object{"type": "string", "format": "uuid"}), query("driver", object{"type": "string", "format": "uuid"}), query("q", scalar("string")), query("from", object{"type": "string", "format": "date-time"}), query("to", object{"type": "string", "format": "date-time"}))
+		set("200", "Support and admin can search, filter and page persisted rides. Every request is staff-audited.", ref("AdminRidePage"))
+		return
+	}
+	if path == "/admin/rides/:id" && route.Method == "GET" {
+		set("200", "Return the persisted ride with its event timeline for support/admin operations.", ref("RideResponse"))
+		return
+	}
+	if path == "/admin/rides/:id/cancel" {
+		set("200", "Support/admin cancel an active ride with a required reason; status and event are saved atomically.", object{"type": "object", "required": []string{"id", "status"}, "properties": object{"id": object{"type": "string", "format": "uuid"}, "status": object{"type": "string", "enum": []string{"cancelled_by_admin"}}}})
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("AdminCancelRideInput")}}}
+		return
+	}
+	if path == "/admin/rides/:id/reassign" {
+		set("200", "Support/admin assign an eligible online replacement driver with a required reason and a durable event.", object{"type": "object", "required": []string{"id", "driver_id", "status"}, "properties": object{"id": object{"type": "string", "format": "uuid"}, "driver_id": object{"type": "string", "format": "uuid"}, "status": object{"type": "string", "enum": []string{"assigned"}}}})
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("AdminReassignRideInput")}}}
+		return
+	}
+	if path == "/admin/tickets" && route.Method == "GET" {
+		pagination()
+		for _, name := range []string{"status", "category", "priority", "assignee", "user", "q", "from", "to"} {
+			params(query(name, scalar("string")))
+		}
+		set("200", "List persisted support tickets with status, category, priority, assignment and text/date filters.", ref("SupportTicketPage"))
+		return
+	}
+	if path == "/admin/tickets/:id" && route.Method == "GET" {
+		pagination()
+		set("200", "Return a persisted support ticket and its paged staff note history.", ref("SupportTicketDetail"))
+		return
+	}
+	if path == "/admin/tickets/:id" && route.Method == "PATCH" {
+		set("200", "Support/admin assign a ticket, add a staff note, or update status/priority and resolution. The change and note are persisted and audit logged.", object{"type": "object", "required": []string{"id", "action", "updated"}, "properties": object{"id": object{"type": "string", "format": "uuid"}, "action": scalar("string"), "updated": scalar("boolean")}})
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("WorkSupportTicketInput")}}}
+		return
+	}
+	if path == "/admin/ratings" && route.Method == "GET" {
+		pagination()
+		params(query("hidden", object{"type": "string", "enum": []string{"false", "true", "all"}, "default": "false"}))
+		set("200", "Admin-only paged rating moderation queue. Hidden ratings are excluded from public profiles and averages.", paged("ratings", ref("Rating"), false))
+		return
+	}
+	if strings.HasPrefix(path, "/admin/ratings/:id/") && route.Method == "POST" {
+		set("200", "Admin hide or restore updates rating visibility and recomputes the recipient's public average.", object{"type": "object", "required": []string{"id", "hidden"}, "properties": object{"id": object{"type": "string", "format": "uuid"}, "hidden": scalar("boolean")}})
+		return
+	}
+	if path == "/admin/reports" && route.Method == "GET" {
+		pagination()
+		set("200", "Support/admin can filter persisted reports by status, category, assignee, priority and participant.", paged("reports", ref("Report"), false))
+		return
+	}
+	if path == "/admin/stats" {
+		set("200", "Live SQL counts for users, active rides, open tickets and open complaints.", ref("Stats"))
+		return
+	}
+	if (path == "/ratings" || path == "/ratings/") && route.Method == "POST" {
+		set("201", "Legacy user-to-user rating. Set DISABLE_LEGACY_RATINGS=true to return 410 and require completed ride ratings.", ref("Rating"))
+		responses["410"] = jsonResponse("Legacy rating writes are disabled; rate a completed ride.", ref("Error"))
+		return
+	}
 	if path == "/admin/drivers/:id/verify" {
 		delete(responses, "2XX")
 		responses["410"] = jsonResponse("Boolean verification is retired; claim and review individual documents.", ref("Error"))
 		operation["deprecated"] = true
 		operation["description"] = "Retired boolean verification always returns 410 after authorization."
-		return
-	}
-	if path == "/admin/rides" || path == "/admin/tickets" {
-		set("501", "The persisted administration workflow is unavailable. This endpoint returns an error until B8 implements it; no list payload or pagination metadata is emitted.", ref("Error"))
-		operation["x-implementation-status"] = "unavailable-until-B8"
-		return
-	}
-	if path == "/admin/tickets/:id" {
-		set("501", "The persisted ticket workflow is unavailable. The handler returns an error until B8 implements saved support work.", ref("Error"))
-		operation["x-implementation-status"] = "unavailable-until-B8"
-		return
-	}
-	if path == "/admin/stats" {
-		set("200", "Driver and passenger counts use SQL COUNT. operational_counts_available=false identifies the legacy zero active_rides/open_tickets/open_complaints fields until B8 implements real operational counts.", ref("Stats"))
 		return
 	}
 	if path == "/admin/users/:id/history" {

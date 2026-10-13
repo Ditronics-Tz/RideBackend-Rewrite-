@@ -559,3 +559,19 @@ before startup to apply schema version 6.
 ## Server-authoritative rides
 
 Passengers create rides through `POST /api/v1/rides`; drivers publish availability and location, receive one-at-a-time offers, and advance rides through the ride lifecycle endpoints. Reads are limited to ride participants. Every mutating ride request uses an `Idempotency-Key`, and the server calculates estimated and final fares from configured TZS rates. Set `RIDE_BASE_FARE_TZS`, `RIDE_PER_KM_FARE_TZS`, and `RIDE_PER_MINUTE_FARE_TZS`, then apply migration version 7 before enabling ride creation. Ride completion does not yet trigger payment, rating, promo, or notification work.
+## Support, ride administration, and ratings (B8)
+
+Apply migration version 8 before using these endpoints. App users can create and list their own support tickets with `POST /api/v1/support/tickets` and `GET /api/v1/support/tickets`. Staff can filter and page through tickets at `GET /api/v1/admin/tickets`, inspect a ticket, and update its status, assignment, and notes with `PATCH /api/v1/admin/tickets/:id`. Support staff and admins can work support tickets; admin-only controls remain admin-only.
+
+Admins can list and inspect rides, cancel a ride with a required reason, and reassign it to an eligible online driver. `GET /api/v1/admin/stats` returns live ride and open-ticket counts. Ride participants may rate the other participant once after completion with `POST /api/v1/rides/:id/rating`. Admins can hide and restore ratings; hidden ratings do not appear in public lists or profile aggregates. Set `DISABLE_LEGACY_RATINGS=true` to return Gone from the older user-to-user rating write route.
+
+| Action | Support | Admin |
+| --- | --- | --- |
+| Create/list own support tickets | Yes | Yes |
+| List/view/update support tickets and add staff notes | Yes | Yes |
+| List/view/cancel/reassign rides | No | Yes (configured 2FA applies) |
+| View live operational counts | Yes | Yes |
+| Hide/restore ratings | No | Yes (configured 2FA applies) |
+
+Changes to tickets, rides, and rating visibility are audited. See docs/ship/api-changes.md and docs/api/openapi.yaml for request and response details.
+Permission correction for the matrix above: support and admin can both list, inspect, cancel, and reassign rides. The ride operations endpoints are support/admin routes; the ratings list and hide/restore endpoints are admin-only (configured 2FA applies).

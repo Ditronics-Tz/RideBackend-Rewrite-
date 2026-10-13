@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/google/uuid"
 	"ride-backend/config"
 	"ride-backend/middleware"
 	"ride-backend/models"
@@ -113,19 +114,80 @@ func (ac *AdminController) GetStats(c *fiber.Ctx) error {
 	if err != nil {
 		return verificationError(c, err)
 	}
+	activeRides, openTickets, openComplaints, err := ac.Store.AdminOperationalCounts()
+	if err != nil {
+		return operationError(c, err)
+	}
 	return c.JSON(fiber.Map{
 		"total_drivers":                drivers,
 		"total_passengers":             passengers,
-		"operational_counts_available": false,
-		"active_rides":                 0,
-		"open_tickets":                 0,
-		"open_complaints":              0,
+		"operational_counts_available": true,
+		"active_rides":                 activeRides,
+		"open_tickets":                 openTickets,
+		"open_complaints":              openComplaints,
 	})
 }
 
 // ListRides — support/admin
 func (ac *AdminController) ListRides(c *fiber.Ctx) error {
-	return c.Status(501).JSON(fiber.Map{"error": "Ride administration is not implemented yet"})
+	page, err := operationPage(c)
+	if err != nil {
+		return operationError(c, err)
+	}
+	rides, total, err := ac.Store.ListAdminRides(store.AdminRideFilter{Status: c.Query("status"), Passenger: c.Query("passenger"), Driver: c.Query("driver"), Q: c.Query("q"), From: c.Query("from"), To: c.Query("to")}, page)
+	if err != nil {
+		return operationError(c, err)
+	}
+	rows := make([]models.RideResponse, 0, len(rides))
+	rideController := NewRideController(ac.Cfg, ac.Store)
+	for i := range rides {
+		row, err := rideController.RideResponse(c, &rides[i])
+		if err != nil {
+			return operationError(c, err)
+		}
+		rows = append(rows, *row)
+	}
+	return c.JSON(fiber.Map{"rides": rows, "total": total, "limit": page.Limit, "offset": page.Offset})
+}
+
+func (ac *AdminController) RideDetail(c *fiber.Ctx) error {
+	var ride models.Ride
+	if err := ac.Store.DB().First(&ride, "id = ?", c.Params("id")).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Ride not found"})
+	}
+	response, err := NewRideController(ac.Cfg, ac.Store).RideResponse(c, &ride)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(response)
+}
+
+func (ac *AdminController) CancelRide(c *fiber.Ctx) error {
+	var input store.AdminRideCancelInput
+	if len(c.Body()) > 2048 || c.BodyParser(&input) != nil {
+		return fiber.NewError(400, "Invalid cancellation request")
+	}
+	if err := ac.Store.AdminCancelRide(c.Params("id"), middleware.CurrentStaff(c), input.Reason); err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(fiber.Map{"id": c.Params("id"), "status": "cancelled_by_admin"})
+}
+
+func (ac *AdminController) ReassignRide(c *fiber.Ctx) error {
+	var input struct {
+		DriverID string `json:"driver_id"`
+		Reason   string `json:"reason"`
+	}
+	if len(c.Body()) > 2048 || c.BodyParser(&input) != nil {
+		return fiber.NewError(400, "Invalid reassignment request")
+	}
+	if _, err := uuid.Parse(input.DriverID); err != nil {
+		return operationError(c, store.FieldError("driver_id", "valid driver UUID required"))
+	}
+	if err := ac.Store.AdminReassignRide(c.Params("id"), input.DriverID, middleware.CurrentStaff(c), input.Reason); err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(fiber.Map{"id": c.Params("id"), "driver_id": input.DriverID, "status": "assigned"})
 }
 
 // ListComplaints — support/admin
@@ -140,12 +202,69 @@ func (ac *AdminController) UpdateComplaint(c *fiber.Ctx) error {
 
 // ListTickets — support/admin
 func (ac *AdminController) ListTickets(c *fiber.Ctx) error {
-	return c.Status(501).JSON(fiber.Map{"error": "Persisted ticket workflow is not implemented yet"})
+	page, err := operationPage(c)
+	if err != nil {
+		return operationError(c, err)
+	}
+	tickets, total, err := ac.Store.ListSupportTickets(store.SupportTicketFilter{Status: c.Query("status"), Category: c.Query("category"), Priority: c.Query("priority"), Assignee: c.Query("assignee"), User: c.Query("user"), Q: c.Query("q"), From: c.Query("from"), To: c.Query("to")}, page)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(fiber.Map{"tickets": tickets, "total": total, "limit": page.Limit, "offset": page.Offset})
+}
+
+func (ac *AdminController) TicketDetail(c *fiber.Ctx) error {
+	page, err := operationPage(c)
+	if err != nil {
+		return operationError(c, err)
+	}
+	out, err := ac.Store.SupportTicketDetail(c.Params("id"), page)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(out)
 }
 
 // UpdateTicket — support/admin
 func (ac *AdminController) UpdateTicket(c *fiber.Ctx) error {
-	return c.Status(501).JSON(fiber.Map{"error": "Persisted ticket workflow is not implemented yet"})
+	var input store.WorkSupportTicketInput
+	if len(c.Body()) > 8192 || c.BodyParser(&input) != nil {
+		return fiber.NewError(400, "Invalid ticket update")
+	}
+	actor := middleware.CurrentStaff(c)
+	if err := ac.Store.WorkSupportTicket(c.Params("id"), actor, input); err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(fiber.Map{"id": c.Params("id"), "action": input.Action, "updated": true})
+}
+
+func (ac *AdminController) ListRatings(c *fiber.Ctx) error {
+	page, err := operationPage(c)
+	if err != nil {
+		return operationError(c, err)
+	}
+	hidden := c.Query("hidden", "false")
+	if hidden != "true" && hidden != "false" && hidden != "all" {
+		return operationError(c, store.FieldError("hidden", "hidden must be true, false or all"))
+	}
+	rows, total, err := ac.Store.AdminRatings(hidden, page)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(fiber.Map{"ratings": rows, "total": total, "limit": page.Limit, "offset": page.Offset})
+}
+
+func (ac *AdminController) ModerateRating(c *fiber.Ctx) error {
+	actor := middleware.CurrentStaff(c)
+	action := "restore"
+	if strings.HasSuffix(c.Route().Path, "/hide") {
+		action = "hide"
+	}
+	hidden := action == "hide"
+	if err := ac.Store.ModerateRating(c.Params("id"), actor.ID, hidden); err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(fiber.Map{"id": c.Params("id"), "hidden": hidden})
 }
 
 // ---------- Audit Logs (Admin only) ----------

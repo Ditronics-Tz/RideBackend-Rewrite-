@@ -115,6 +115,31 @@ func (oc *OperationsController) AppReports(c *fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{"reports": rows, "total": total, "limit": p.Limit, "offset": p.Offset})
 }
+
+func (oc *OperationsController) SupportTickets(c *fiber.Ctx) error {
+	userID, _ := middleware.CurrentUser(c)
+	if c.Method() == "POST" {
+		var input models.CreateSupportTicketInput
+		if len(c.Body()) > 8192 || c.BodyParser(&input) != nil {
+			return operationError(c, store.FieldError("body", "invalid support ticket request"))
+		}
+		ticket, err := oc.Store.CreateSupportTicket(userID, input)
+		if err != nil {
+			return operationError(c, err)
+		}
+		return c.Status(201).JSON(ticket)
+	}
+	page, err := operationPage(c)
+	if err != nil {
+		return operationError(c, err)
+	}
+	tickets, total, err := oc.Store.ListSupportTickets(store.SupportTicketFilter{User: userID}, page)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(fiber.Map{"tickets": tickets, "total": total, "limit": page.Limit, "offset": page.Offset})
+}
+
 func (oc *OperationsController) Reports(c *fiber.Ctx) error {
 	p, err := operationPage(c)
 	if err != nil {

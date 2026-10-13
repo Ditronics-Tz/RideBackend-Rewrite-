@@ -1,6 +1,8 @@
 package store
 
 import (
+	"time"
+
 	"gorm.io/gorm"
 	"ride-backend/models"
 )
@@ -14,7 +16,7 @@ type operationsPrivacy struct{ s *Store }
 
 func (operationsPrivacy) Name() string { return "reports_and_rides" }
 func (operationsPrivacy) Tables() []string {
-	return []string{"rides", "ride_events", "ride_idempotency_keys", "user_blocks", "reports", "report_notes", "account_flags", "notification_deliveries"}
+	return []string{"rides", "ride_events", "ride_idempotency_keys", "user_blocks", "reports", "report_notes", "support_tickets", "support_ticket_notes", "account_flags", "notification_deliveries"}
 }
 func (operationsPrivacy) Description() string {
 	return "retains anonymous ride/report IDs and counts; clears routes, locations, report free text, staff notes, blocks and notifications"
@@ -46,7 +48,16 @@ func (e operationsPrivacy) Export(id string) (any, []string, error) {
 	if err := e.s.db.Model(&models.Report{}).Select("id, status, category, description").Where("reporter_id = ?", id).Find(&reports).Error; err != nil {
 		return nil, nil, err
 	}
-	return map[string]any{"rides": rideOut, "ride_events": eventOut, "reports_made": reports}, nil, nil
+	tickets := []struct {
+		ID        string    `json:"id"`
+		Subject   string    `json:"subject"`
+		Status    string    `json:"status"`
+		CreatedAt time.Time `json:"created_at"`
+	}{}
+	if err := e.s.db.Model(&models.SupportTicket{}).Select("id, subject, status, created_at").Where("user_id = ?", id).Find(&tickets).Error; err != nil {
+		return nil, nil, err
+	}
+	return map[string]any{"rides": rideOut, "ride_events": eventOut, "reports_made": reports, "support_tickets": tickets}, nil, nil
 }
 
 func rideIDs(rides []models.Ride) []string {
@@ -80,6 +91,12 @@ func (operationsPrivacy) Anonymize(tx *gorm.DB, id string) error {
 		return err
 	}
 	if err := tx.Model(&models.Report{}).Where("reporter_id = ? OR reported_id = ?", id, id).Updates(map[string]any{"description": "", "resolution_note": ""}).Error; err != nil {
+		return err
+	}
+	if err := tx.Model(&models.SupportTicket{}).Where("user_id = ?", id).Updates(map[string]any{"subject": "", "description": "", "resolution_note": ""}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("ticket_id IN (?)", tx.Model(&models.SupportTicket{}).Select("id").Where("user_id = ?", id)).Delete(&models.SupportTicketNote{}).Error; err != nil {
 		return err
 	}
 	if err := tx.Model(&models.AccountFlag{}).Where("user_id = ?", id).Update("reason", "").Error; err != nil {

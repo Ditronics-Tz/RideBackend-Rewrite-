@@ -204,6 +204,19 @@ func (rc *RideController) Arrived(c *fiber.Ctx) error  { return rc.transition(c,
 func (rc *RideController) Start(c *fiber.Ctx) error    { return rc.transition(c, "start") }
 func (rc *RideController) Complete(c *fiber.Ctx) error { return rc.transition(c, "complete") }
 
+func (rc *RideController) Rate(c *fiber.Ctx) error {
+	userID, _ := middleware.CurrentUser(c)
+	var input models.RateRideInput
+	if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
+		return fiber.NewError(400, "Invalid rating")
+	}
+	rating, err := rc.Store.RateCompletedRide(c.UserContext(), userID, c.Params("id"), input)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.Status(201).JSON(rating)
+}
+
 func (rc *RideController) transition(c *fiber.Ctx, action string) error {
 	uid, _ := middleware.CurrentUser(c)
 	var finalFare int64

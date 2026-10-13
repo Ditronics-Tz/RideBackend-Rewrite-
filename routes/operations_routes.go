@@ -11,6 +11,9 @@ import (
 )
 
 func SetupOperationsAppRoutes(r fiber.Router, oc *controllers.OperationsController, cfg *config.Config, s *store.Store) {
+	support := r.Group("/support/tickets", middleware.AppProtected(cfg, s), middleware.RequireAppRoles(models.RoleDriver, models.RolePassenger))
+	support.Get("", operationIDs, oc.SupportTickets)
+	support.Post("", operationIDs, oc.SupportTickets)
 	blocks := r.Group("/blocks", middleware.AppProtected(cfg, s), middleware.RequireAppRoles(models.RoleDriver, models.RolePassenger))
 	blocks.Post("", operationIDs, oc.Blocks)
 	blocks.Get("", operationIDs, oc.Blocks)

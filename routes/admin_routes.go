@@ -68,10 +68,17 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 	admin.Patch("/drivers/:id/suspension", supportAndAdmin, ac.SuspendDriverVerification)
 	admin.Get("/stats", supportAndAdmin, ac.GetStats)
 	admin.Get("/rides", supportAndAdmin, ac.ListRides)
+	admin.Get("/rides/:id", supportAndAdmin, operationIDs, ac.RideDetail)
+	admin.Post("/rides/:id/cancel", supportAndAdmin, operationIDs, ac.CancelRide)
+	admin.Post("/rides/:id/reassign", supportAndAdmin, operationIDs, ac.ReassignRide)
 	admin.Get("/complaints", supportAndAdmin, ac.ListComplaints)
 	admin.Patch("/complaints/:id", supportAndAdmin, ac.UpdateComplaint)
 	admin.Get("/tickets", supportAndAdmin, ac.ListTickets)
-	admin.Patch("/tickets/:id", supportAndAdmin, ac.UpdateTicket)
+	admin.Get("/tickets/:id", supportAndAdmin, operationIDs, ac.TicketDetail)
+	admin.Patch("/tickets/:id", supportAndAdmin, operationIDs, ac.UpdateTicket)
+	admin.Get("/ratings", adminOnly, operationIDs, ac.ListRatings)
+	admin.Post("/ratings/:id/hide", adminOnly, operationIDs, ac.ModerateRating)
+	admin.Post("/ratings/:id/restore", adminOnly, operationIDs, ac.ModerateRating)
 
 	// Admin-only permissions
 	admin.Patch("/users/:id/role", adminOnly, ac.UpdateUserRole)

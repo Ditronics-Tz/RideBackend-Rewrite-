@@ -22,6 +22,37 @@ jobs:
         run: python3 scripts/check-secret-scan.py
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ride_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ride_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_TEST_DSN: postgres://postgres:postgres@localhost:5432/ride_test?sslmode=disable
+      RUN_POSTGRES_MIGRATION_TESTS: "1"
+      RUN_POSTGRES_AUTH_TESTS: "1"
+      RUN_POSTGRES_FINANCE_TESTS: "1"
+      RUN_POSTGRES_PROMO_TESTS: "1"
+      RUN_POSTGRES_VERIFICATION_TESTS: "1"
+      RUN_POSTGRES_RIDE_TESTS: "1"
+      APP_ENV: development
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: ride_test
+      DB_SSLMODE: disable
+      JWT_SECRET: ci_app_secret_32_bytes_minimum_value
+      STAFF_JWT_SECRET: ci_staff_secret_32_bytes_minimum_value
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

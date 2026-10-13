@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -278,10 +279,16 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			}
 		}
 
-		// Authorized staff see explicit unavailability until persisted B8 work lands.
+		// Support and admin can read persisted ride/ticket queues; a missing ticket is not a successful mutation.
 		for _, staffToken := range []string{supportTok, adminTok} {
-			for _, route := range []struct{ method, path string }{{http.MethodGet, "/api/v1/admin/rides"}, {http.MethodGet, "/api/v1/admin/tickets"}, {http.MethodPatch, "/api/v1/admin/tickets/" + uuid.NewString()}} {
-				req := httptest.NewRequest(route.method, route.path, nil)
+			for _, route := range []struct {
+				method string
+				path   string
+				status int
+				body   string
+			}{{http.MethodGet, "/api/v1/admin/rides", http.StatusOK, ""}, {http.MethodGet, "/api/v1/admin/tickets", http.StatusOK, ""}, {http.MethodPatch, "/api/v1/admin/tickets/" + uuid.NewString(), http.StatusNotFound, `{"action":"note","note":"Not found fixture"}`}} {
+				req := httptest.NewRequest(route.method, route.path, strings.NewReader(route.body))
+				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("Authorization", "Bearer "+staffToken)
 				resp, err := controllerTestRequest(t, app, req)
 				if err != nil {
@@ -290,8 +297,8 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 				var body map[string]any
 				_ = json.NewDecoder(resp.Body).Decode(&body)
 				resp.Body.Close()
-				if resp.StatusCode != http.StatusNotImplemented || body["error"] == nil || body["request_id"] == nil {
-					t.Fatalf("unimplemented %s returned success or invalid error: %d %+v", route.path, resp.StatusCode, body)
+				if resp.StatusCode != route.status {
+					t.Fatalf("%s returned unexpected status: %d %+v", route.path, resp.StatusCode, body)
 				}
 			}
 		}
@@ -303,6 +310,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		}{
 			{http.MethodGet, "/api/v1/admin/staff"},
 			{http.MethodGet, "/api/v1/admin/audit-logs"},
+			{http.MethodGet, "/api/v1/admin/ratings"},
 		}
 
 		for _, ar := range adminOnlyRoutes {

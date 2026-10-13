@@ -73,6 +73,7 @@ type Config struct {
 	RideEstimatedSpeedKMPH   int
 	RideOfferTimeoutSeconds  int
 	RideSearchRadiusKM       int
+	DisableLegacyRatings     bool
 }
 
 // DSN builds a Postgres connection string for the pgx/gorm driver.
@@ -223,6 +224,7 @@ func NewConfigFromEnv() (*Config, error) {
 		RideEstimatedSpeedKMPH:   getEnvInt("RIDE_ESTIMATED_SPEED_KMPH", 20),
 		RideOfferTimeoutSeconds:  getEnvInt("RIDE_OFFER_TIMEOUT_SECONDS", 30),
 		RideSearchRadiusKM:       getEnvInt("RIDE_SEARCH_RADIUS_KM", 10),
+		DisableLegacyRatings:     parseBool(os.Getenv("DISABLE_LEGACY_RATINGS"), false),
 	}
 
 	if err := cfg.Validate(); err != nil {

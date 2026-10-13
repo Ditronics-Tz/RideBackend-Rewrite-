@@ -1,0 +1,30 @@
+{
+  "ratings": [
+    {"name":"ride_id","type":"uuid"},
+    {"name":"hidden_at","type":"timestamptz"},
+    {"name":"hidden_by","type":"uuid"}
+  ],
+  "support_ticket_notes": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"ticket_id","type":"uuid","not_null":true},
+    {"name":"staff_id","type":"uuid","not_null":true},
+    {"name":"note","type":"text","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true}
+  ],
+  "support_tickets": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"user_id","type":"uuid","not_null":true},
+    {"name":"subject","type":"varchar(160)","not_null":true},
+    {"name":"description","type":"text","not_null":true},
+    {"name":"category","type":"varchar(40)","not_null":true},
+    {"name":"status","type":"varchar(24)","not_null":true},
+    {"name":"priority","type":"varchar(24)","not_null":true},
+    {"name":"assigned_to","type":"uuid"},
+    {"name":"resolution_outcome","type":"text","not_null":true},
+    {"name":"resolution_note","type":"text","not_null":true},
+    {"name":"resolved_by","type":"uuid"},
+    {"name":"resolved_at","type":"timestamptz"},
+    {"name":"created_at","type":"timestamptz","not_null":true},
+    {"name":"updated_at","type":"timestamptz","not_null":true}
+  ]
+}

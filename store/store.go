@@ -235,7 +235,7 @@ func (s *Store) recompute(userID string) {
 	var a agg
 	_ = s.db.Model(&models.Rating{}).
 		Select("COALESCE(AVG(score),0) AS avg, COUNT(*) AS count").
-		Where("to_user_id = ?", userID).
+		Where("to_user_id = ? AND hidden_at IS NULL", userID).
 		Scan(&a).Error
 
 	_ = s.db.Model(&models.DriverProfile{}).
@@ -248,7 +248,7 @@ func (s *Store) recompute(userID string) {
 
 func (s *Store) ListRatingsForUser(userID string) ([]*models.Rating, float64, int) {
 	var ratings []*models.Rating
-	_ = s.db.Where("to_user_id = ?", userID).Order("created_at DESC").Find(&ratings).Error
+	_ = s.db.Where("to_user_id = ? AND hidden_at IS NULL", userID).Order("created_at DESC").Find(&ratings).Error
 	sum := 0
 	for _, r := range ratings {
 		sum += r.Score

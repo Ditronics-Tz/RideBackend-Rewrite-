@@ -163,3 +163,25 @@ uses the admin user detail area. Public schemas and route guards are regenerated
 
 Affected: passenger and driver apps. Driver availability now rejects drivers
 with incomplete or expired approval documents or an active ride.
+
+## 2026-10-13 - B8
+
+- App users can create and list their own support tickets at
+  `POST/GET /api/v1/support/tickets`. Support/admin can filter tickets, inspect
+  note history, assign, add staff notes, update priority/status and record a
+  resolution through `/admin/tickets`. Ticket edits, notes and their specific
+  audit entries commit together. Admin ride list/detail/cancel/reassign routes
+  now read and update persisted rides; cancellation and reassignment require a
+  reason and append ride events/audit rows.
+- `GET /admin/stats` now returns live SQL counts for active rides, open tickets
+  and open complaints. Existing report workflows back the complaints alias.
+- `POST /rides/:id/rating` allows each participant to rate the other party once
+  after completion. Admin-only `GET /admin/ratings` and hide/restore actions
+  moderate visible ratings; hidden ratings are removed from public lists and
+  aggregates. Set `DISABLE_LEGACY_RATINGS=true` to return 410 from the old
+  user-to-user rating write route. Apply migration version 8.
+- B9 CI now provisions PostgreSQL and runs the opt-in migration, auth, finance,
+  promo, verification and ride concurrency suites against isolated schemas.
+
+Affected: passenger/driver support, admin ride and ticket workflows, rating
+clients and admin moderation screens. See the generated OpenAPI contract.

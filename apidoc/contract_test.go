@@ -149,7 +149,7 @@ func TestSpecReferencesSecurityAndPathParametersResolve(t *testing.T) {
 	}
 }
 
-func TestCurrentContractRetainsActualKeysAndLabelsPlaceholders(t *testing.T) {
+func TestCurrentContractRetainsKeysAndDocumentsPersistedB8Workflows(t *testing.T) {
 	document := readDocument(t)
 	paths := document["paths"].(map[string]any)
 	get := func(path, method string) map[string]any { return paths[path].(map[string]any)[method].(map[string]any) }
@@ -160,12 +160,12 @@ func TestCurrentContractRetainsActualKeysAndLabelsPlaceholders(t *testing.T) {
 	}
 	for _, path := range []string{"/api/v1/admin/rides", "/api/v1/admin/tickets"} {
 		operation := get(path, "get")
-		if operation["x-implementation-status"] != "unavailable-until-B8" || operation["responses"].(map[string]any)["501"] == nil || operation["responses"].(map[string]any)["200"] != nil {
-			t.Fatal("unavailable workflow was documented as persisted")
+		if operation["x-implementation-status"] != nil || operation["responses"].(map[string]any)["200"] == nil || operation["responses"].(map[string]any)["501"] != nil {
+			t.Fatal("persisted workflow is not documented as available")
 		}
 	}
-	if get("/api/v1/admin/tickets/{id}", "patch")["x-implementation-status"] != "unavailable-until-B8" {
-		t.Fatal("ticket update persistence was promised")
+	if get("/api/v1/admin/tickets/{id}", "patch")["responses"].(map[string]any)["200"] == nil {
+		t.Fatal("ticket update persistence contract is missing")
 	}
 	for _, path := range []string{"/api/v1/driver/profile/{userId}", "/api/v1/passenger/profile/{userId}"} {
 		operation := get(path, "get")

@@ -20,6 +20,9 @@ func NewRatingController(cfg *config.Config, s *store.Store) *RatingController {
 
 // CreateRating — any authenticated user rates another user (1-5).
 func (rc *RatingController) CreateRating(c *fiber.Ctx) error {
+	if rc.Cfg.DisableLegacyRatings {
+		return c.Status(fiber.StatusGone).JSON(fiber.Map{"error": "Rate a completed ride through POST /rides/:id/rating"})
+	}
 	fromID, _ := middleware.CurrentUser(c)
 	var input models.RatingInput
 	if err := c.BodyParser(&input); err != nil {

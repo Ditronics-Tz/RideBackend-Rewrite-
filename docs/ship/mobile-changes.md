@@ -1,6 +1,6 @@
 # Mobile app changes
 
-## Implemented backend contracts (B3/B4/B5/B6/B7)
+## Implemented backend contracts (B3/B4/B5/B6/B7/B8)
 
 - Driver: when R2 is enabled, request document presign with type/content_type/size/
   expires_at, PUT bytes to the returned URL with its headers, then confirm by ID.
@@ -37,10 +37,15 @@
   actions. Ride reads are restricted to participants. Configure fare rates on
   the backend before enabling ride creation; no payment, rating, promo or
   notification side effects run on completion yet.
+- Both apps can open support tickets with `POST /api/v1/support/tickets` and
+  list only their own tickets. After a ride completes, each ride participant
+  may rate the other once at `POST /api/v1/rides/:id/rating`. Existing public
+  rating lists omit ratings hidden by an admin.
 
 ## Future contracts (not implemented in this milestone)
 
-- B8: ride-bound ratings and operational support/admin workflows.
+- No additional mobile contract remains from B8. Admin ticket/ride workflows
+  and rating moderation are staff-only and are documented in OpenAPI.
 
 No mobile source code was changed in this run. Consult api-changes.md and the
 current OpenAPI inventory before integrating a deployed backend.

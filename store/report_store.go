@@ -111,7 +111,7 @@ func (s *Store) Reports(f ReportFilter, p Page) ([]models.Report, int64, error) 
 		}
 	}
 	if f.User != "" {
-		q = q.Where("reporter_id = ? OR reported_id = ?", f.User, f.User)
+		q = q.Where("(reporter_id = ? OR reported_id = ?)", f.User, f.User)
 	}
 	if f.Before != "" {
 		t, err := time.Parse(time.RFC3339, f.Before)

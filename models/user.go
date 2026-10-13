@@ -115,12 +115,15 @@ type PublicPassengerProfile struct {
 
 // Rating is a rating from one user to another (either direction).
 type Rating struct {
-	ID         string    `json:"id" gorm:"primaryKey;type:uuid"`
-	FromUserID string    `json:"from_user_id" gorm:"type:uuid;not null;index"`
-	ToUserID   string    `json:"to_user_id" gorm:"type:uuid;not null;index"`
-	Score      int       `json:"score" gorm:"not null"` // 1-5
-	Comment    string    `json:"comment"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID         string     `json:"id" gorm:"primaryKey;type:uuid"`
+	RideID     *string    `json:"ride_id,omitempty" gorm:"type:uuid;uniqueIndex:idx_rating_ride_rater,where:ride_id IS NOT NULL,priority:1"`
+	FromUserID string     `json:"from_user_id" gorm:"type:uuid;not null;index;uniqueIndex:idx_rating_ride_rater,where:ride_id IS NOT NULL,priority:2"`
+	ToUserID   string     `json:"to_user_id" gorm:"type:uuid;not null;index"`
+	Score      int        `json:"score" gorm:"not null"` // 1-5
+	Comment    string     `json:"comment"`
+	HiddenAt   *time.Time `json:"hidden_at,omitempty"`
+	HiddenBy   *string    `json:"hidden_by,omitempty" gorm:"type:uuid"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 // ---------- Request inputs ----------
