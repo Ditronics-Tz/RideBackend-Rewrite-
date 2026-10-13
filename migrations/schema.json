@@ -1,0 +1,2397 @@
+{
+  "account_deletion_requests": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "source",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "requested_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "scheduled_for",
+      "type": "timestamptz"
+    },
+    {
+      "name": "completed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "cancelled_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "block_reason",
+      "type": "text"
+    },
+    {
+      "name": "hold_reason",
+      "type": "text"
+    },
+    {
+      "name": "hold_by",
+      "type": "uuid"
+    },
+    {
+      "name": "error",
+      "type": "text"
+    },
+    {
+      "name": "previous_status",
+      "type": "text"
+    },
+    {
+      "name": "verification_note",
+      "type": "text"
+    },
+    {
+      "name": "cleanup_paths",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "account_flags": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "reason",
+      "type": "text"
+    },
+    {
+      "name": "source",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "commission_rules": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "scope",
+      "type": "text"
+    },
+    {
+      "name": "vehicle_type",
+      "type": "text"
+    },
+    {
+      "name": "percent",
+      "type": "bigint"
+    },
+    {
+      "name": "min_fee",
+      "type": "bigint"
+    },
+    {
+      "name": "effective_from",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_by",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "data_export_requests": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "requested_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "ready_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "file_path",
+      "type": "text"
+    },
+    {
+      "name": "file_size",
+      "type": "bigint"
+    },
+    {
+      "name": "download_count",
+      "type": "bigint"
+    },
+    {
+      "name": "error",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "driver_documents": [
+    {
+      "name": "object_key",
+      "type": "text"
+    },
+    {
+      "name": "staging_object_key",
+      "type": "text"
+    },
+    {
+      "name": "content_type",
+      "type": "text"
+    },
+    {
+      "name": "expected_size",
+      "type": "bigint"
+    },
+    {
+      "name": "upload_expires_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "type",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "file_path",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "file_url",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "is_current",
+      "type": "boolean",
+      "not_null": true
+    },
+    {
+      "name": "rejection_code",
+      "type": "text"
+    },
+    {
+      "name": "rejection_note",
+      "type": "text"
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "reviewed_by",
+      "type": "uuid"
+    },
+    {
+      "name": "reviewed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "driver_duplicate_flags": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid"
+    },
+    {
+      "name": "matched_driver_id",
+      "type": "uuid"
+    },
+    {
+      "name": "field",
+      "type": "text"
+    },
+    {
+      "name": "value",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "driver_notifications": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "document_id",
+      "type": "uuid"
+    },
+    {
+      "name": "message",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "driver_payouts": [
+    {
+      "name": "destination_hash",
+      "type": "text"
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid"
+    },
+    {
+      "name": "amount",
+      "type": "bigint"
+    },
+    {
+      "name": "fee",
+      "type": "bigint"
+    },
+    {
+      "name": "method",
+      "type": "text"
+    },
+    {
+      "name": "masked_destination",
+      "type": "text"
+    },
+    {
+      "name": "destination_encrypted",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "requested_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "approved_by",
+      "type": "uuid"
+    },
+    {
+      "name": "reject_reason",
+      "type": "text"
+    },
+    {
+      "name": "provider_ref",
+      "type": "text"
+    },
+    {
+      "name": "batch_id",
+      "type": "uuid"
+    },
+    {
+      "name": "idempotency_key",
+      "type": "text"
+    },
+    {
+      "name": "claimed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "driver_profiles": [
+    {
+      "name": "profile_picture_key",
+      "type": "text"
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "licence_number",
+      "type": "text"
+    },
+    {
+      "name": "vehicle_card_number",
+      "type": "text"
+    },
+    {
+      "name": "plate_number",
+      "type": "text"
+    },
+    {
+      "name": "licence_image_url",
+      "type": "text"
+    },
+    {
+      "name": "profile_picture_url",
+      "type": "text"
+    },
+    {
+      "name": "verification_status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "assigned_to",
+      "type": "uuid"
+    },
+    {
+      "name": "assigned_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "is_online",
+      "type": "boolean",
+      "not_null": true
+    },
+    {
+      "name": "average_rating",
+      "type": "decimal"
+    },
+    {
+      "name": "total_ratings",
+      "type": "bigint"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "emergency_contacts": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "name",
+      "type": "text"
+    },
+    {
+      "name": "phone",
+      "type": "text"
+    },
+    {
+      "name": "relationship",
+      "type": "text"
+    },
+    {
+      "name": "notify_on_sos",
+      "type": "boolean"
+    },
+    {
+      "name": "notify_on_trip_share",
+      "type": "boolean"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "fraud_actions": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "flag_id",
+      "type": "uuid"
+    },
+    {
+      "name": "action",
+      "type": "text"
+    },
+    {
+      "name": "by",
+      "type": "text"
+    },
+    {
+      "name": "at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "fraud_events": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "type",
+      "type": "text"
+    },
+    {
+      "name": "ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "dedupe_key",
+      "type": "text"
+    },
+    {
+      "name": "claimed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "fraud_flags": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "rule_key",
+      "type": "text"
+    },
+    {
+      "name": "type",
+      "type": "text"
+    },
+    {
+      "name": "severity",
+      "type": "text"
+    },
+    {
+      "name": "score",
+      "type": "bigint"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "evidence",
+      "type": "jsonb"
+    },
+    {
+      "name": "related_user_ids",
+      "type": "jsonb"
+    },
+    {
+      "name": "dedupe_key",
+      "type": "text"
+    },
+    {
+      "name": "assigned_to",
+      "type": "uuid"
+    },
+    {
+      "name": "resolution_note",
+      "type": "text"
+    },
+    {
+      "name": "resolved_by",
+      "type": "uuid"
+    },
+    {
+      "name": "resolved_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "suppressed_until",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "fraud_mitigations": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "flag_id",
+      "type": "uuid"
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "type",
+      "type": "text"
+    },
+    {
+      "name": "active",
+      "type": "boolean"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "fraud_notes": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "flag_id",
+      "type": "uuid"
+    },
+    {
+      "name": "staff_id",
+      "type": "uuid"
+    },
+    {
+      "name": "note",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "fraud_rules": [
+    {
+      "name": "key",
+      "type": "text",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "enabled",
+      "type": "boolean"
+    },
+    {
+      "name": "params",
+      "type": "jsonb"
+    },
+    {
+      "name": "severity",
+      "type": "text"
+    },
+    {
+      "name": "auto_mitigation",
+      "type": "text"
+    },
+    {
+      "name": "updated_by",
+      "type": "uuid"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "incident_attachments": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "incident_id",
+      "type": "uuid"
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "file_path",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "incident_notes": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "incident_id",
+      "type": "uuid"
+    },
+    {
+      "name": "staff_id",
+      "type": "uuid"
+    },
+    {
+      "name": "note",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "incident_reports": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "reporter_id",
+      "type": "uuid"
+    },
+    {
+      "name": "ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "category",
+      "type": "text"
+    },
+    {
+      "name": "severity",
+      "type": "text"
+    },
+    {
+      "name": "description",
+      "type": "text"
+    },
+    {
+      "name": "occurred_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "location",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "assigned_to",
+      "type": "uuid"
+    },
+    {
+      "name": "resolution_note",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "ledger_entries": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "wallet_id",
+      "type": "uuid"
+    },
+    {
+      "name": "account",
+      "type": "text"
+    },
+    {
+      "name": "direction",
+      "type": "text"
+    },
+    {
+      "name": "amount",
+      "type": "bigint"
+    },
+    {
+      "name": "balance_after",
+      "type": "bigint"
+    },
+    {
+      "name": "ref_type",
+      "type": "text"
+    },
+    {
+      "name": "ref_id",
+      "type": "text"
+    },
+    {
+      "name": "idempotency_key",
+      "type": "text"
+    },
+    {
+      "name": "memo",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "notification_deliveries": [
+    {
+      "name": "sos_alert_id",
+      "type": "uuid"
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "text"
+    },
+    {
+      "name": "template",
+      "type": "text"
+    },
+    {
+      "name": "language",
+      "type": "text"
+    },
+    {
+      "name": "phone",
+      "type": "text"
+    },
+    {
+      "name": "link",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "attempts",
+      "type": "bigint"
+    },
+    {
+      "name": "claimed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "passenger_profiles": [
+    {
+      "name": "profile_picture_key",
+      "type": "text"
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "full_name",
+      "type": "text"
+    },
+    {
+      "name": "profile_picture_url",
+      "type": "text"
+    },
+    {
+      "name": "phone",
+      "type": "text"
+    },
+    {
+      "name": "average_rating",
+      "type": "decimal"
+    },
+    {
+      "name": "total_ratings",
+      "type": "bigint"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "payment_settings": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "driver_max_negative_balance",
+      "type": "bigint"
+    },
+    {
+      "name": "payout_min",
+      "type": "bigint"
+    },
+    {
+      "name": "payout_auto_approve_max",
+      "type": "bigint"
+    },
+    {
+      "name": "refund_support_limit",
+      "type": "bigint"
+    },
+    {
+      "name": "updated_by",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "payment_transactions": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "payer_id",
+      "type": "uuid"
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid"
+    },
+    {
+      "name": "method",
+      "type": "text"
+    },
+    {
+      "name": "amount",
+      "type": "bigint"
+    },
+    {
+      "name": "fare",
+      "type": "bigint"
+    },
+    {
+      "name": "commission",
+      "type": "bigint"
+    },
+    {
+      "name": "discount_amount",
+      "type": "bigint"
+    },
+    {
+      "name": "refunded_amount",
+      "type": "bigint"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "provider",
+      "type": "text"
+    },
+    {
+      "name": "provider_ref",
+      "type": "text"
+    },
+    {
+      "name": "masked_phone",
+      "type": "text"
+    },
+    {
+      "name": "phone_encrypted",
+      "type": "text"
+    },
+    {
+      "name": "failure_code",
+      "type": "text"
+    },
+    {
+      "name": "idempotency_key",
+      "type": "text"
+    },
+    {
+      "name": "request_hash",
+      "type": "text"
+    },
+    {
+      "name": "work_status",
+      "type": "text"
+    },
+    {
+      "name": "claimed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "phone_challenges": [
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "phone",
+      "type": "text"
+    },
+    {
+      "name": "code_hash",
+      "type": "text"
+    },
+    {
+      "name": "attempts",
+      "type": "bigint"
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "sent_at",
+      "type": "timestamptz"
+    }
+  ],
+  "promo_audiences": [
+    {
+      "name": "promo_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "granted_by",
+      "type": "uuid"
+    },
+    {
+      "name": "granted_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "notified_at",
+      "type": "timestamptz"
+    }
+  ],
+  "promo_codes": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "code",
+      "type": "varchar(20)",
+      "not_null": true
+    },
+    {
+      "name": "title",
+      "type": "text"
+    },
+    {
+      "name": "description",
+      "type": "text"
+    },
+    {
+      "name": "discount_type",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "discount_value",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "max_discount",
+      "type": "bigint"
+    },
+    {
+      "name": "min_fare",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "audience",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "first_ride_only",
+      "type": "boolean"
+    },
+    {
+      "name": "starts_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "max_redemptions",
+      "type": "bigint"
+    },
+    {
+      "name": "max_per_user",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "redeemed_count",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "source",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "created_by",
+      "type": "uuid"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "promo_redemptions": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "promo_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "discount_amount",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "ratings": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "from_user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "to_user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "score",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "comment",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "reconciliation_exceptions": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "run_id",
+      "type": "uuid"
+    },
+    {
+      "name": "transaction_id",
+      "type": "text"
+    },
+    {
+      "name": "type",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "note",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "reconciliation_runs": [
+    {
+      "name": "claimed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "key",
+      "type": "text"
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "exceptions",
+      "type": "bigint"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "referral_reward_phones": [
+    {
+      "name": "phone",
+      "type": "text",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "referral_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "referral_settings": [
+    {
+      "name": "id",
+      "type": "bigserial",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "enabled",
+      "type": "boolean"
+    },
+    {
+      "name": "referee_reward_type",
+      "type": "text"
+    },
+    {
+      "name": "referee_reward_value",
+      "type": "bigint"
+    },
+    {
+      "name": "referrer_reward_type",
+      "type": "text"
+    },
+    {
+      "name": "referrer_reward_value",
+      "type": "bigint"
+    },
+    {
+      "name": "qualifying_min_fare",
+      "type": "bigint"
+    },
+    {
+      "name": "max_rewards_per_referrer",
+      "type": "bigint"
+    },
+    {
+      "name": "reward_valid_days",
+      "type": "bigint"
+    }
+  ],
+  "referrals": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "referrer_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "referee_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "reject_reason",
+      "type": "text"
+    },
+    {
+      "name": "qualifying_ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "referrer_reward_status",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "refunds": [
+    {
+      "name": "destination",
+      "type": "text"
+    },
+    {
+      "name": "provider_ref",
+      "type": "text"
+    },
+    {
+      "name": "work_status",
+      "type": "text"
+    },
+    {
+      "name": "claimed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "failure_code",
+      "type": "text"
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "transaction_id",
+      "type": "uuid"
+    },
+    {
+      "name": "amount",
+      "type": "bigint"
+    },
+    {
+      "name": "reason",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "requested_by",
+      "type": "uuid"
+    },
+    {
+      "name": "approved_by",
+      "type": "uuid"
+    },
+    {
+      "name": "idempotency_key",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "report_notes": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "report_id",
+      "type": "uuid"
+    },
+    {
+      "name": "staff_id",
+      "type": "uuid"
+    },
+    {
+      "name": "note",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "reports": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "reporter_id",
+      "type": "uuid"
+    },
+    {
+      "name": "reported_id",
+      "type": "uuid"
+    },
+    {
+      "name": "ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "category",
+      "type": "text"
+    },
+    {
+      "name": "description",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "priority",
+      "type": "text"
+    },
+    {
+      "name": "assigned_to",
+      "type": "uuid"
+    },
+    {
+      "name": "resolution_outcome",
+      "type": "text"
+    },
+    {
+      "name": "resolution_note",
+      "type": "text"
+    },
+    {
+      "name": "resolved_by",
+      "type": "uuid"
+    },
+    {
+      "name": "resolved_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "ride_completion_receipts": [
+    {
+      "name": "ride_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "passenger_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "ride_location_points": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "lat",
+      "type": "decimal"
+    },
+    {
+      "name": "lng",
+      "type": "decimal"
+    },
+    {
+      "name": "accuracy",
+      "type": "decimal"
+    },
+    {
+      "name": "at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "rides": [
+    {
+      "name": "route_geometry",
+      "type": "text"
+    },
+    {
+      "name": "accepted_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "cancelled_by",
+      "type": "uuid"
+    },
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "passenger_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "fare",
+      "type": "bigint"
+    },
+    {
+      "name": "vehicle_type",
+      "type": "text"
+    },
+    {
+      "name": "pickup",
+      "type": "text"
+    },
+    {
+      "name": "dropoff",
+      "type": "text"
+    },
+    {
+      "name": "pickup_lat",
+      "type": "decimal"
+    },
+    {
+      "name": "pickup_lng",
+      "type": "decimal"
+    },
+    {
+      "name": "dropoff_lat",
+      "type": "decimal"
+    },
+    {
+      "name": "dropoff_lng",
+      "type": "decimal"
+    },
+    {
+      "name": "expected_distance",
+      "type": "decimal"
+    },
+    {
+      "name": "last_lat",
+      "type": "decimal"
+    },
+    {
+      "name": "last_lng",
+      "type": "decimal"
+    },
+    {
+      "name": "last_location_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "completed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "share_tokens": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "token_hash",
+      "type": "text"
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_by",
+      "type": "uuid"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "sos_alerts": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "ride_id",
+      "type": "uuid"
+    },
+    {
+      "name": "triggered_by",
+      "type": "uuid"
+    },
+    {
+      "name": "role",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "lat",
+      "type": "decimal"
+    },
+    {
+      "name": "lng",
+      "type": "decimal"
+    },
+    {
+      "name": "accuracy",
+      "type": "decimal"
+    },
+    {
+      "name": "last_lat",
+      "type": "decimal"
+    },
+    {
+      "name": "last_lng",
+      "type": "decimal"
+    },
+    {
+      "name": "last_location_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "assigned_to",
+      "type": "uuid"
+    },
+    {
+      "name": "acknowledged_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "resolved_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "outcome",
+      "type": "text"
+    },
+    {
+      "name": "resolution_note",
+      "type": "text"
+    },
+    {
+      "name": "escalation_level",
+      "type": "bigint"
+    },
+    {
+      "name": "last_escalated_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "user_reported_safe",
+      "type": "boolean"
+    },
+    {
+      "name": "silent",
+      "type": "boolean"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "sos_events": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "alert_id",
+      "type": "uuid"
+    },
+    {
+      "name": "type",
+      "type": "text"
+    },
+    {
+      "name": "by",
+      "type": "text"
+    },
+    {
+      "name": "note",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "sos_location_pings": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "alert_id",
+      "type": "uuid"
+    },
+    {
+      "name": "lat",
+      "type": "decimal"
+    },
+    {
+      "name": "lng",
+      "type": "decimal"
+    },
+    {
+      "name": "accuracy",
+      "type": "decimal"
+    },
+    {
+      "name": "speed",
+      "type": "decimal"
+    },
+    {
+      "name": "at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "staff_audit_logs": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "actor_id",
+      "type": "varchar(64)",
+      "not_null": true
+    },
+    {
+      "name": "action",
+      "type": "varchar(100)",
+      "not_null": true
+    },
+    {
+      "name": "target_type",
+      "type": "varchar(50)",
+      "not_null": true
+    },
+    {
+      "name": "target_id",
+      "type": "varchar(64)",
+      "not_null": true
+    },
+    {
+      "name": "ip",
+      "type": "text"
+    },
+    {
+      "name": "meta",
+      "type": "jsonb"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "staff_sessions": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "staff_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "token_hash",
+      "type": "varchar(64)",
+      "not_null": true
+    },
+    {
+      "name": "family_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "user_agent",
+      "type": "text"
+    },
+    {
+      "name": "ip",
+      "type": "text"
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz",
+      "not_null": true
+    },
+    {
+      "name": "revoked_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "replaced_by",
+      "type": "uuid"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "staff_users": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "name",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "email",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "password_hash",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "role",
+      "type": "varchar(20)",
+      "not_null": true
+    },
+    {
+      "name": "is_active",
+      "type": "boolean",
+      "not_null": true
+    },
+    {
+      "name": "must_change_password",
+      "type": "boolean",
+      "not_null": true
+    },
+    {
+      "name": "failed_attempts",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "locked_until",
+      "type": "timestamptz"
+    },
+    {
+      "name": "last_login_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "totp_secret_enc",
+      "type": "text"
+    },
+    {
+      "name": "totp_enabled",
+      "type": "boolean",
+      "not_null": true
+    },
+    {
+      "name": "created_by",
+      "type": "uuid"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "support_notes": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "author_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "author_name",
+      "type": "text"
+    },
+    {
+      "name": "body",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "user_blocks": [
+    {
+      "name": "blocker_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "blocked_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "user_devices": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "device_hash",
+      "type": "text"
+    },
+    {
+      "name": "platform",
+      "type": "text"
+    },
+    {
+      "name": "first_seen",
+      "type": "timestamptz"
+    },
+    {
+      "name": "last_seen",
+      "type": "timestamptz"
+    },
+    {
+      "name": "last_ip",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "user_referral_codes": [
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "code",
+      "type": "varchar(8)",
+      "not_null": true
+    }
+  ],
+  "user_status_events": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "actor_id",
+      "type": "uuid"
+    },
+    {
+      "name": "from_status",
+      "type": "text"
+    },
+    {
+      "name": "to_status",
+      "type": "text"
+    },
+    {
+      "name": "reason",
+      "type": "text"
+    },
+    {
+      "name": "until",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "users": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "name",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "email",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "password_hash",
+      "type": "text"
+    },
+    {
+      "name": "role",
+      "type": "varchar(20)",
+      "not_null": true
+    },
+    {
+      "name": "is_active",
+      "type": "boolean"
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "suspended_until",
+      "type": "timestamptz"
+    },
+    {
+      "name": "phone",
+      "type": "text"
+    },
+    {
+      "name": "phone_verified_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "deleted_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "updated_at",
+      "type": "timestamptz"
+    }
+  ],
+  "verification_reviews": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "document_id",
+      "type": "uuid"
+    },
+    {
+      "name": "reviewer_id",
+      "type": "uuid"
+    },
+    {
+      "name": "reviewer_name",
+      "type": "text"
+    },
+    {
+      "name": "decision",
+      "type": "text",
+      "not_null": true
+    },
+    {
+      "name": "reason_code",
+      "type": "text"
+    },
+    {
+      "name": "note",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "wallets": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid"
+    },
+    {
+      "name": "balance",
+      "type": "bigint"
+    },
+    {
+      "name": "held",
+      "type": "bigint"
+    },
+    {
+      "name": "version",
+      "type": "bigint"
+    },
+    {
+      "name": "status",
+      "type": "text"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ],
+  "webhook_events": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "provider",
+      "type": "text"
+    },
+    {
+      "name": "event_id",
+      "type": "text"
+    },
+    {
+      "name": "reference",
+      "type": "text"
+    },
+    {
+      "name": "payload_hash",
+      "type": "text"
+    },
+    {
+      "name": "processed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz"
+    }
+  ]
+}
