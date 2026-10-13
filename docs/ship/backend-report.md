@@ -108,3 +108,92 @@ upload migration utilities/store/commands; storage adapters and tests;
 document/profile models/controllers/routes; schema migrations and command;
 runtime/request middleware/jobs/readiness; list query helpers and regression tests;
 early API/guard inventory and generator; README and docs/ship handoff.
+
+## Files changed in this milestone
+
+Compared with the preserved baseline branch; this list excludes the earlier task.txt corrections.
+
+- `.env.example`
+- `.gitattributes`
+- `.github/workflows/ci.yml`
+- `.gitignore`
+- `.gitleaks.toml`
+- `README.md`
+- `apidoc/contract.go`
+- `apidoc/contract_test.go`
+- `apidoc/guards.go`
+- `apidoc/inventory.go`
+- `apidoc/schema.go`
+- `cmd/generate-openapi/main.go`
+- `cmd/migrate-files-to-r2/main.go`
+- `cmd/migrate-files-to-r2/main_test.go`
+- `cmd/migrate-uploads/main.go`
+- `cmd/migrate/main.go`
+- `cmd/migrate/main_test.go`
+- `config/config.go`
+- `config/cors.go`
+- `config/production_test.go`
+- `config/runtime_test.go`
+- `config/storage_test.go`
+- `controllers/account_controller.go`
+- `controllers/admin_controller.go`
+- `controllers/controllers_test.go`
+- `controllers/data_request_controller.go`
+- `controllers/document_storage_controller.go`
+- `controllers/profile_controller.go`
+- `controllers/promo_controller.go`
+- `controllers/rating_controller.go`
+- `controllers/verification_controller.go`
+- `db/db.go`
+- `docs/api/openapi.yaml`
+- `docs/ship/api-changes.md`
+- `docs/ship/backend-report.md`
+- `docs/ship/backend-status.md`
+- `docs/ship/mobile-changes.md`
+- `docs/ship/needs-owner.md`
+- `docs/ship/route-guards.md`
+- `go.mod`
+- `go.sum`
+- `jobs/document_expiry.go`
+- `jobs/operations.go`
+- `main.go`
+- `middleware/request.go`
+- `middleware/request_test.go`
+- `migrations/00001_baseline.sql`
+- `migrations/00002_storage.sql`
+- `migrations/00003_legacy_backfills.sql`
+- `migrations/migrations.go`
+- `migrations/migrations_test.go`
+- `migrations/schema.json`
+- `models/document_json.go`
+- `models/user.go`
+- `models/verification.go`
+- `routes/admin_pagination_test.go`
+- `routes/app.go`
+- `routes/cors_test.go`
+- `routes/document_storage_test.go`
+- `routes/file_routes.go`
+- `routes/profile_routes.go`
+- `routes/readiness_test.go`
+- `routes/routes_test.go`
+- `scripts/check-secret-scan.py`
+- `storage/local.go`
+- `storage/r2.go`
+- `storage/storage.go`
+- `storage/storage_test.go`
+- `store/admin_queries.go`
+- `store/context_test.go`
+- `store/document_upload.go`
+- `store/object_storage.go`
+- `store/operations_common.go`
+- `store/pagination_test.go`
+- `store/rating_queries.go`
+- `store/storage_migration.go`
+- `store/storage_migration_test.go`
+- `store/storage_privacy_hook.go`
+- `store/store.go`
+- `store/upload_migration.go`
+- `store/upload_migration_test.go`
+- `utils/upload.go`
+- `utils/upload_migration.go`
+- `utils/upload_migration_test.go`
