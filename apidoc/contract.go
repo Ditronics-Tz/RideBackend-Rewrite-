@@ -313,6 +313,13 @@ func describeCurrent(route Route, operation, schemas object) {
 	if path == "/admin/reports" && route.Method == "GET" {
 		pagination()
 		set("200", "Support/admin can filter persisted reports by status, category, assignee, priority and participant.", paged("reports", ref("Report"), false))
+		params(query("status", scalar("string")))
+		params(query("category", scalar("string")))
+		params(query("assignee", object{"type": "string", "format": "uuid"}))
+		params(query("priority", scalar("string")))
+		params(query("user", object{"type": "string", "format": "uuid"}))
+		params(query("before", object{"type": "string", "format": "date-time"}))
+		params(query("q", scalar("string")))
 		return
 	}
 	if path == "/admin/stats" {

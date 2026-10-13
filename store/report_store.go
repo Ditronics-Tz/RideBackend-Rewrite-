@@ -97,7 +97,7 @@ func (s *Store) SubmitReport(reporter string, r *models.Report, threshold, days 
 	})
 }
 
-type ReportFilter struct{ Status, Category, Assignee, Priority, User, Before string }
+type ReportFilter struct{ Status, Category, Assignee, Priority, User, Before, Q string }
 
 func (s *Store) Reports(f ReportFilter, p Page) ([]models.Report, int64, error) {
 	q := s.db.Model(&models.Report{})
@@ -112,6 +112,10 @@ func (s *Store) Reports(f ReportFilter, p Page) ([]models.Report, int64, error) 
 	}
 	if f.User != "" {
 		q = q.Where("(reporter_id = ? OR reported_id = ?)", f.User, f.User)
+	}
+	if f.Q != "" {
+		needle := "%" + strings.ToLower(strings.TrimSpace(f.Q)) + "%"
+		q = q.Where("(LOWER(description) LIKE ? OR LOWER(category) LIKE ?)", needle, needle)
 	}
 	if f.Before != "" {
 		t, err := time.Parse(time.RFC3339, f.Before)

@@ -182,6 +182,10 @@ with incomplete or expired approval documents or an active ride.
   user-to-user rating write route. Apply migration version 8.
 - B9 CI now provisions PostgreSQL and runs the opt-in migration, auth, finance,
   promo, verification and ride concurrency suites against isolated schemas.
+- Rating moderation accepts `hidden=false|true|all`, optional recipient `user`,
+  comment search `q`, and `max_score`; hide/restore requests require an audited
+  reason. Ticket assignment/status audit entries include the supplied reason,
+  and report searches accept `q` over report text/category.
 
 Affected: passenger/driver support, admin ride and ticket workflows, rating
 clients and admin moderation screens. See the generated OpenAPI contract.

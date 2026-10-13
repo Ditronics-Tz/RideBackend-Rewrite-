@@ -99,6 +99,7 @@ func (s *Store) SupportTicketDetail(id string, page Page) (map[string]any, error
 type WorkSupportTicketInput struct {
 	Action     string `json:"action"`
 	Assignee   string `json:"assigned_to"`
+	Reason     string `json:"reason"`
 	Status     string `json:"status"`
 	Priority   string `json:"priority"`
 	Note       string `json:"note"`
@@ -109,6 +110,10 @@ type WorkSupportTicketInput struct {
 func (s *Store) WorkSupportTicket(id string, actor *models.StaffUser, input WorkSupportTicketInput) error {
 	if actor == nil || actor.Role != models.StaffRoleAdmin && actor.Role != models.StaffRoleSupport {
 		return OpError(403, "Support or admin role required")
+	}
+	input.Reason = strings.TrimSpace(input.Reason)
+	if len([]rune(input.Reason)) > 500 {
+		return FieldError("reason", "reason must be at most 500 characters")
 	}
 	return s.Transaction(func(tx *Store) error {
 		var ticket models.SupportTicket
@@ -181,6 +186,6 @@ func (s *Store) WorkSupportTicket(id string, actor *models.StaffUser, input Work
 		if err := tx.db.Model(&ticket).Updates(updates).Error; err != nil {
 			return err
 		}
-		return tx.CreateAuditLog(actor.ID, "ticket_"+input.Action, "ticket", ticket.ID, "", map[string]any{"status": input.Status, "priority": input.Priority})
+		return tx.CreateAuditLog(actor.ID, "ticket_"+input.Action, "ticket", ticket.ID, "", map[string]any{"status": input.Status, "priority": input.Priority, "reason": input.Reason})
 	})
 }

@@ -145,7 +145,7 @@ func (oc *OperationsController) Reports(c *fiber.Ctx) error {
 	if err != nil {
 		return operationError(c, err)
 	}
-	rows, total, err := oc.Store.Reports(store.ReportFilter{Status: c.Query("status"), Category: c.Query("category"), Assignee: c.Query("assignee"), Priority: c.Query("priority"), User: c.Query("user"), Before: c.Query("before")}, p)
+	rows, total, err := oc.Store.Reports(store.ReportFilter{Status: c.Query("status"), Category: c.Query("category"), Assignee: c.Query("assignee"), Priority: c.Query("priority"), User: c.Query("user"), Before: c.Query("before"), Q: c.Query("q")}, p)
 	if err != nil {
 		return operationError(c, err)
 	}

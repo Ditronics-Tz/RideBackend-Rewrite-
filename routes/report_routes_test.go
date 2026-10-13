@@ -53,4 +53,26 @@ func TestReportedUserCannotDiscoverReporter(t *testing.T) {
 			t.Fatalf("reporter leaked on %s", path)
 		}
 	}
+	admin, err := s.CreateStaffUser("Admin", uuid.NewString()+"@test.invalid", "", models.StaffRoleAdmin, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminToken, err := testutil.StaffToken(s, admin.ID, admin.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest("GET", "/api/v1/admin/reports?q=secret", nil)
+	request.Header.Set("Authorization", "Bearer "+adminToken)
+	response, err := routes.BuildApp(cfg, s).Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var page map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != 200 || page["total"] != float64(1) {
+		t.Fatalf("report text filter did not return the matching report: status=%d page=%v", response.StatusCode, page)
+	}
 }

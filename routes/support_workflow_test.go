@@ -83,7 +83,7 @@ func TestPersistedSupportAdminRidesAndRideBoundRatings(t *testing.T) {
 	request("GET", "/admin/tickets", supportToken, nil, 200)
 	request("PATCH", "/admin/tickets/"+ticketID, supportToken, map[string]any{"action": "assign"}, 200)
 	request("PATCH", "/admin/tickets/"+ticketID, supportToken, map[string]any{"action": "note", "note": "Checked trip details"}, 200)
-	request("PATCH", "/admin/tickets/"+ticketID, supportToken, map[string]any{"action": "update", "status": "resolved", "resolution_outcome": "refunded_offline", "resolution_note": "Explained the fare review result"}, 200)
+	request("PATCH", "/admin/tickets/"+ticketID, supportToken, map[string]any{"action": "update", "status": "resolved", "resolution_outcome": "refunded_offline", "resolution_note": "Explained the fare review result", "reason": "Fare reviewed with the passenger"}, 200)
 	detail := request("GET", "/admin/tickets/"+ticketID, adminToken, nil, 200)
 	if detail["ticket"].(map[string]any)["status"] != "resolved" || len(detail["notes"].([]any)) != 1 {
 		t.Fatalf("ticket workflow was not persisted: %v", detail)
