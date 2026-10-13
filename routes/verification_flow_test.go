@@ -13,7 +13,6 @@ import (
 	"ride-backend/models"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 )
 
 func TestDriverVerificationLifecycle(t *testing.T) {
@@ -39,10 +38,10 @@ func TestDriverVerificationLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aToken, _ := utils.GenerateStaffToken(a.ID, a.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
-	bToken, _ := utils.GenerateStaffToken(b.ID, b.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
-	uToken, _ := utils.GenerateAppToken(u.ID, u.Role, cfg.JWTSecret, time.Hour)
-	otherToken, _ := utils.GenerateAppToken(other.ID, other.Role, cfg.JWTSecret, time.Hour)
+	aToken, _ := testutil.StaffToken(s, a.ID, a.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	bToken, _ := testutil.StaffToken(s, b.ID, b.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	uToken, _ := testutil.AppToken(s, u.ID, u.Role, cfg.JWTSecret, time.Hour)
+	otherToken, _ := testutil.AppToken(s, other.ID, other.Role, cfg.JWTSecret, time.Hour)
 	request := func(method, path, token string, payload interface{}, want int) {
 		t.Helper()
 		body, _ := json.Marshal(payload)
@@ -157,7 +156,7 @@ func TestDriverVerificationLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg.StaffRequire2FAForAdmin = false
-	adminToken, _ := utils.GenerateStaffToken(admin.ID, admin.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	adminToken, _ := testutil.StaffToken(s, admin.ID, admin.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
 	request("PATCH", "/admin/documents/"+replacement.ID+"/review", adminToken, map[string]string{"decision": "rejected", "reason_code": "suspected_fraud", "note": "Investigate identity"}, 200)
 	request("PATCH", "/driver/availability", uToken, map[string]bool{"online": true}, 400)
 	request("PATCH", "/admin/documents/"+replacement.ID+"/review", adminToken, map[string]string{"decision": "approved", "note": "Identity confirmed after appeal"}, 200)
@@ -176,6 +175,11 @@ func TestDriverVerificationLifecycle(t *testing.T) {
 	request("PATCH", adminBase+"/suspension", aToken, map[string]interface{}{"suspended": true, "note": "Safety investigation"}, 200)
 	request("PATCH", "/driver/availability", uToken, map[string]bool{"online": true}, 403)
 	request("PATCH", adminBase+"/suspension", aToken, map[string]interface{}{"suspended": false, "note": "Investigation complete"}, 200)
+	request("PATCH", "/driver/availability", uToken, map[string]bool{"online": true}, 401)
+	uToken, err = testutil.AppToken(s, u.ID, u.Role, cfg.JWTSecret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
 	request("PATCH", "/driver/availability", uToken, map[string]bool{"online": true}, 200)
 	// A missed daily sweep must not allow an expired approval to go online.
 	past := time.Now().Add(-time.Hour)

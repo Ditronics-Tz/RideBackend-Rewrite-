@@ -539,3 +539,12 @@ Go 1.27.2 or newer is required. Apply the frozen PostgreSQL schema with go run .
 | New app sessions, dispatch, persisted tickets, ride administration, rating moderation | Pending backend B5/B7/B8 | Pending backend B5/B7/B8 |
 
 See docs/ship/backend-status.md for completed and pending tasks. New frontend controls do not imply those APIs already exist. Existing phase 6-9 operational workflows are preserved.
+
+## Authentication and app sessions
+
+App access tokens expire after 15 minutes. Store refresh tokens in secure client
+storage and rotate them through POST /api/v1/auth/refresh; every successful
+refresh replaces both tokens. Reuse revokes the session family. Logout and
+logout-all revoke server sessions immediately. Apply database migrations before
+starting the API. Google sign-in requires GOOGLE_REDIRECT_ALLOWED_URLS to contain
+the exact configured redirect URI; production redirects must use HTTPS.

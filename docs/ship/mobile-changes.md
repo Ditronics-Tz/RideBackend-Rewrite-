@@ -1,6 +1,6 @@
 # Mobile app changes
 
-## Implemented backend contracts (B3/B4)
+## Implemented backend contracts (B3/B4/B5)
 
 - Driver: when R2 is enabled, request document presign with type/content_type/size/
   expires_at, PUT bytes to the returned URL with its headers, then confirm by ID.
@@ -13,12 +13,16 @@
 - Both apps: pageable list endpoints default to 50 rows, maximum 200; follow
   total/limit/offset. Errors include request_id for support correlation; clients
   may send a safe X-Request-ID. Invalid pagination returns field errors.
+- App auth returns `access_token`, the compatibility `token` alias, and a refresh
+  token. Keep refresh tokens in secure platform storage; call
+  `POST /api/v1/auth/refresh` before access expiry and replace both values after
+  every successful refresh. Reuse invalidates that session family. Logout and
+  logout-all revoke server sessions; `restricted=true` means pending-deletion
+  recovery routes only.
 
 ## Future contracts (not implemented in this milestone)
 
-- B5: fifteen-minute access tokens, rotating hashed refresh sessions, refresh,
-  logout/logout-all and session management. Existing token alias compatibility
-  must be retained when this lands. Do not assume the current app auth changed.
+- B6: public profile DTOs and upload safeguards.
 - B7/B8: server-authoritative ride creation, offers, transitions, availability,
   location, participant reads and ride-bound ratings. Mobile clients must adopt
   those endpoints after they are implemented; no new dispatch flow is live yet.

@@ -7,7 +7,6 @@ import (
 	"ride-backend/models"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +29,7 @@ func TestReportedUserCannotDiscoverReporter(t *testing.T) {
 	if err := s.DB().Create(&r).Error; err != nil {
 		t.Fatal(err)
 	}
-	token, err := utils.GenerateAppToken(b.ID, b.Role, cfg.JWTSecret, time.Hour)
+	token, err := testutil.AppToken(s, b.ID, b.Role, cfg.JWTSecret, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}

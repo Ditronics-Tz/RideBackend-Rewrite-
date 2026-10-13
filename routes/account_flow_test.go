@@ -11,7 +11,6 @@ import (
 	"ride-backend/models"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 	"testing"
 	"time"
 )
@@ -37,10 +36,10 @@ func TestAccountControlAndPhoneVerification(t *testing.T) {
 	other, _ := s.CreateUser("Other", uuid.NewString()+"@example.test", string(hash), models.RolePassenger)
 	support, _ := s.CreateStaffUser("Support", uuid.NewString()+"@example.test", "unused", models.StaffRoleSupport, nil, false)
 	admin, _ := s.CreateStaffUser("Admin", uuid.NewString()+"@example.test", "unused", models.StaffRoleAdmin, nil, false)
-	token, _ := utils.GenerateAppToken(u.ID, u.Role, cfg.JWTSecret, time.Hour)
-	otherToken, _ := utils.GenerateAppToken(other.ID, other.Role, cfg.JWTSecret, time.Hour)
-	st, _ := utils.GenerateStaffToken(support.ID, support.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
-	at, _ := utils.GenerateStaffToken(admin.ID, admin.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	token, _ := testutil.AppToken(s, u.ID, u.Role, cfg.JWTSecret, time.Hour)
+	otherToken, _ := testutil.AppToken(s, other.ID, other.Role, cfg.JWTSecret, time.Hour)
+	st, _ := testutil.StaffToken(s, support.ID, support.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	at, _ := testutil.StaffToken(s, admin.ID, admin.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
 	request := func(method, path, auth string, payload interface{}, want int) []byte {
 		t.Helper()
 		body, _ := json.Marshal(payload)
@@ -66,6 +65,11 @@ func TestAccountControlAndPhoneVerification(t *testing.T) {
 	request("GET", "/auth/me", token, nil, 403)
 	request("POST", "/auth/login", "", map[string]string{"email": u.Email, "password": "Test-pass-123"}, 401)
 	request("POST", base+"/reactivate", st, map[string]string{"reason": "Investigation complete"}, 200)
+	request("GET", "/auth/me", token, nil, 401)
+	token, err = testutil.AppToken(s, u.ID, u.Role, cfg.JWTSecret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
 	request("GET", "/auth/me", token, nil, 200)
 	request("POST", base+"/notes", st, map[string]string{"body": "Staff-only safety context"}, 201)
 	request("GET", base+"/notes", token, nil, 401)
@@ -87,6 +91,11 @@ func TestAccountControlAndPhoneVerification(t *testing.T) {
 	until := time.Now().Add(time.Minute)
 	request("POST", base+"/suspend", st, map[string]interface{}{"reason": "Temporary restriction", "until": until}, 200)
 	s.DB().Model(&models.User{}).Where("id = ?", u.ID).Update("suspended_until", time.Now().Add(-time.Minute))
+	request("GET", "/auth/me", token, nil, 401)
+	token, err = testutil.AppToken(s, u.ID, u.Role, cfg.JWTSecret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
 	request("GET", "/auth/me", token, nil, 200)
 	request("POST", "/auth/phone/request-otp", token, map[string]string{"phone": "0712345678"}, 503)
 	sms := &captureSMS{}

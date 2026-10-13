@@ -197,3 +197,30 @@ Compared with the preserved baseline branch; this list excludes the earlier task
 - `utils/upload.go`
 - `utils/upload_migration.go`
 - `utils/upload_migration_test.go`
+
+## B5 - Authentication and sessions
+
+Implemented app registration/login validation, uniform invalid-credential responses,
+SQL-backed rate limits, five-failure/15-minute account lockout, audited admin unlock,
+and persistent app security events. App access tokens expire after 15 minutes and
+include a session ID; refresh credentials are random 32-byte values stored as
+SHA-256 hashes, rotate on use, and expire 30 days after original issuance. Reuse
+revokes the complete family. Session list/revoke, logout/logout-all, support/admin
+inspection, and admin unlock routes are available. Suspension, role change,
+completed deletion, and explicit revocation invalidate app tokens immediately.
+
+Google OAuth now uses exact configured redirect allowlisting, one-use stored state,
+a browser-bound HttpOnly cookie, verified Google email, and subject-based identity
+binding. Staff access checks database auth versions and session rows on every
+request. Password and active/role changes revoke staff sessions. Authenticator
+replacement stores a ten-minute pending secret, requires password and current
+TOTP proof when replacing, activates only after a new valid code, revokes other
+sessions, and returns a fresh current access token. Manual private file handlers
+also enforce current session validity.
+
+Validation: `go vet ./...`, `go test ./... -count=1`, and `go build ./...` pass.
+Generated OpenAPI and route guard inventory are current. Store/migration unit tests
+pass; opt-in PostgreSQL migration, locking, and refresh-concurrency tests were
+skipped because no isolated PostgreSQL service is configured locally. Frontend
+B5 auth/settings/admin-session integration and its checks are on
+`ship/fe-auth-integration`.

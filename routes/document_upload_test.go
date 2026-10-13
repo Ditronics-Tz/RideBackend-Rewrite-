@@ -12,7 +12,6 @@ import (
 	"ride-backend/models"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 	"testing"
 	"time"
 )
@@ -28,7 +27,7 @@ func TestPrivateDocumentMultipartUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, _ := utils.GenerateAppToken(u.ID, u.Role, cfg.JWTSecret, time.Hour)
+	token, _ := testutil.AppToken(s, u.ID, u.Role, cfg.JWTSecret, time.Hour)
 	var picture bytes.Buffer
 	if err := png.Encode(&picture, image.NewRGBA(image.Rect(0, 0, 2, 2))); err != nil {
 		t.Fatal(err)

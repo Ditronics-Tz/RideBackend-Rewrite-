@@ -39,21 +39,24 @@ func ParseStaffRole(s string) (StaffRole, error) {
 
 // StaffUser represents an admin or support member.
 type StaffUser struct {
-	ID                 string     `json:"id" gorm:"primaryKey;type:uuid"`
-	Name               string     `json:"name" gorm:"not null"`
-	Email              string     `json:"email" gorm:"uniqueIndex;not null"`
-	PasswordHash       string     `json:"-" gorm:"column:password_hash;not null"`
-	Role               StaffRole  `json:"role" gorm:"type:varchar(20);not null"`
-	IsActive           bool       `json:"is_active" gorm:"not null;default:true"`
-	MustChangePassword bool       `json:"must_change_password" gorm:"not null"`
-	FailedAttempts     int        `json:"failed_attempts" gorm:"not null;default:0"`
-	LockedUntil        *time.Time `json:"locked_until,omitempty" gorm:"index"`
-	LastLoginAt        *time.Time `json:"last_login_at,omitempty"`
-	TOTPSecretEnc      *string    `json:"-" gorm:"column:totp_secret_enc"`
-	TOTPEnabled        bool       `json:"totp_enabled" gorm:"not null;default:false"`
-	CreatedBy          *string    `json:"created_by,omitempty" gorm:"type:uuid"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	AuthVersion          int        `json:"-" gorm:"not null;default:0"`
+	PendingTOTPSecretEnc *string    `json:"-"`
+	PendingTOTPExpiresAt *time.Time `json:"-"`
+	ID                   string     `json:"id" gorm:"primaryKey;type:uuid"`
+	Name                 string     `json:"name" gorm:"not null"`
+	Email                string     `json:"email" gorm:"uniqueIndex;not null"`
+	PasswordHash         string     `json:"-" gorm:"column:password_hash;not null"`
+	Role                 StaffRole  `json:"role" gorm:"type:varchar(20);not null"`
+	IsActive             bool       `json:"is_active" gorm:"not null;default:true"`
+	MustChangePassword   bool       `json:"must_change_password" gorm:"not null"`
+	FailedAttempts       int        `json:"failed_attempts" gorm:"not null;default:0"`
+	LockedUntil          *time.Time `json:"locked_until,omitempty" gorm:"index"`
+	LastLoginAt          *time.Time `json:"last_login_at,omitempty"`
+	TOTPSecretEnc        *string    `json:"-" gorm:"column:totp_secret_enc"`
+	TOTPEnabled          bool       `json:"totp_enabled" gorm:"not null;default:false"`
+	CreatedBy            *string    `json:"created_by,omitempty" gorm:"type:uuid"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
 func (s *StaffUser) TableName() string {

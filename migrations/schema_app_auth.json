@@ -1,0 +1,142 @@
+{
+  "app_security_events": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "type",
+      "type": "varchar(64)",
+      "not_null": true
+    },
+    {
+      "name": "ip",
+      "type": "varchar(45)"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz",
+      "not_null": true
+    }
+  ],
+  "app_sessions": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "user_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "family_id",
+      "type": "uuid",
+      "not_null": true
+    },
+    {
+      "name": "token_hash",
+      "type": "varchar(64)",
+      "not_null": true
+    },
+    {
+      "name": "device_id",
+      "type": "varchar(128)"
+    },
+    {
+      "name": "platform",
+      "type": "varchar(32)"
+    },
+    {
+      "name": "ip",
+      "type": "varchar(45)"
+    },
+    {
+      "name": "created_at",
+      "type": "timestamptz",
+      "not_null": true
+    },
+    {
+      "name": "last_used_at",
+      "type": "timestamptz",
+      "not_null": true
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz",
+      "not_null": true
+    },
+    {
+      "name": "revoked_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "replaced_by",
+      "type": "uuid"
+    }
+  ],
+  "auth_rate_buckets": [
+    {
+      "name": "scope",
+      "type": "varchar(64)",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "key_hash",
+      "type": "varchar(64)",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "count",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "window_start",
+      "type": "timestamptz",
+      "not_null": true
+    },
+    {
+      "name": "expires_at",
+      "type": "timestamptz",
+      "not_null": true
+    }
+  ],
+  "staff_users": [
+    {
+      "name": "auth_version",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "pending_totp_secret_enc",
+      "type": "text"
+    },
+    {
+      "name": "pending_totp_expires_at",
+      "type": "timestamptz"
+    }
+  ],
+  "users": [
+    {
+      "name": "failed_login_count",
+      "type": "bigint",
+      "not_null": true
+    },
+    {
+      "name": "locked_until",
+      "type": "timestamptz"
+    }
+  ]
+}

@@ -84,3 +84,41 @@ presign -> direct PUT -> confirm flow when R2 is enabled.
 
 Affected: admin tables and all clients fetching pageable collections; deployment
 must apply schema migrations before starting the API and configure approved origins.
+
+## 2026-10-13 - B5
+
+- App registration requires a valid email and a non-common password of at least
+  10 characters. App login returns the same `401 {error:"invalid credentials"}`
+  for unknown accounts, wrong passwords, locked accounts and inactive accounts.
+  Registration/login/OAuth are rate limited; five failed password attempts lock
+  an account for 15 minutes. Admin can inspect sessions and security events,
+  revoke sessions, and unlock accounts.
+- App login and registration return `{token,access_token,refresh_token,
+  expires_in,refresh_expires_at,restricted,user}`. `token` remains an alias for
+  the 15-minute access token. Refresh tokens expire 30 days after the original
+  session and are stored hashed. `POST /api/v1/auth/refresh` rotates both
+  credentials; reuse revokes the token family. `POST /auth/logout`,
+  `/auth/logout-all`, `GET /auth/sessions`, and `DELETE /auth/sessions/:id`
+  revoke or list only the authenticated user's sessions. Refresh responses use
+  Cache-Control: no-store.
+- App suspensions, role changes, completed deletion, password changes and session
+  revocation invalidate access sessions immediately. Pending deletion keeps its
+  restricted recovery/export flow available. Staff access tokens check the
+  database auth version and session on each request; credential/role/active
+  changes revoke all staff sessions without process-local cache delay.
+- Google login requires `GOOGLE_REDIRECT_ALLOWED_URLS` to include the exact
+  configured redirect URI. State is one-use, short-lived, and bound to an
+  HttpOnly browser cookie. Callback requires Google's verified email and binds
+  by subject; it returns app tokens as JSON and never in a URL. Existing local
+  accounts are not auto-linked by matching email.
+- Staff authenticator setup requires the current password and, when replacing
+  an active authenticator, a valid current code. A pending secret expires after
+  ten minutes and becomes active only after its code verifies. Activation and
+  disable revoke other staff sessions while returning a fresh current access
+  token. Password change revokes all staff sessions and requires a new login.
+
+Affected: passenger/driver apps, Google OAuth deployment configuration, and
+admin/support account security screens. Apply migrations before server startup.
+Frontend auth/settings and admin-session screens are implemented on
+`ship/fe-auth-integration`; production provider and PostgreSQL concurrency checks
+remain deployment work.

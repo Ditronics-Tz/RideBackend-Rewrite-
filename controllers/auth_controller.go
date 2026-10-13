@@ -2,186 +2,315 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
+	"errors"
+	"log/slog"
+	"net/mail"
 	"strings"
-
-	"ride-backend/config"
-	"ride-backend/models"
-	"ride-backend/store"
-	"ride-backend/utils"
+	"time"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
+	"ride-backend/config"
+	"ride-backend/middleware"
+	"ride-backend/models"
+	"ride-backend/store"
+	"ride-backend/utils"
 )
 
 type AuthController struct {
-	Cfg   *config.Config
-	Store *store.Store
+	Cfg     *config.Config
+	Store   *store.Store
+	Limiter store.AuthLimiter
+	Google  utils.GoogleAuthenticator
 }
 
 func NewAuthController(cfg *config.Config, s *store.Store) *AuthController {
-	return &AuthController{Cfg: cfg, Store: s}
+	return &AuthController{Cfg: cfg, Store: s, Limiter: store.NewSQLAuthLimiter(s), Google: utils.GoogleOAuth{Config: cfg}}
 }
 
-// Register creates an app user (driver or passenger only).
+func invalidCredentials(c *fiber.Ctx) error {
+	return c.Status(401).JSON(fiber.Map{"error": "invalid credentials"})
+}
+func authError(c *fiber.Ctx, err error) error {
+	if errors.Is(err, store.ErrAuthUnavailable) {
+		return c.Status(503).JSON(fiber.Map{"error": "authentication temporarily unavailable"})
+	}
+	if errors.Is(err, store.ErrInvalidCredentials) {
+		return invalidCredentials(c)
+	}
+	return operationError(c, err)
+}
+func (ac *AuthController) throttle(c *fiber.Ctx, scope, key string, limit int) error {
+	if strings.TrimSpace(key) == "" || len(key) > 1024 {
+		key = "invalid-account"
+	}
+	decision, err := ac.Limiter.Allow(c.UserContext(), scope, key, store.AuthRate{Limit: limit, Window: time.Minute})
+	if err != nil {
+		return store.OpError(503, "authentication temporarily unavailable")
+	}
+	if !decision.Allowed {
+		return &store.OperationError{Status: 429, Message: "Too many requests", RetryAfter: decision.RetryAfter}
+	}
+	return nil
+}
+func validAuthEmail(email string) bool {
+	if len(email) > 254 {
+		return false
+	}
+	parsed, err := mail.ParseAddress(email)
+	return err == nil && parsed.Address == email && strings.Contains(email, "@")
+}
+func passwordValid(password string, min int) bool {
+	return utf8.RuneCountInString(password) >= min && len(password) <= 72 && !commonPasswords[strings.ToLower(password)] && !map[string]bool{"password123": true, "1234567890": true, "qwerty12345": true, "password12345": true, "abcdefghij": true}[strings.ToLower(password)]
+}
+func appDevice(c *fiber.Ctx) store.SessionDevice {
+	return store.SessionDevice{DeviceID: c.Get("X-Device-ID"), Platform: c.Get("X-Device-Platform", c.Get("X-Platform")), IP: c.IP()}
+}
+
+func (ac *AuthController) respondSession(c *fiber.Ctx, user *models.User, issued *store.IssuedAppSession, status int, message string) error {
+	access, err := utils.GenerateAppSessionToken(user.ID, user.Role, issued.Session.ID, ac.Cfg.JWTSecret, utils.DefaultAppTTL)
+	if err != nil {
+		return authError(c, err)
+	}
+	c.Set("Cache-Control", "no-store")
+	return c.Status(status).JSON(fiber.Map{"message": message, "token": access, "access_token": access, "refresh_token": issued.RefreshToken, "expires_in": int(utils.DefaultAppTTL.Seconds()), "refresh_expires_at": issued.Session.ExpiresAt, "restricted": user.Status == "pending_deletion", "user": models.ToUserResponse(user)})
+}
+func (ac *AuthController) issue(c *fiber.Ctx, user *models.User, status int, message string) error {
+	issued, err := ac.Store.IssueAppSession(c.UserContext(), user.ID, appDevice(c))
+	if err != nil {
+		return authError(c, err)
+	}
+	if err := ac.Store.ObserveDevice(user.ID, c.Get("X-Device-ID"), c.Get("X-Device-Platform", c.Get("X-Platform")), c.IP()); err != nil {
+		_ = ac.Store.RevokeAppSession(c.UserContext(), user.ID, issued.Session.ID)
+		return authError(c, err)
+	}
+	return ac.respondSession(c, user, issued, status, message)
+}
+
 func (ac *AuthController) Register(c *fiber.Ctx) error {
+	if err := ac.throttle(c, "app_register_ip", c.IP(), 5); err != nil {
+		return authError(c, err)
+	}
 	var input models.RegisterInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 	input.Name = strings.TrimSpace(input.Name)
-	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
-
-	if input.Name == "" || input.Email == "" || input.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name, email and password are required"})
+	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
+	if err := ac.throttle(c, "app_register_account", input.Email, 3); err != nil {
+		return authError(c, err)
 	}
-	if len(input.Password) < 6 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "password must be at least 6 characters"})
+	if input.Name == "" || utf8.RuneCountInString(input.Name) > 100 {
+		return operationError(c, store.FieldError("name", "name must contain 1-100 characters"))
 	}
-
+	if !validAuthEmail(input.Email) {
+		return operationError(c, store.FieldError("email", "a valid email address is required"))
+	}
+	if !passwordValid(input.Password, 10) {
+		return operationError(c, store.FieldError("password", "password must contain at least 10 characters, at most 72 bytes and not be common"))
+	}
 	role := models.RolePassenger
-	if strings.TrimSpace(input.Role) != "" {
-		r, err := models.ParseRole(input.Role)
+	if input.Role != "" {
+		parsed, err := models.ParseRole(input.Role)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return operationError(c, store.FieldError("role", "role must be driver or passenger"))
 		}
-		role = r
+		role = parsed
 	}
-
-	hashed, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), 12)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to hash password"})
+		return authError(c, store.ErrAuthUnavailable)
 	}
-
-	user, err := ac.Store.CreateUser(input.Name, input.Email, string(hashed), role)
+	user, err := ac.Store.CreateUser(input.Name, input.Email, string(hash), role)
 	if err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+		var sqlState interface{ SQLState() string }
+		if err.Error() == "email already registered" || errors.As(err, &sqlState) && sqlState.SQLState() == "23505" {
+			return c.Status(409).JSON(fiber.Map{"error": "Unable to register this account"})
+		}
+		slog.Error("app_registration_failed", "request_id", middleware.RequestID(c))
+		return authError(c, store.ErrAuthUnavailable)
 	}
-
-	token, err := utils.GenerateAppToken(user.ID, user.Role, ac.Cfg.JWTSecret, utils.DefaultAppTTL)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not generate token"})
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": "User registered successfully",
-		"token":   token,
-		"user":    models.ToUserResponse(user),
-	})
+	return ac.issue(c, user, 201, "User registered successfully")
 }
 
-// Login authenticates app realm users and returns an app token.
 func (ac *AuthController) Login(c *fiber.Ctx) error {
+	if err := ac.throttle(c, "app_login_ip", c.IP(), 20); err != nil {
+		return authError(c, err)
+	}
 	var input models.LoginInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte("invalid"))
+		return invalidCredentials(c)
 	}
-	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
-
+	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
+	if err := ac.throttle(c, "app_login_account", input.Email, 10); err != nil {
+		return authError(c, err)
+	}
 	user, ok := ac.Store.GetUserByEmail(input.Email)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
+	if !ok || !validAuthEmail(input.Email) {
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(input.Password))
+		return invalidCredentials(c)
 	}
-	user, err := ac.Store.ActiveAccount(user.ID)
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Account is disabled"})
+	hash := []byte(user.PasswordHash)
+	if user.PasswordHash == "" {
+		hash = dummyHash
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
+	passwordErr := bcrypt.CompareHashAndPassword(hash, []byte(input.Password))
+	locked, lockErr := ac.Store.IsAppLoginLocked(c.UserContext(), user.ID)
+	if lockErr != nil {
+		return authError(c, lockErr)
 	}
-
-	if err := ac.Store.ObserveDevice(user.ID, c.Get("X-Device-ID"), c.Get("X-Device-Platform", c.Get("X-Platform")), c.IP()); err != nil {
-		return operationError(c, err)
+	if locked {
+		return invalidCredentials(c)
 	}
-	token, err := utils.GenerateAppToken(user.ID, user.Role, ac.Cfg.JWTSecret, utils.DefaultAppTTL)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not generate token"})
+	if passwordErr != nil || user.PasswordHash == "" {
+		locked, err := ac.Store.RecordAppLoginFailure(c.UserContext(), user.ID)
+		if err != nil {
+			return authError(c, err)
+		}
+		if err := ac.Store.RecordAppSecurityEvent(c.UserContext(), user.ID, "login_failed", c.IP()); err != nil {
+			return authError(c, err)
+		}
+		if locked {
+			if err := ac.Store.RecordAppSecurityEvent(c.UserContext(), user.ID, "login_locked", c.IP()); err != nil {
+				return authError(c, err)
+			}
+		}
+		return invalidCredentials(c)
 	}
-
-	return c.JSON(fiber.Map{
-		"message": "Login successful",
-		"token":   token,
-		"user":    models.ToUserResponse(user),
-	})
+	current, err := ac.Store.AccountForRequest(user.ID)
+	if err != nil || current.DeletedAt != nil || current.Status == "deleted" {
+		return invalidCredentials(c)
+	}
+	if err := ac.Store.ResetAppLoginFailures(c.UserContext(), user.ID); err != nil {
+		return authError(c, err)
+	}
+	if err := ac.Store.RecordAppSecurityEvent(c.UserContext(), user.ID, "login_success", c.IP()); err != nil {
+		return authError(c, err)
+	}
+	return ac.issue(c, current, 200, "Login successful")
 }
 
-// Me returns the logged-in app user plus their profile and rating summary.
+func (ac *AuthController) Refresh(c *fiber.Ctx) error {
+	if err := ac.throttle(c, "app_refresh_ip", c.IP(), 60); err != nil {
+		return authError(c, err)
+	}
+	var input struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
+		return invalidCredentials(c)
+	}
+	issued, err := ac.Store.RotateAppSession(c.UserContext(), input.RefreshToken, appDevice(c))
+	if err != nil {
+		return authError(c, err)
+	}
+	user, ok := ac.Store.GetUserByID(issued.Session.UserID)
+	if !ok {
+		return invalidCredentials(c)
+	}
+	return ac.respondSession(c, user, issued, 200, "Session refreshed")
+}
+func (ac *AuthController) Logout(c *fiber.Ctx) error {
+	uid, _ := middleware.CurrentUser(c)
+	sid, _ := c.Locals("app_session_id").(string)
+	if err := ac.Store.RevokeAppSession(c.UserContext(), uid, sid); err != nil {
+		return authError(c, err)
+	}
+	return c.JSON(fiber.Map{"message": "Logged out"})
+}
+func (ac *AuthController) LogoutAll(c *fiber.Ctx) error {
+	uid, _ := middleware.CurrentUser(c)
+	if err := ac.Store.RevokeAllAppSessions(c.UserContext(), uid); err != nil {
+		return authError(c, err)
+	}
+	return c.JSON(fiber.Map{"message": "All sessions revoked"})
+}
+func (ac *AuthController) Sessions(c *fiber.Ctx) error {
+	uid, _ := middleware.CurrentUser(c)
+	p, err := operationPage(c)
+	if err != nil {
+		return authError(c, err)
+	}
+	rows, total, err := ac.Store.ListAppSessions(c.UserContext(), uid, p)
+	if err != nil {
+		return authError(c, err)
+	}
+	return c.JSON(fiber.Map{"sessions": rows, "total": total, "limit": p.Limit, "offset": p.Offset})
+}
+func (ac *AuthController) DeleteSession(c *fiber.Ctx) error {
+	uid, _ := middleware.CurrentUser(c)
+	if err := ac.Store.RevokeAppSession(c.UserContext(), uid, c.Params("id")); err != nil {
+		return authError(c, err)
+	}
+	return c.SendStatus(204)
+}
 func (ac *AuthController) Me(c *fiber.Ctx) error {
-	uid, _ := c.Locals("user_id").(string)
+	uid, _ := middleware.CurrentUser(c)
 	user, ok := ac.Store.GetUserByID(uid)
 	if !ok {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
-	resp := fiber.Map{"user": models.ToUserResponse(user)}
-	if dp, ok := ac.Store.GetDriverProfile(uid); ok {
-		resp["driver_profile"] = dp
+	response := fiber.Map{"user": models.ToUserResponse(user)}
+	if profile, ok := ac.Store.GetDriverProfile(uid); ok {
+		response["driver_profile"] = profile
 	}
-	if pp, ok := ac.Store.GetPassengerProfile(uid); ok {
-		resp["passenger_profile"] = pp
+	if profile, ok := ac.Store.GetPassengerProfile(uid); ok {
+		response["passenger_profile"] = profile
 	}
-	_, avg, total := ac.Store.ListRatingsForUser(uid)
-	resp["average_rating"] = avg
-	resp["total_ratings"] = total
-	return c.JSON(resp)
+	avg, total, err := ac.Store.RatingSummary(uid)
+	if err != nil {
+		return operationError(c, err)
+	}
+	response["average_rating"] = avg
+	response["total_ratings"] = total
+	return c.JSON(response)
 }
 
-// GoogleLogin redirects to Google consent screen.
 func (ac *AuthController) GoogleLogin(c *fiber.Ctx) error {
-	oauthConfig := utils.GetGoogleOAuthConfig(ac.Cfg)
-	url := oauthConfig.AuthCodeURL("random-state-string")
-	return c.Redirect(url, fiber.StatusTemporaryRedirect)
+	if err := ac.throttle(c, "app_google_ip", c.IP(), 20); err != nil {
+		return authError(c, err)
+	}
+	if !ac.Cfg.GoogleRedirectAllowed() || ac.Cfg.GoogleClientID == "" || ac.Cfg.GoogleClientSecret == "" {
+		return c.Status(503).JSON(fiber.Map{"error": "Google authentication is not configured"})
+	}
+	state, browser, err := ac.Store.CreateOAuthState(c.UserContext(), ac.Cfg.GoogleRedirectURL)
+	if err != nil {
+		return authError(c, store.ErrAuthUnavailable)
+	}
+	c.Cookie(&fiber.Cookie{Name: "rida_oauth_browser", Value: browser, HTTPOnly: true, Secure: ac.Cfg.AppEnv == "production", SameSite: "Lax", Path: "/api/v1/auth/google", MaxAge: 600, Expires: time.Now().Add(10 * time.Minute)})
+	c.Set("Cache-Control", "no-store")
+	return c.Redirect(utils.GetGoogleOAuthConfig(ac.Cfg).AuthCodeURL(state), 307)
 }
-
-// GoogleCallback upserts a Google user (defaults to passenger role).
 func (ac *AuthController) GoogleCallback(c *fiber.Ctx) error {
+	if !ac.Cfg.GoogleRedirectAllowed() {
+		return c.Status(503).JSON(fiber.Map{"error": "Google authentication is not configured"})
+	}
+	if err := ac.throttle(c, "app_google_callback_ip", c.IP(), 20); err != nil {
+		return authError(c, err)
+	}
+	if err := ac.Store.ConsumeOAuthState(c.UserContext(), c.Query("state"), c.Cookies("rida_oauth_browser"), ac.Cfg.GoogleRedirectURL); err != nil {
+		return operationError(c, err)
+	}
+	c.Cookie(&fiber.Cookie{Name: "rida_oauth_browser", Value: "", HTTPOnly: true, Secure: ac.Cfg.AppEnv == "production", SameSite: "Lax", Path: "/api/v1/auth/google", MaxAge: -1, Expires: time.Unix(1, 0)})
 	code := c.Query("code")
-	if code == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Authorization code missing"})
+	if code == "" || len(code) > 2048 {
+		return c.Status(400).JSON(fiber.Map{"error": "Authorization code missing or invalid"})
 	}
-
-	oauthConfig := utils.GetGoogleOAuthConfig(ac.Cfg)
-	token, err := oauthConfig.Exchange(context.Background(), code)
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+	identity, err := ac.Google.Authenticate(ctx, code)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to exchange authorization code"})
+		return c.Status(401).JSON(fiber.Map{"error": "Google authentication failed"})
 	}
-
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	email := strings.ToLower(strings.TrimSpace(identity.Email))
+	if !identity.VerifiedEmail || identity.Subject == "" || !validAuthEmail(email) {
+		return c.Status(401).JSON(fiber.Map{"error": "Google authentication failed"})
+	}
+	user, err := ac.Store.ResolveGoogleIdentity(c.UserContext(), identity.Subject, identity.Name, email)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch user info from Google"})
+		return operationError(c, err)
 	}
-	defer resp.Body.Close()
-
-	var googleUser models.GoogleUser
-	if err := json.NewDecoder(resp.Body).Decode(&googleUser); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to parse Google user response"})
-	}
-
-	user, ok := ac.Store.GetUserByEmail(strings.ToLower(googleUser.Email))
-	if !ok {
-		user, _ = ac.Store.CreateUser(googleUser.Name, strings.ToLower(googleUser.Email), "", models.RolePassenger)
-		if pp, ok := ac.Store.GetPassengerProfile(user.ID); ok && googleUser.Picture != "" {
-			ac.Store.UpdatePassengerProfile(user.ID, func(p *models.PassengerProfile) {
-				p.ProfilePictureURL = googleUser.Picture
-				_ = pp
-			})
-		}
-	} else if active, activeErr := ac.Store.ActiveAccount(user.ID); activeErr != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Account is disabled"})
-	} else {
-		user = active
-	}
-
-	jwtToken, err := utils.GenerateAppToken(user.ID, user.Role, ac.Cfg.JWTSecret, utils.DefaultAppTTL)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate session token"})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Google authentication successful",
-		"token":   jwtToken,
-		"user":    models.ToUserResponse(user),
-	})
+	return ac.issue(c, user, 200, "Google authentication successful")
 }

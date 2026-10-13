@@ -10,7 +10,6 @@ import (
 	"ride-backend/models"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 )
 
 func TestStaffCannotSelfRegister(t *testing.T) {
@@ -44,6 +43,10 @@ func TestStaffCannotSelfRegister(t *testing.T) {
 
 	for _, role := range []string{"admin", "support", " ADMIN ", " SUPPORT "} {
 		t.Run("app registration rejects "+role, func(t *testing.T) {
+			// Each policy case is independent of the separately tested rate limit.
+			if err := appStore.DB().Where("scope IN ?", []string{"app_register_ip", "app_register_account"}).Delete(&models.AuthRateBucket{}).Error; err != nil {
+				t.Fatal(err)
+			}
 			body, _ := json.Marshal(map[string]string{
 				"name": "Staff", "email": "registration-policy@example.test", "password": "ExamplePassword123!", "role": role,
 			})
@@ -70,7 +73,7 @@ func TestStaffCannotSelfRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, err := utils.GenerateStaffToken(support.ID, support.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	token, err := testutil.StaffToken(appStore, support.ID, support.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
 	if err != nil {
 		t.Fatal(err)
 	}

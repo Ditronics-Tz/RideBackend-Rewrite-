@@ -18,7 +18,6 @@ import (
 	"ride-backend/routes"
 	"ride-backend/storage"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 )
 
 type signedLocalStorage struct {
@@ -75,15 +74,15 @@ func TestObjectDocumentLifecycleOwnershipAuditAndImmutability(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, err := utils.GenerateAppToken(driver.ID, driver.Role, cfg.JWTSecret, time.Hour)
+	token, err := testutil.AppToken(s, driver.ID, driver.Role, cfg.JWTSecret, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	otherToken, err := utils.GenerateAppToken(other.ID, other.Role, cfg.JWTSecret, time.Hour)
+	otherToken, err := testutil.AppToken(s, other.ID, other.Role, cfg.JWTSecret, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	staffToken, err := utils.GenerateStaffToken(staff.ID, staff.Role, cfg.StaffJWTSecret, time.Hour)
+	staffToken, err := testutil.StaffToken(s, staff.ID, staff.Role, cfg.StaffJWTSecret, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}

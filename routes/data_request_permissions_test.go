@@ -9,7 +9,6 @@ import (
 	"ride-backend/models"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 )
 
 func TestDataRequestSupportReadOnlyAdminCanHold(t *testing.T) {
@@ -34,8 +33,8 @@ func TestDataRequestSupportReadOnlyAdminCanHold(t *testing.T) {
 		}
 	}
 	app := routes.BuildApp(cfg, s)
-	supportToken, _ := utils.GenerateStaffToken(supportID, models.StaffRoleSupport, cfg.StaffJWTSecret, time.Hour)
-	adminToken, _ := utils.GenerateStaffToken(adminID, models.StaffRoleAdmin, cfg.StaffJWTSecret, time.Hour)
+	supportToken, _ := testutil.StaffToken(s, supportID, models.StaffRoleSupport, cfg.StaffJWTSecret, time.Hour)
+	adminToken, _ := testutil.StaffToken(s, adminID, models.StaffRoleAdmin, cfg.StaffJWTSecret, time.Hour)
 	call := func(token, method, path, body string) int {
 		r := httptest.NewRequest(method, path, strings.NewReader(body))
 		r.Header.Set("Authorization", "Bearer "+token)

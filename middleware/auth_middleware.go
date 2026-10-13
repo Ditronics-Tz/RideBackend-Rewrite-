@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"time"
@@ -49,23 +50,8 @@ func AccountRequestLimiter() fiber.Handler {
 	}
 }
 
-// In-memory cache for staff users (reloaded every 30s as required).
-type staffCacheEntry struct {
-	staff     *models.StaffUser
-	fetchedAt time.Time
-}
-
-var (
-	staffCacheMu sync.RWMutex
-	staffCache   = make(map[string]staffCacheEntry)
-)
-
-// InvalidateStaffCache clears cached entry for a staff ID (e.g. after role change/deactivation).
-func InvalidateStaffCache(staffID string) {
-	staffCacheMu.Lock()
-	delete(staffCache, staffID)
-	staffCacheMu.Unlock()
-}
+// Retained for callers; authorization now reads shared database state on every request.
+func InvalidateStaffCache(string) {}
 
 // AppProtected validates the Bearer JWT for the "app" realm (passengers and drivers).
 // Rejects staff tokens or invalid/expired tokens with 401.
@@ -127,6 +113,17 @@ func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handle
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Account deletion is pending", "code": "ACCOUNT_PENDING_DELETION"})
 		}
 		if len(accounts) > 0 {
+			if sessions, ok := accounts[0].(interface {
+				ValidateAppSession(context.Context, string, string) error
+			}); ok {
+				sid, _ := claims["sid"].(string)
+				if sid == "" || sessions.ValidateAppSession(c.UserContext(), uid, sid) != nil {
+					return c.Status(401).JSON(fiber.Map{"error": "invalid credentials"})
+				}
+				c.Locals("app_session_id", sid)
+			}
+		}
+		if len(accounts) > 0 {
 			if observer, ok := accounts[0].(interface {
 				ObserveDevice(string, string, string, string) error
 			}); ok {
@@ -147,6 +144,10 @@ func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handle
 
 func pendingDeletionPathAllowed(method, path, userID string) bool {
 	switch {
+	case method == "POST" && (path == "/api/v1/auth/logout" || path == "/api/v1/auth/logout-all"):
+		return true
+	case method == "GET" && path == "/api/v1/auth/sessions", method == "DELETE" && strings.HasPrefix(path, "/api/v1/auth/sessions/"):
+		return true
 	case method == "GET" && (path == "/api/v1/auth/me" || path == "/api/v1/driver/profile/me" || path == "/api/v1/passenger/profile/me" || path == "/api/v1/account/deletion-request" || path == "/api/v1/account/export-requests"):
 		return true
 	case method == "DELETE" && path == "/api/v1/account/deletion-request":
@@ -172,7 +173,7 @@ type StaffGetter interface {
 
 // StaffProtected validates the Bearer JWT for the "staff" realm (admin and support).
 // Rejects app tokens or inactive staff.
-// Reloads staff member and role from database (cached for at most 30s).
+// Reads staff role, auth version and session from the shared database on every request.
 // Enforces must_change_password gate (allowing only /change-password and /me).
 func StaffProtected(cfg *config.Config, s StaffGetter) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -196,28 +197,12 @@ func StaffProtected(cfg *config.Config, s StaffGetter) fiber.Handler {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized staff token"})
 		}
 
-		// Reload staff member (cache at most 30s)
-		var staff *models.StaffUser
-		staffCacheMu.RLock()
-		cached, exists := staffCache[staffID]
-		if exists && time.Since(cached.fetchedAt) < 30*time.Second {
-			staff = cached.staff
+		staff, err := ValidateStaffClaims(c.UserContext(), cfg, s, claims)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Unauthorized staff token"})
 		}
-		staffCacheMu.RUnlock()
-
-		if staff == nil {
-			var ok bool
-			staff, ok = s.GetStaffUserByID(staffID)
-			if !ok {
-				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Staff member not found"})
-			}
-			staffCacheMu.Lock()
-			staffCache[staffID] = staffCacheEntry{staff: staff, fetchedAt: time.Now()}
-			staffCacheMu.Unlock()
-		}
-
-		if !staff.IsActive {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Staff account is deactivated"})
+		if sid, _ := claims["sid"].(string); sid != "" {
+			c.Locals("staff_session_id", sid)
 		}
 
 		// Enforce must_change_password gate:

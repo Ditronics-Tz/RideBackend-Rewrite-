@@ -50,6 +50,8 @@ func AutoMigrate(gdb *gorm.DB) error {
 func AutoMigrateModels() []interface{} {
 	return []interface{}{
 		&models.User{},
+		&models.AppSession{}, &models.AppSecurityEvent{}, &models.AuthRateBucket{},
+		&models.OAuthState{}, &models.OAuthIdentity{},
 		&models.DriverProfile{},
 		&models.PassengerProfile{},
 		&models.Rating{},

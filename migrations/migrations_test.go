@@ -19,8 +19,12 @@ import (
 )
 
 func baselineStatements(t *testing.T) []string {
+	return schemaStatements(t, "00001_baseline.sql")
+}
+
+func schemaStatements(t *testing.T, name string) []string {
 	t.Helper()
-	content, err := files.ReadFile("00001_baseline.sql")
+	content, err := files.ReadFile(name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,6 +42,47 @@ func baselineStatements(t *testing.T) []string {
 		}
 	}
 	return statements
+}
+
+func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+uuid.NewString()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql"} {
+		for _, statement := range schemaStatements(t, name) {
+			// SQLite metadata fixtures lack PostgreSQL's ADD COLUMN IF NOT EXISTS.
+			statement = strings.Replace(statement, " ADD COLUMN IF NOT EXISTS ", " ADD COLUMN ", 1)
+			if err := db.Exec(statement).Error; err != nil {
+				t.Fatal("latest schema fixture failed")
+			}
+		}
+	}
+	expected, err := latestSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for table, columns := range expected {
+		for _, column := range columns {
+			if !db.Migrator().HasColumn(table, column.Name) {
+				t.Errorf("latest manifest has no migration column %s.%s", table, column.Name)
+			}
+		}
+	}
+	for _, table := range []string{"app_sessions", "app_security_events", "auth_rate_buckets", "oauth_states", "oauth_identities"} {
+		if expected[table] == nil {
+			t.Errorf("latest manifest omits %s", table)
+		}
+	}
+	original, err := baseline()
+	if err != nil || len(original) != 56 || original["app_sessions"] != nil {
+		t.Fatal("frozen baseline was changed by authentication migrations")
+	}
 }
 
 func TestFrozenBaselineDefinesAllRecordedColumnsAndCanAdoptTables(t *testing.T) {

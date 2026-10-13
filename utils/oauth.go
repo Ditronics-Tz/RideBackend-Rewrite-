@@ -13,6 +13,7 @@ func GetGoogleOAuthConfig(cfg *config.Config) *oauth2.Config {
 		ClientSecret: cfg.GoogleClientSecret,
 		RedirectURL:  cfg.GoogleRedirectURL,
 		Scopes: []string{
+			"openid",
 			"https://www.googleapis.com/auth/userinfo.profile",
 			"https://www.googleapis.com/auth/userinfo.email",
 		},

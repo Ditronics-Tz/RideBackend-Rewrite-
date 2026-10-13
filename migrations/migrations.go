@@ -16,10 +16,10 @@ import (
 	"github.com/pressly/goose/v3/lock"
 )
 
-//go:embed *.sql schema.json
+//go:embed *.sql schema*.json
 var files embed.FS
 
-const LatestVersion int64 = 3
+const LatestVersion int64 = 5
 
 var ErrMigration = errors.New("database migration failed; database details and personal data are redacted")
 var ErrIncompatibleSchema = errors.New("existing database schema is incompatible with the frozen baseline; review schema drift before migrating")
@@ -35,6 +35,11 @@ var storageColumns = map[string]map[string]bool{
 	"driver_profiles":    {"profile_picture_key": true},
 	"passenger_profiles": {"profile_picture_key": true},
 	"driver_documents":   {"object_key": true, "staging_object_key": true, "content_type": true, "expected_size": true, "upload_expires_at": true},
+}
+
+var appAuthColumns = map[string]map[string]bool{
+	"users":       {"failed_login_count": true, "locked_until": true},
+	"staff_users": {"auth_version": true, "pending_totp_secret_enc": true, "pending_totp_expires_at": true},
 }
 
 func provider(db *sql.DB) (*goose.Provider, error) {
@@ -100,8 +105,38 @@ func baseline() (map[string][]columnSpec, error) {
 	return schema, nil
 }
 
+// Addon manifests validate later versions while the original baseline remains
+// frozen. Additive columns of an existing table are appended to its baseline.
+func latestSchema() (map[string][]columnSpec, error) {
+	schema, err := baseline()
+	if err != nil {
+		return nil, err
+	}
+	entries, err := files.ReadDir(".")
+	if err != nil {
+		return nil, ErrMigration
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), "schema_") || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		body, err := files.ReadFile(entry.Name())
+		if err != nil {
+			return nil, ErrMigration
+		}
+		var addon map[string][]columnSpec
+		if err := json.Unmarshal(body, &addon); err != nil {
+			return nil, ErrMigration
+		}
+		for table, columns := range addon {
+			schema[table] = append(schema[table], columns...)
+		}
+	}
+	return schema, nil
+}
+
 func validateSchema(ctx context.Context, db *sql.DB, adopting bool) error {
-	expected, err := baseline()
+	expected, err := latestSchema()
 	if err != nil {
 		return err
 	}
@@ -142,7 +177,7 @@ WHERE n.nspname = current_schema() AND c.relkind IN ('r', 'p') AND a.attnum > 0 
 		}
 		for _, column := range columns {
 			current, exists := found[column.Name]
-			if !exists && adopting && storageColumns[table][column.Name] {
+			if !exists && adopting && (storageColumns[table][column.Name] || appAuthColumns[table][column.Name]) {
 				continue
 			}
 			if !exists || normalizeType(current.kind) != normalizeType(column.Type) || column.NotNull && !current.notNull || column.Primary && !current.primary {

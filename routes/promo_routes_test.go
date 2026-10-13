@@ -11,7 +11,6 @@ import (
 	"ride-backend/notifier"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 	"strings"
 	"testing"
 	"time"
@@ -54,11 +53,11 @@ func TestPromoPermissionsAuditAndPassengerFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	at, _ := utils.GenerateStaffToken(admin.ID, admin.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
-	st, _ := utils.GenerateStaffToken(support.ID, support.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
-	pt, _ := utils.GenerateAppToken(passenger.ID, passenger.Role, cfg.JWTSecret, time.Hour)
-	ot, _ := utils.GenerateAppToken(other.ID, other.Role, cfg.JWTSecret, time.Hour)
-	dt, _ := utils.GenerateAppToken(driver.ID, driver.Role, cfg.JWTSecret, time.Hour)
+	at, _ := testutil.StaffToken(s, admin.ID, admin.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	st, _ := testutil.StaffToken(s, support.ID, support.Role, cfg.StaffJWTSecret, cfg.StaffAccessTTL)
+	pt, _ := testutil.AppToken(s, passenger.ID, passenger.Role, cfg.JWTSecret, time.Hour)
+	ot, _ := testutil.AppToken(s, other.ID, other.Role, cfg.JWTSecret, time.Hour)
+	dt, _ := testutil.AppToken(s, driver.ID, driver.Role, cfg.JWTSecret, time.Hour)
 	request := func(method, path, token string, payload interface{}, want int) []byte {
 		t.Helper()
 		body, err := json.Marshal(payload)

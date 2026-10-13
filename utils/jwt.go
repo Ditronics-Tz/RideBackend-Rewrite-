@@ -11,14 +11,18 @@ import (
 )
 
 const (
-	JWTIssuer      = "ride-backend"
-	AudienceApp    = "app"
-	AudienceStaff  = "staff"
-	DefaultAppTTL  = 72 * time.Hour
+	JWTIssuer     = "ride-backend"
+	AudienceApp   = "app"
+	AudienceStaff = "staff"
+	DefaultAppTTL = 15 * time.Minute
 )
 
 // GenerateAppToken creates a JWT for the "app" realm (passengers, drivers).
 func GenerateAppToken(userID string, role models.Role, secret string, ttl time.Duration) (string, error) {
+	return GenerateAppSessionToken(userID, role, "", secret, ttl)
+}
+
+func GenerateAppSessionToken(userID string, role models.Role, sid, secret string, ttl time.Duration) (string, error) {
 	if ttl == 0 {
 		ttl = DefaultAppTTL
 	}
@@ -32,6 +36,9 @@ func GenerateAppToken(userID string, role models.Role, secret string, ttl time.D
 		"iat":     now.Unix(),
 		"exp":     now.Add(ttl).Unix(),
 		"jti":     uuid.NewString(),
+	}
+	if sid != "" {
+		claims["sid"] = sid
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
@@ -85,18 +92,26 @@ func ParseToken(tokenString, secret string) (string, models.Role, error) {
 
 // GenerateStaffToken creates a JWT for the "staff" realm (admin, support).
 func GenerateStaffToken(staffID string, role models.StaffRole, secret string, ttl time.Duration) (string, error) {
+	return GenerateStaffSessionToken(staffID, role, "", 0, secret, ttl)
+}
+
+func GenerateStaffSessionToken(staffID string, role models.StaffRole, sid string, version int, secret string, ttl time.Duration) (string, error) {
 	if ttl == 0 {
 		ttl = 15 * time.Minute
 	}
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"iss":   JWTIssuer,
-		"aud":   AudienceStaff,
-		"sub":   staffID,
-		"role":  string(role),
-		"iat":   now.Unix(),
-		"exp":   now.Add(ttl).Unix(),
-		"jti":   uuid.NewString(),
+		"iss":  JWTIssuer,
+		"aud":  AudienceStaff,
+		"sub":  staffID,
+		"role": string(role),
+		"iat":  now.Unix(),
+		"exp":  now.Add(ttl).Unix(),
+		"jti":  uuid.NewString(),
+		"ver":  version,
+	}
+	if sid != "" {
+		claims["sid"] = sid
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))

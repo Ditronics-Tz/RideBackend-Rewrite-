@@ -44,9 +44,10 @@ type Config struct {
 	StaffRequire2FAForAdmin bool
 	CORSAllowedOrigins      string
 
-	GoogleClientID     string
-	GoogleClientSecret string
-	GoogleRedirectURL  string
+	GoogleClientID            string
+	GoogleClientSecret        string
+	GoogleRedirectURL         string
+	GoogleRedirectAllowedURLs string
 
 	DBHost                   string
 	DBPort                   string
@@ -187,9 +188,10 @@ func NewConfigFromEnv() (*Config, error) {
 		StaffRequire2FAForAdmin: parseBool(os.Getenv("STAFF_REQUIRE_2FA_FOR_ADMIN"), true),
 		CORSAllowedOrigins:      getEnv("CORS_ALLOWED_ORIGINS", ""),
 
-		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
-		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
+		GoogleClientID:            getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret:        getEnv("GOOGLE_CLIENT_SECRET", ""),
+		GoogleRedirectURL:         getEnv("GOOGLE_REDIRECT_URL", ""),
+		GoogleRedirectAllowedURLs: getEnv("GOOGLE_REDIRECT_ALLOWED_URLS", ""),
 
 		DBHost:                   getEnv("DB_HOST", "127.0.0.1"),
 		DBPort:                   getEnv("DB_PORT", "5432"),

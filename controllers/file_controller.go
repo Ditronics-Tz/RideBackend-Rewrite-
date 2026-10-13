@@ -45,16 +45,11 @@ func (fc *FileController) GetLicence(c *fiber.Ctx) error {
 	var appRole models.Role
 
 	// Check if token is a valid staff token
-	if claims, err := utils.ParseStaffToken(tokenStr, fc.Cfg.StaffJWTSecret); err == nil {
-		staffID, _ := claims["sub"].(string)
-		if staff, ok := fc.Store.GetStaffUserByID(staffID); ok && staff.IsActive && !staff.MustChangePassword && !(fc.Cfg.StaffRequire2FAForAdmin && staff.Role == models.StaffRoleAdmin && !staff.TOTPEnabled) {
-			isStaff = true
-		}
-	}
+	isStaff, _ = utilsParseStaff(tokenStr, fc, c.UserContext())
 
 	// If not staff, check if token is a valid app token
 	if !isStaff {
-		if uid, role, err := utils.ParseToken(tokenStr, fc.Cfg.JWTSecret); err == nil {
+		if uid, role, err := utilsParseApp(tokenStr, fc, c.UserContext()); err == nil {
 			if user, err := fc.Store.ActiveAccount(uid); err == nil && user.Role == role {
 				appUserID = uid
 				appRole = role

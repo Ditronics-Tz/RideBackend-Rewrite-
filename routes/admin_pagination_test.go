@@ -10,7 +10,6 @@ import (
 	"ride-backend/models"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 )
 
 func TestAdminPaginationSearchAndFilters(t *testing.T) {
@@ -32,7 +31,7 @@ func TestAdminPaginationSearchAndFilters(t *testing.T) {
 	if err := s.CreateAuditLog(staff.ID, "pagination_fixture", "user", user.ID, "", nil); err != nil {
 		t.Fatal(err)
 	}
-	token, err := utils.GenerateStaffToken(staff.ID, staff.Role, cfg.StaffJWTSecret, time.Hour)
+	token, err := testutil.StaffToken(s, staff.ID, staff.Role, cfg.StaffJWTSecret, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}

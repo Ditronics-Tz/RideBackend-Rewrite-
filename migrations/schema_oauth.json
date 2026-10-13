@@ -1,0 +1,16 @@
+{
+  "oauth_states": [
+    {"name":"state_hash","type":"varchar(64)","primary":true,"not_null":true},
+    {"name":"browser_hash","type":"varchar(64)","primary":false,"not_null":true},
+    {"name":"redirect_uri","type":"text","primary":false,"not_null":true},
+    {"name":"expires_at","type":"timestamptz","primary":false,"not_null":true},
+    {"name":"created_at","type":"timestamptz","primary":false,"not_null":false}
+  ],
+  "oauth_identities": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"provider","type":"text","primary":false,"not_null":true},
+    {"name":"subject","type":"text","primary":false,"not_null":true},
+    {"name":"user_id","type":"uuid","primary":false,"not_null":true},
+    {"name":"created_at","type":"timestamptz","primary":false,"not_null":false}
+  ]
+}

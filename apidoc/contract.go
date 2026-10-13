@@ -53,7 +53,7 @@ func Generate() ([]byte, error) {
 		describeCurrent(route, operation, component["schemas"].(object))
 		path[strings.ToLower(route.Method)] = operation
 	}
-	document := object{"openapi": "3.0.3", "info": object{"title": "Rida Backend API", "version": "1.0.0", "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3 storage and B4 runtime/list contracts are expanded; other existing modules have route inventory entries. Unimplemented admin rides/tickets handlers return 501. B5/B7/B8 endpoints are added after implementation. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0."}, "servers": []any{object{"url": "/"}}, "paths": paths, "components": component, "x-inventory-exclusions": []string{"Fiber Use middleware registrations (GetRoutes(true))", "Implicit framework HEAD mirrors", "Framework OPTIONS/CORS preflight registrations"}}
+	document := object{"openapi": "3.0.3", "info": object{"title": "Rida Backend API", "version": "1.0.0", "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3 storage, B4 runtime/list and B5 auth/session contracts are expanded; remaining modules have route inventory entries. Unimplemented admin rides/tickets handlers return 501. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0."}, "servers": []any{object{"url": "/"}}, "paths": paths, "components": component, "x-inventory-exclusions": []string{"Fiber Use middleware registrations (GetRoutes(true))", "Implicit framework HEAD mirrors", "Framework OPTIONS/CORS preflight registrations"}}
 	encoded, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return nil, err
@@ -248,14 +248,74 @@ func describeCurrent(route Route, operation, schemas object) {
 			input = reflect.TypeOf(models.RegisterInput{})
 			status = "201"
 		}
-		set(status, "Current B4 app authentication returns token, message and user. App refresh/session rotation endpoints are not implemented yet.", properties(object{"token": scalar("string"), "message": scalar("string"), "user": ref("UserResponse")}, "token", "message", "user"))
+		set(status, "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.", ref("AppSessionToken"))
 		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": schemaFor(input, schemas)}}}
+		responses["429"] = jsonResponse("Rate limit exceeded.", ref("Error"))
+		if path == "/auth/login" {
+			responses["401"] = jsonResponse("Invalid credentials.", ref("Error"))
+		}
+		return
+	}
+	if path == "/auth/refresh" {
+		set("200", "Rotates the hashed refresh token. Reuse of a rotated token revokes the full token family. Responses use Cache-Control: no-store.", ref("AppSessionToken"))
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"refresh_token": scalar("string")}, "refresh_token")}}}
+		responses["401"] = jsonResponse("Invalid or reused refresh token.", ref("Error"))
+		responses["429"] = jsonResponse("Rate limit exceeded.", ref("Error"))
+		return
+	}
+	if path == "/auth/logout" || path == "/auth/logout-all" {
+		set("200", "Revokes the current app session immediately.", properties(object{"message": scalar("string")}, "message"))
+		if path == "/auth/logout-all" {
+			operation["description"] = "Revokes every app session owned by the authenticated user immediately."
+		}
+		return
+	}
+	if path == "/auth/sessions" {
+		pagination()
+		set("200", "Lists the authenticated user's app sessions. Refresh tokens and token hashes are never returned.", ref("AppSessionPage"))
+		return
+	}
+	if path == "/auth/sessions/:id" {
+		set("204", "Revokes this session when it belongs to the authenticated user.", object{"type": "object"})
+		responses["404"] = jsonResponse("Session not found.", ref("Error"))
+		return
+	}
+	if strings.HasPrefix(path, "/admin/users/:id/sessions") {
+		pagination()
+		set("200", "Admin or support can inspect this user's app sessions and lockout counters.", properties(object{"sessions": array(ref("AppSession")), "total": scalar("integer"), "limit": scalar("integer"), "offset": scalar("integer"), "locked_until": object{"type": "string", "format": "date-time", "nullable": true}, "failed_login_count": scalar("integer")}, "sessions", "total", "limit", "offset", "failed_login_count"))
+		return
+	}
+	if path == "/admin/users/:id/security-events" {
+		pagination()
+		params(query("type", scalar("string")))
+		set("200", "Admin or support can inspect app login and session security events.", ref("AppSecurityEventPage"))
+		return
+	}
+	if path == "/admin/users/:id/revoke-sessions" {
+		set("200", "Admin or support revokes all app sessions, or the session_id in the request body.", properties(object{"message": scalar("string")}, "message"))
+		operation["requestBody"] = object{"required": false, "content": object{"application/json": object{"schema": properties(object{"session_id": object{"type": "string", "format": "uuid"}})}}}
+		return
+	}
+	if path == "/admin/users/:id/unlock" {
+		set("200", "Admin only. Clears the app login lockout and records an audit event.", properties(object{"message": scalar("string")}, "message"))
 		return
 	}
 	if path == "/auth/google" {
 		delete(responses, "2XX")
 		responses["307"] = redirect("Current OAuth login redirects to Google's consent screen.")
-		operation["description"] = "Current OAuth redirect; B5 state/replay and callback hardening remain pending."
+		responses["503"] = jsonResponse("Google OAuth or its redirect allowlist is not configured.", ref("Error"))
+		operation["description"] = "Creates short-lived one-use server-side state bound to an HttpOnly browser cookie, then redirects to Google. The configured redirect URI must be allowlisted."
+		operation["x-contract-detail"] = "expanded"
+		return
+	}
+	if path == "/auth/google/callback" {
+		delete(responses, "2XX")
+		responses["200"] = jsonResponse("Exchanges a validated one-use state and browser cookie, requires a verified Google email, and binds identities by Google subject. Tokens are returned in the response body only.", ref("AppSessionToken"))
+		responses["400"] = jsonResponse("State, browser binding or authorization code is invalid.", ref("Error"))
+		responses["401"] = jsonResponse("Google identity could not be verified.", ref("Error"))
+		operation["x-contract-detail"] = "expanded"
+		operation["description"] = "Callback for a short-lived one-use state bound to an HttpOnly browser cookie. App tokens are returned in JSON and never in the redirect URL."
+		return
 	}
 	if path == "/account/export-requests/:id/download" {
 		delete(responses, "2XX")

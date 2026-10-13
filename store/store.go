@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Store is a Postgres-backed store (GORM).
@@ -71,19 +72,20 @@ func (s *Store) CreateUser(name, email, passwordHash string, role models.Role) (
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	if err := s.db.Create(u).Error; err != nil {
-		return nil, err
-	}
-
-	// Auto-create matching empty profile
-	switch role {
-	case models.RoleDriver:
-		_ = s.db.FirstOrCreate(&models.DriverProfile{}, &models.DriverProfile{UserID: u.ID}).Error
-	case models.RolePassenger:
-		_ = s.db.FirstOrCreate(&models.PassengerProfile{},
-			&models.PassengerProfile{UserID: u.ID, FullName: name}).Error
-	}
-	return u, nil
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(u).Error; err != nil {
+			return err
+		}
+		switch role {
+		case models.RoleDriver:
+			return tx.Create(&models.DriverProfile{UserID: u.ID}).Error
+		case models.RolePassenger:
+			return tx.Create(&models.PassengerProfile{UserID: u.ID, FullName: name}).Error
+		default:
+			return errors.New("invalid app role")
+		}
+	})
+	return u, err
 }
 
 func (s *Store) GetUserByID(id string) (*models.User, bool) {
@@ -113,23 +115,33 @@ func (s *Store) ListUsers(roleFilter string) []*models.User {
 }
 
 func (s *Store) UpdateUserRole(id string, role models.Role) (*models.User, error) {
-	u, ok := s.GetUserByID(id)
-	if !ok {
-		return nil, errors.New("user not found")
-	}
-	if err := s.db.Model(u).Updates(map[string]interface{}{"role": role, "updated_at": time.Now()}).Error; err != nil {
-		return nil, err
-	}
-	u.Role = role
-	// ensure matching profile exists
-	switch role {
-	case models.RoleDriver:
-		_ = s.db.FirstOrCreate(&models.DriverProfile{}, &models.DriverProfile{UserID: id}).Error
-	case models.RolePassenger:
-		_ = s.db.FirstOrCreate(&models.PassengerProfile{},
-			&models.PassengerProfile{UserID: id, FullName: u.Name}).Error
-	}
-	return u, nil
+	var u models.User
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if !models.IsValidRole(role) {
+			return errors.New("invalid app role")
+		}
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&u, "id = ?", id).Error; err != nil {
+			return err
+		}
+		changed := u.Role != role
+		if err := tx.Model(&u).Updates(map[string]any{"role": role, "updated_at": s.now()}).Error; err != nil {
+			return err
+		}
+		u.Role = role
+		if changed {
+			if err := tx.Model(&models.AppSession{}).Where("user_id = ? AND revoked_at IS NULL", id).Update("revoked_at", s.now()).Error; err != nil {
+				return err
+			}
+		}
+		switch role {
+		case models.RoleDriver:
+			return tx.FirstOrCreate(&models.DriverProfile{}, &models.DriverProfile{UserID: id}).Error
+		case models.RolePassenger:
+			return tx.FirstOrCreate(&models.PassengerProfile{}, &models.PassengerProfile{UserID: id, FullName: u.Name}).Error
+		}
+		return nil
+	})
+	return &u, err
 }
 
 // EnsureDriverProfile returns existing or creates a blank driver profile.

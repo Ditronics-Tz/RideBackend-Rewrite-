@@ -93,6 +93,9 @@ func (s *Store) ChangeAccountStatus(id string, actor *models.StaffUser, status, 
 		}
 		// Suspension is an account restriction. Retain document approvals for reactivation.
 		if status != "active" {
+			if err := tx.Model(&models.AppSession{}).Where("user_id = ? AND revoked_at IS NULL", id).Update("revoked_at", s.now()).Error; err != nil {
+				return err
+			}
 			return tx.Model(&models.DriverProfile{}).Where("user_id = ?", id).Update("is_online", false).Error
 		}
 		return nil

@@ -105,6 +105,7 @@ func NewStaffAuthController(cfg *config.Config, s *store.Store) *StaffAuthContro
 func (sc *StaffAuthController) Login(c *fiber.Ctx) error {
 	ip := c.IP()
 	if !loginIPLimiter.allow("ip:"+ip, 10, 1*time.Minute) {
+		c.Set("Retry-After", "60")
 		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many requests"})
 	}
 
@@ -120,6 +121,7 @@ func (sc *StaffAuthController) Login(c *fiber.Ctx) error {
 	}
 
 	if !loginEmailLimiter.allow("email:"+email, 10, 1*time.Minute) {
+		c.Set("Retry-After", "60")
 		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many requests"})
 	}
 
@@ -182,28 +184,17 @@ func (sc *StaffAuthController) Login(c *fiber.Ctx) error {
 	_ = sc.Store.ResetFailedLogin(staff.ID)
 	middleware.InvalidateStaffCache(staff.ID)
 
-	// Generate access token
-	accessToken, err := utils.GenerateStaffToken(staff.ID, staff.Role, sc.Cfg.StaffJWTSecret, sc.Cfg.StaffAccessTTL)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
-	}
-
-	// Generate refresh token and session
 	refreshToken := generateRandomToken()
 	tokenHash := utils.HashSHA256(refreshToken)
-	familyID := uuid.NewString()
-
-	_, err = sc.Store.CreateStaffSession(
-		staff.ID,
-		tokenHash,
-		familyID,
-		c.Get("User-Agent"),
-		ip,
-		time.Now().Add(sc.Cfg.StaffRefreshTTL),
-	)
+	session, err := sc.Store.IssueStaffSession(c.UserContext(), staff, tokenHash, uuid.NewString(), c.Get("User-Agent"), ip, time.Now().Add(sc.Cfg.StaffRefreshTTL))
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create session"})
+		return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
+	accessToken, err := utils.GenerateStaffSessionToken(staff.ID, staff.Role, session.ID, staff.AuthVersion, sc.Cfg.StaffJWTSecret, sc.Cfg.StaffAccessTTL)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate token"})
+	}
+	c.Set("Cache-Control", "no-store")
 
 	_ = sc.Store.CreateAuditLog(staff.ID, "login_success", "staff_user", staff.ID, ip, nil)
 
@@ -256,7 +247,7 @@ func (sc *StaffAuthController) Refresh(c *fiber.Ctx) error {
 	newTokenHash := utils.HashSHA256(newRefreshToken)
 	newExpiresAt := time.Now().Add(sc.Cfg.StaffRefreshTTL)
 
-	_, err := sc.Store.RotateStaffSession(
+	rotated, err := sc.Store.RotateStaffSession(
 		session,
 		newTokenHash,
 		newExpiresAt,
@@ -264,10 +255,11 @@ func (sc *StaffAuthController) Refresh(c *fiber.Ctx) error {
 		ip,
 	)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to rotate session"})
+		_ = sc.Store.RevokeStaffSessionFamily(session.FamilyID)
+		return c.Status(401).JSON(fiber.Map{"error": "Invalid refresh token"})
 	}
 
-	newAccessToken, err := utils.GenerateStaffToken(staff.ID, staff.Role, sc.Cfg.StaffJWTSecret, sc.Cfg.StaffAccessTTL)
+	newAccessToken, err := utils.GenerateStaffSessionToken(staff.ID, staff.Role, rotated.ID, staff.AuthVersion, sc.Cfg.StaffJWTSecret, sc.Cfg.StaffAccessTTL)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate access token"})
 	}
@@ -287,11 +279,17 @@ func (sc *StaffAuthController) Logout(c *fiber.Ctx) error {
 
 	if input.RefreshToken != "" {
 		hash := utils.HashSHA256(input.RefreshToken)
-		if sess, ok := sc.Store.GetStaffSessionByHash(hash); ok {
-			_ = sc.Store.RevokeStaffSession(sess.ID)
+		if sess, ok := sc.Store.GetStaffSessionByHash(hash); ok && staff != nil && sess.StaffID == staff.ID {
+			if err := sc.Store.RevokeStaffSession(sess.ID); err != nil {
+				return fiber.NewError(500, "Unable to revoke session")
+			}
+		} else {
+			return fiber.NewError(400, "Invalid refresh token")
 		}
 	} else if staff != nil {
-		_ = sc.Store.RevokeAllStaffSessions(staff.ID)
+		if err := sc.Store.RevokeAllStaffSessions(staff.ID); err != nil {
+			return fiber.NewError(500, "Unable to revoke sessions")
+		}
 	}
 
 	if staff != nil {
@@ -307,7 +305,9 @@ func (sc *StaffAuthController) LogoutAll(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	_ = sc.Store.RevokeAllStaffSessions(staff.ID)
+	if err := sc.Store.RevokeAllStaffSessions(staff.ID); err != nil {
+		return fiber.NewError(500, "Unable to revoke sessions")
+	}
 	_ = sc.Store.CreateAuditLog(staff.ID, "all_sessions_revocation", "staff_user", staff.ID, c.IP(), nil)
 	return c.JSON(fiber.Map{"message": "All sessions revoked"})
 }
@@ -337,7 +337,7 @@ func (sc *StaffAuthController) ChangePassword(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Incorrect current password"})
 	}
 
-	if len(input.NewPassword) < 12 {
+	if !passwordValid(input.NewPassword, 12) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "New password must be at least 12 characters"})
 	}
 
@@ -350,126 +350,104 @@ func (sc *StaffAuthController) ChangePassword(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to hash password"})
 	}
 
-	_, err = sc.Store.UpdateStaffUser(staff.ID, func(u *models.StaffUser) {
-		u.PasswordHash = string(hashed)
-		u.MustChangePassword = false
-	})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update password"})
+	if err := sc.Store.ChangeStaffPassword(c.UserContext(), staff, string(hashed), c.IP()); err != nil {
+		return fiber.NewError(409, "Credentials changed or password update failed")
 	}
-
-	middleware.InvalidateStaffCache(staff.ID)
-	_ = sc.Store.RevokeAllStaffSessions(staff.ID)
-	_ = sc.Store.CreateAuditLog(staff.ID, "password_change", "staff_user", staff.ID, c.IP(), nil)
 
 	return c.JSON(fiber.Map{"message": "Password changed successfully"})
 }
 
 // Setup2FA initiates TOTP setup (returns secret + qr_code_url).
 func (sc *StaffAuthController) Setup2FA(c *fiber.Ctx) error {
+	if err := sc.stepUpRate(c); err != nil {
+		return operationError(c, err)
+	}
 	staff := middleware.CurrentStaff(c)
 	if staff == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
 	}
-
+	var proof models.Staff2FADisableInput
+	if c.BodyParser(&proof) != nil || bcrypt.CompareHashAndPassword([]byte(staff.PasswordHash), []byte(proof.Password)) != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid authenticator proof"})
+	}
+	if staff.TOTPEnabled && !staffTOTPProof(staff, sc.Cfg, proof.Code) {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid authenticator proof"})
+	}
 	secret, err := utils.GenerateTOTPSecret()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate 2FA secret"})
+		return fiber.NewError(500, "Unable to create authenticator")
 	}
-
-	enc, err := utils.EncryptAESGCM(secret, sc.Cfg.StaffTOTPKey)
+	encrypted, err := utils.EncryptAESGCM(secret, sc.Cfg.StaffTOTPKey)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encrypt 2FA secret"})
+		return fiber.NewError(500, "Unable to create authenticator")
 	}
-
-	_, err = sc.Store.UpdateStaffUser(staff.ID, func(u *models.StaffUser) {
-		u.TOTPSecretEnc = &enc
-		u.TOTPEnabled = false
-	})
+	expires, err := sc.Store.SetPendingStaffTOTP(c.UserContext(), staff.ID, staff.AuthVersion, encrypted)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save 2FA secret"})
+		return fiber.NewError(409, "Credentials changed; sign in again")
 	}
-	middleware.InvalidateStaffCache(staff.ID)
-
-	qrURL := utils.TOTPAuthURL(staff.Email, secret, "RideBackend")
-	return c.JSON(fiber.Map{
-		"secret":      secret,
-		"qr_code_url": qrURL,
-	})
+	if err := sc.Store.CreateAuditLog(staff.ID, "2fa_setup_pending", "staff_user", staff.ID, c.IP(), nil); err != nil {
+		return fiber.NewError(500, "Unable to record authenticator setup")
+	}
+	c.Set("Cache-Control", "no-store")
+	return c.JSON(fiber.Map{"secret": secret, "qr_code_url": utils.TOTPAuthURL(staff.Email, secret, "RideBackend"), "pending_expires_at": expires})
 }
-
-// Verify2FA validates the 6-digit TOTP code and activates 2FA.
+func staffTOTPProof(staff *models.StaffUser, cfg *config.Config, code string) bool {
+	if !staff.TOTPEnabled || staff.TOTPSecretEnc == nil {
+		return false
+	}
+	secret, err := utils.DecryptAESGCM(*staff.TOTPSecretEnc, cfg.StaffTOTPKey)
+	return err == nil && utils.ValidateTOTPCode(secret, code)
+}
+func (sc *StaffAuthController) totpResponse(c *fiber.Ctx, updated *models.StaffUser) error {
+	sid, _ := c.Locals("staff_session_id").(string)
+	access, err := utils.GenerateStaffSessionToken(updated.ID, updated.Role, sid, updated.AuthVersion, sc.Cfg.StaffJWTSecret, sc.Cfg.StaffAccessTTL)
+	if err != nil {
+		return fiber.NewError(500, "Unable to generate access token")
+	}
+	c.Set("Cache-Control", "no-store")
+	return c.JSON(fiber.Map{"message": "Authenticator updated", "totp_enabled": updated.TOTPEnabled, "access_token": access, "user": models.ToStaffUserResponse(updated)})
+}
 func (sc *StaffAuthController) Verify2FA(c *fiber.Ctx) error {
+	if err := sc.stepUpRate(c); err != nil {
+		return operationError(c, err)
+	}
 	staff := middleware.CurrentStaff(c)
 	if staff == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return fiber.NewError(401, "Unauthorized")
 	}
-
 	var input models.Staff2FAVerifyInput
-	if err := c.BodyParser(&input); err != nil || strings.TrimSpace(input.Code) == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Code is required"})
+	if c.BodyParser(&input) != nil || staff.PendingTOTPSecretEnc == nil || staff.PendingTOTPExpiresAt == nil || !staff.PendingTOTPExpiresAt.After(time.Now()) {
+		return fiber.NewError(400, "Run authenticator setup first")
 	}
-
-	if staff.TOTPSecretEnc == nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Run 2FA setup first"})
-	}
-
-	secret, err := utils.DecryptAESGCM(*staff.TOTPSecretEnc, sc.Cfg.StaffTOTPKey)
+	secret, err := utils.DecryptAESGCM(*staff.PendingTOTPSecretEnc, sc.Cfg.StaffTOTPKey)
 	if err != nil || !utils.ValidateTOTPCode(secret, input.Code) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid 2FA code"})
+		return fiber.NewError(400, "Invalid new authenticator code")
 	}
-
-	_, err = sc.Store.UpdateStaffUser(staff.ID, func(u *models.StaffUser) {
-		u.TOTPEnabled = true
-	})
+	sid, _ := c.Locals("staff_session_id").(string)
+	updated, err := sc.Store.ChangeStaffTOTP(c.UserContext(), staff, sid, c.IP(), true)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to activate 2FA"})
+		return fiber.NewError(409, "Authenticator setup expired or credentials changed")
 	}
-
-	middleware.InvalidateStaffCache(staff.ID)
-	_ = sc.Store.CreateAuditLog(staff.ID, "2fa_enabled", "staff_user", staff.ID, c.IP(), nil)
-
-	return c.JSON(fiber.Map{
-		"message":      "2FA enabled successfully",
-		"totp_enabled": true,
-	})
+	return sc.totpResponse(c, updated)
 }
-
-// Disable2FA disables 2FA after password and TOTP code verification.
 func (sc *StaffAuthController) Disable2FA(c *fiber.Ctx) error {
+	if err := sc.stepUpRate(c); err != nil {
+		return operationError(c, err)
+	}
 	staff := middleware.CurrentStaff(c)
 	if staff == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return fiber.NewError(401, "Unauthorized")
 	}
-
-	var input models.Staff2FADisableInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	var proof models.Staff2FADisableInput
+	if c.BodyParser(&proof) != nil || bcrypt.CompareHashAndPassword([]byte(staff.PasswordHash), []byte(proof.Password)) != nil || !staffTOTPProof(staff, sc.Cfg, proof.Code) {
+		return fiber.NewError(400, "Invalid authenticator proof")
 	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(staff.PasswordHash), []byte(input.Password)); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid password"})
-	}
-
-	if staff.TOTPSecretEnc != nil {
-		secret, err := utils.DecryptAESGCM(*staff.TOTPSecretEnc, sc.Cfg.StaffTOTPKey)
-		if err != nil || !utils.ValidateTOTPCode(secret, input.Code) {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid 2FA code"})
-		}
-	}
-
-	_, err := sc.Store.UpdateStaffUser(staff.ID, func(u *models.StaffUser) {
-		u.TOTPEnabled = false
-		u.TOTPSecretEnc = nil
-	})
+	sid, _ := c.Locals("staff_session_id").(string)
+	updated, err := sc.Store.ChangeStaffTOTP(c.UserContext(), staff, sid, c.IP(), false)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to disable 2FA"})
+		return fiber.NewError(409, "Credentials changed; sign in again")
 	}
-
-	middleware.InvalidateStaffCache(staff.ID)
-	_ = sc.Store.CreateAuditLog(staff.ID, "2fa_disabled", "staff_user", staff.ID, c.IP(), nil)
-
-	return c.JSON(fiber.Map{"message": "2FA disabled successfully"})
+	return sc.totpResponse(c, updated)
 }
 
 func generateRandomToken() string {

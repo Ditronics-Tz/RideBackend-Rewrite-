@@ -8,7 +8,6 @@ import (
 	"ride-backend/middleware"
 	"ride-backend/models"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 	"testing"
 	"time"
 )
@@ -26,7 +25,7 @@ func TestPendingDeletionAllowsOnlyStatusAndExportPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{JWTSecret: "test_app_secret_12345678901234567890"}
-	token, err := utils.GenerateAppToken(u.ID, u.Role, cfg.JWTSecret, time.Hour)
+	token, err := testutil.AppToken(s, u.ID, u.Role, cfg.JWTSecret, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,6 +9,7 @@ import (
 	"ride-backend/models"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ---------- Staff Users ----------
@@ -73,16 +74,35 @@ func (s *Store) ListStaffUsers() []*models.StaffUser {
 }
 
 func (s *Store) UpdateStaffUser(id string, fn func(u *models.StaffUser)) (*models.StaffUser, error) {
-	u, ok := s.GetStaffUserByID(id)
-	if !ok {
-		return nil, errors.New("staff user not found")
-	}
-	fn(u)
-	u.UpdatedAt = time.Now()
-	if err := s.db.Save(u).Error; err != nil {
-		return nil, err
-	}
-	return u, nil
+	var u models.StaffUser
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&u, "id = ?", id).Error; err != nil {
+			return err
+		}
+		before := u
+		fn(&u)
+		u.UpdatedAt = s.now()
+		secret := func(p *string) string {
+			if p == nil {
+				return ""
+			}
+			return *p
+		}
+		changed := before.Role != u.Role || before.IsActive != u.IsActive || before.PasswordHash != u.PasswordHash || before.MustChangePassword != u.MustChangePassword || before.TOTPEnabled != u.TOTPEnabled || secret(before.TOTPSecretEnc) != secret(u.TOTPSecretEnc)
+		if changed {
+			u.AuthVersion++
+			u.PendingTOTPSecretEnc = nil
+			u.PendingTOTPExpiresAt = nil
+		}
+		if err := tx.Save(&u).Error; err != nil {
+			return err
+		}
+		if changed {
+			return revokeStaffRows(tx, id, s.now())
+		}
+		return nil
+	})
+	return &u, err
 }
 
 func (s *Store) CountActiveAdmins() int64 {
@@ -94,24 +114,25 @@ func (s *Store) CountActiveAdmins() int64 {
 }
 
 func (s *Store) IncrementFailedLogin(id string) (int, *time.Time, error) {
-	u, ok := s.GetStaffUserByID(id)
-	if !ok {
-		return 0, nil, errors.New("staff user not found")
-	}
-
-	u.FailedAttempts++
-	var lockedUntil *time.Time
-	if u.FailedAttempts >= 5 {
-		t := time.Now().Add(15 * time.Minute)
-		lockedUntil = &t
-		u.LockedUntil = lockedUntil
-	}
-	u.UpdatedAt = time.Now()
-
-	if err := s.db.Save(u).Error; err != nil {
-		return 0, nil, err
-	}
-	return u.FailedAttempts, lockedUntil, nil
+	var u models.StaffUser
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&u, "id = ?", id).Error; err != nil {
+			return err
+		}
+		now := s.now()
+		if u.LockedUntil != nil && !u.LockedUntil.After(now) {
+			u.LockedUntil = nil
+			u.FailedAttempts = 0
+		}
+		u.FailedAttempts++
+		if u.FailedAttempts >= 5 {
+			until := now.Add(15 * time.Minute)
+			u.LockedUntil = &until
+		}
+		u.UpdatedAt = now
+		return tx.Model(&u).Updates(map[string]any{"failed_attempts": u.FailedAttempts, "locked_until": u.LockedUntil, "updated_at": now}).Error
+	})
+	return u.FailedAttempts, u.LockedUntil, err
 }
 
 func (s *Store) ResetFailedLogin(id string) error {
@@ -164,6 +185,17 @@ func (s *Store) RotateStaffSession(
 	var newSess *models.StaffSession
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
+		var user models.StaffUser
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, "id = ?", oldSession.StaffID).Error; err != nil {
+			return err
+		}
+		var current models.StaffSession
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, "id = ?", oldSession.ID).Error; err != nil {
+			return err
+		}
+		if current.RevokedAt != nil || current.ReplacedBy != nil || !current.ExpiresAt.After(now) || !user.IsActive {
+			return ErrStaffSessionInvalid
+		}
 		newS := &models.StaffSession{
 			ID:        newID(),
 			StaffID:   oldSession.StaffID,
@@ -178,10 +210,12 @@ func (s *Store) RotateStaffSession(
 			return err
 		}
 
-		oldSession.RevokedAt = &now
-		oldSession.ReplacedBy = &newS.ID
-		if err := tx.Save(oldSession).Error; err != nil {
+		result := tx.Model(&models.StaffSession{}).Where("id = ? AND revoked_at IS NULL AND replaced_by IS NULL", current.ID).Updates(map[string]any{"revoked_at": now, "replaced_by": newS.ID})
+		if err := result.Error; err != nil {
 			return err
+		}
+		if result.RowsAffected != 1 {
+			return ErrStaffSessionInvalid
 		}
 
 		newSess = newS
@@ -205,10 +239,16 @@ func (s *Store) RevokeStaffSessionFamily(familyID string) error {
 }
 
 func (s *Store) RevokeAllStaffSessions(staffID string) error {
-	now := time.Now()
-	return s.db.Model(&models.StaffSession{}).
-		Where("staff_id = ? AND revoked_at IS NULL", staffID).
-		Update("revoked_at", now).Error
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var staff models.StaffUser
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&staff, "id = ?", staffID).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&staff).Update("auth_version", gorm.Expr("auth_version + 1")).Error; err != nil {
+			return err
+		}
+		return revokeStaffRows(tx, staffID, s.now())
+	})
 }
 
 // ---------- Staff Audit Logs ----------

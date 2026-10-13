@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -249,9 +250,9 @@ func (fc *FileController) GetDocument(c *fiber.Ctx) error {
 	}
 	isStaff := false
 	ownerID := ""
-	if claims, err := utilsParseStaff(parts[1], fc); err == nil {
+	if claims, err := utilsParseStaff(parts[1], fc, c.UserContext()); err == nil {
 		isStaff = claims
-	} else if uid, role, err := utilsParseApp(parts[1], fc); err == nil && role == models.RoleDriver {
+	} else if uid, role, err := utilsParseApp(parts[1], fc, c.UserContext()); err == nil && role == models.RoleDriver {
 		ownerID = uid
 	}
 	if !isStaff && ownerID == "" {
@@ -312,14 +313,13 @@ func (fc *FileController) GetDocument(c *fiber.Ctx) error {
 	return c.SendFile(absolute)
 }
 
-func utilsParseStaff(token string, fc *FileController) (bool, error) {
+func utilsParseStaff(token string, fc *FileController, ctx context.Context) (bool, error) {
 	claims, err := utils.ParseStaffToken(token, fc.Cfg.StaffJWTSecret)
 	if err != nil {
 		return false, err
 	}
-	id, _ := claims["sub"].(string)
-	staff, ok := fc.Store.GetStaffUserByID(id)
-	if !ok || !staff.IsActive || staff.MustChangePassword {
+	staff, err := middleware.ValidateStaffClaims(ctx, fc.Cfg, fc.Store, claims)
+	if err != nil || staff.MustChangePassword {
 		return false, errors.New("staff access denied")
 	}
 	if fc.Cfg.StaffRequire2FAForAdmin && staff.Role == models.StaffRoleAdmin && !staff.TOTPEnabled {
@@ -327,7 +327,7 @@ func utilsParseStaff(token string, fc *FileController) (bool, error) {
 	}
 	return true, nil
 }
-func utilsParseApp(token string, fc *FileController) (string, models.Role, error) {
+func utilsParseApp(token string, fc *FileController, ctx context.Context) (string, models.Role, error) {
 	id, role, err := utils.ParseToken(token, fc.Cfg.JWTSecret)
 	if err != nil {
 		return "", "", err
@@ -335,6 +335,11 @@ func utilsParseApp(token string, fc *FileController) (string, models.Role, error
 	u, accountErr := fc.Store.ActiveAccount(id)
 	if accountErr != nil || u.Role != role {
 		return "", "", errors.New("inactive account")
+	}
+	claims, _ := utils.ParseAppToken(token, fc.Cfg.JWTSecret)
+	sid, _ := claims["sid"].(string)
+	if sid == "" || fc.Store.ValidateAppSession(ctx, id, sid) != nil {
+		return "", "", errors.New("invalid app session")
 	}
 	return id, role, nil
 }

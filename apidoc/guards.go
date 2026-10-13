@@ -14,7 +14,7 @@ func GenerateRouteGuards() ([]byte, error) {
 	}
 	var result strings.Builder
 	result.WriteString("# Route guards\n\nGenerated with `go run ./cmd/generate-openapi`. Each row records a concrete registered route containing a path parameter. Fiber middleware, HEAD mirrors and OPTIONS handlers are excluded. The OpenAPI artifact records all concrete routes.\n\n")
-	result.WriteString("The two profile lookup routes return sensitive fields to other authenticated app users. B6 must introduce public DTOs and negative privacy tests. Legacy private file handlers use controller authentication and lexical local path checks; their session/revocation consistency belongs to B5 and filesystem handling remains part of B6. Incident attachment reads have owner/staff checks but retain the existing local SendFile path handling; that existing module is outside this ship run.\n\n")
+	result.WriteString("The two profile lookup routes return sensitive fields to other authenticated app users. B6 must introduce public DTOs and negative privacy tests. Legacy private file handlers use controller authentication, current app/staff session validation, and lexical local path checks; filesystem handling remains part of B6. Incident attachment reads have owner/staff checks but retain the existing local SendFile path handling; that existing module is outside this ship run.\n\n")
 	result.WriteString("Admin rides/tickets list handlers and ticket PATCH return 501 until B8 implements persisted administration workflows. Dashboard operational_counts_available=false identifies the legacy zero operational fields; driver/passenger counts are real SQL counts. Staff scope is intentionally broader than object ownership, with route roles and controller action policy enforced.\n\n")
 	result.WriteString("| Route | Access realm / role | Resource guard observed | Status | Handler |\n| --- | --- | --- | --- | --- |\n")
 	for _, route := range inventory {
@@ -87,6 +87,8 @@ func guardFor(route Route) (access, guard, status string) {
 		guard, status = "Incident query includes reporter_id equal to authenticated user; attachment limit and local upload validation.", "reporter scoped"
 	case path == "/account/export-requests/:id/download":
 		guard, status = "Ready, unexpired request id plus caller user_id; private export path check; download counter and audit recorded transactionally.", "owner scoped"
+	case path == "/auth/sessions/:id":
+		guard, status = "AppProtected validates the active session; revocation query scopes the session id to the authenticated user.", "owner scoped"
 	case strings.HasPrefix(path, "/webhooks/payments/"):
 		guard, status = "Configured provider match, HMAC timestamp/signature verification of raw body before event processing.", "provider authenticated"
 	case path == "/admin/tickets/:id":

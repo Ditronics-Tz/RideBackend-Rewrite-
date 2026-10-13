@@ -243,8 +243,8 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 	})
 
 	t.Run("Permission matrix: support vs admin", func(t *testing.T) {
-		adminTok, _ := utils.GenerateStaffToken(admin.ID, models.StaffRoleAdmin, cfg.StaffJWTSecret, 1*time.Hour)
-		supportTok, _ := utils.GenerateStaffToken(support.ID, models.StaffRoleSupport, cfg.StaffJWTSecret, 1*time.Hour)
+		adminTok, _ := testutil.StaffToken(appStore, admin.ID, models.StaffRoleAdmin, cfg.StaffJWTSecret, 1*time.Hour)
+		supportTok, _ := testutil.StaffToken(appStore, support.ID, models.StaffRoleSupport, cfg.StaffJWTSecret, 1*time.Hour)
 
 		// Shared routes (support + admin allowed)
 		sharedRoutes := []struct {
@@ -325,7 +325,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 	})
 
 	t.Run("Last admin and self-action guards", func(t *testing.T) {
-		adminTok, _ := utils.GenerateStaffToken(admin.ID, models.StaffRoleAdmin, cfg.StaffJWTSecret, 1*time.Hour)
+		adminTok, _ := testutil.StaffToken(appStore, admin.ID, models.StaffRoleAdmin, cfg.StaffJWTSecret, 1*time.Hour)
 
 		// 1. Admin cannot deactivate themselves (400)
 		bodySelfDeact, _ := json.Marshal(map[string]interface{}{"is_active": false})
@@ -376,7 +376,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 	})
 
 	t.Run("Create staff generates one-time password and never logs it", func(t *testing.T) {
-		adminTok, _ := utils.GenerateStaffToken(admin.ID, models.StaffRoleAdmin, cfg.StaffJWTSecret, 1*time.Hour)
+		adminTok, _ := testutil.StaffToken(appStore, admin.ID, models.StaffRoleAdmin, cfg.StaffJWTSecret, 1*time.Hour)
 
 		body, _ := json.Marshal(map[string]string{
 			"name":  "New Officer",
@@ -437,9 +437,9 @@ func TestLicenceFilePermissions(t *testing.T) {
 	// Seed staff member
 	staff, _ := appStore.CreateStaffUser("Support One", "sup1@ride.tz", "hash", models.StaffRoleSupport, nil, false)
 
-	tokD1, _ := utils.GenerateAppToken(d1.ID, models.RoleDriver, cfg.JWTSecret, 1*time.Hour)
-	tokD2, _ := utils.GenerateAppToken(d2.ID, models.RoleDriver, cfg.JWTSecret, 1*time.Hour)
-	tokStaff, _ := utils.GenerateStaffToken(staff.ID, models.StaffRoleSupport, cfg.StaffJWTSecret, 1*time.Hour)
+	tokD1, _ := testutil.AppToken(appStore, d1.ID, models.RoleDriver, cfg.JWTSecret, 1*time.Hour)
+	tokD2, _ := testutil.AppToken(appStore, d2.ID, models.RoleDriver, cfg.JWTSecret, 1*time.Hour)
+	tokStaff, _ := testutil.StaffToken(appStore, staff.ID, models.StaffRoleSupport, cfg.StaffJWTSecret, 1*time.Hour)
 
 	// 1. Unauthenticated -> 401
 	reqAnon := httptest.NewRequest(http.MethodGet, "/api/v1/files/licences/"+testFilename, nil)

@@ -43,19 +43,21 @@ func ParseRole(s string) (Role, error) {
 
 // User is the core account record for realm "app".
 type User struct {
-	ID              string     `json:"id" gorm:"primaryKey;type:uuid"`
-	Name            string     `json:"name" gorm:"not null"`
-	Email           string     `json:"email" gorm:"uniqueIndex;not null"`
-	PasswordHash    string     `json:"-" gorm:"column:password_hash;default:''"`
-	Role            Role       `json:"role" gorm:"type:varchar(20);not null;default:'passenger'"`
-	IsActive        bool       `json:"is_active" gorm:"default:true"`
-	Status          string     `json:"status" gorm:"not null;default:active;index"`
-	SuspendedUntil  *time.Time `json:"suspended_until"`
-	Phone           string     `json:"phone"`
-	PhoneVerifiedAt *time.Time `json:"phone_verified_at"`
-	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	FailedLoginCount int        `json:"-" gorm:"not null;default:0"`
+	LockedUntil      *time.Time `json:"-" gorm:"index"`
+	ID               string     `json:"id" gorm:"primaryKey;type:uuid"`
+	Name             string     `json:"name" gorm:"not null"`
+	Email            string     `json:"email" gorm:"uniqueIndex;not null"`
+	PasswordHash     string     `json:"-" gorm:"column:password_hash;default:''"`
+	Role             Role       `json:"role" gorm:"type:varchar(20);not null;default:'passenger'"`
+	IsActive         bool       `json:"is_active" gorm:"default:true"`
+	Status           string     `json:"status" gorm:"not null;default:active;index"`
+	SuspendedUntil   *time.Time `json:"suspended_until"`
+	Phone            string     `json:"phone"`
+	PhoneVerifiedAt  *time.Time `json:"phone_verified_at"`
+	DeletedAt        *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 // DriverProfile holds driver-specific fields:

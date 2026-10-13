@@ -13,7 +13,6 @@ import (
 	"ride-backend/models"
 	"ride-backend/routes"
 	"ride-backend/testutil"
-	"ride-backend/utils"
 )
 
 func TestDevicePlatformHeaders(t *testing.T) {
@@ -32,7 +31,7 @@ func TestDevicePlatformHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, err := utils.GenerateAppToken(u.ID, u.Role, cfg.JWTSecret, time.Hour)
+	token, err := testutil.AppToken(s, u.ID, u.Role, cfg.JWTSecret, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}

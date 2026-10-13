@@ -77,6 +77,160 @@
         ],
         "type": "object"
       },
+      "AppSecurityEvent": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "type"
+        ],
+        "type": "object"
+      },
+      "AppSecurityEventPage": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/AppSecurityEvent"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "events",
+          "limit",
+          "offset",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AppSession": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "device_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "expires_at",
+          "id",
+          "last_used_at"
+        ],
+        "type": "object"
+      },
+      "AppSessionPage": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/AppSession"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "offset",
+          "sessions",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AppSessionToken": {
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "expires_in": {
+            "enum": [
+              900
+            ],
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "refresh_expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "restricted": {
+            "type": "boolean"
+          },
+          "token": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "message",
+          "refresh_expires_at",
+          "refresh_token",
+          "restricted",
+          "token",
+          "user"
+        ],
+        "type": "object"
+      },
       "DataExportRequest": {
         "properties": {
           "created_at": {
@@ -1858,7 +2012,7 @@
     }
   },
   "info": {
-    "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3 storage and B4 runtime/list contracts are expanded; other existing modules have route inventory entries. Unimplemented admin rides/tickets handlers return 501. B5/B7/B8 endpoints are added after implementation. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0.",
+    "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3 storage, B4 runtime/list and B5 auth/session contracts are expanded; remaining modules have route inventory entries. Unimplemented admin rides/tickets handlers return 501. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0.",
     "title": "Rida Backend API",
     "version": "1.0.0"
   },
@@ -7863,6 +8017,93 @@
         "x-go-handler": "ride-backend/controllers.(*OperationsController).UserReports"
       }
     },
+    "/api/v1/admin/users/{id}/revoke-sessions": {
+      "post": {
+        "description": "Admin or support revokes all app sessions, or the session_id in the request body.",
+        "operationId": "post_api_v1_admin_users_id_revoke_sessions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "session_id": {
+                    "format": "uuid",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Admin or support revokes all app sessions, or the session_id in the request body.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/users/{id}/revoke-sessions",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/users/:id/revoke-sessions",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).RevokeUserSessions"
+      }
+    },
     "/api/v1/admin/users/{id}/role": {
       "patch": {
         "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
@@ -7909,6 +8150,214 @@
         "x-contract-detail": "route-inventory",
         "x-fiber-path": "/api/v1/admin/users/:id/role",
         "x-go-handler": "ride-backend/controllers.(*AdminController).UpdateUserRole"
+      }
+    },
+    "/api/v1/admin/users/{id}/security-events": {
+      "get": {
+        "description": "Admin or support can inspect app login and session security events.",
+        "operationId": "get_api_v1_admin_users_id_security_events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSecurityEventPage"
+                }
+              }
+            },
+            "description": "Admin or support can inspect app login and session security events.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/users/{id}/security-events",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/users/:id/security-events",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).UserSecurityEvents"
+      }
+    },
+    "/api/v1/admin/users/{id}/sessions": {
+      "get": {
+        "description": "Admin or support can inspect this user's app sessions and lockout counters.",
+        "operationId": "get_api_v1_admin_users_id_sessions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "failed_login_count": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "locked_until": {
+                      "format": "date-time",
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    },
+                    "sessions": {
+                      "items": {
+                        "$ref": "#/components/schemas/AppSession"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "failed_login_count",
+                    "limit",
+                    "offset",
+                    "sessions",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Admin or support can inspect this user's app sessions and lockout counters.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/users/{id}/sessions",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/users/:id/sessions",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).UserSessions"
       }
     },
     "/api/v1/admin/users/{id}/suspend": {
@@ -7958,6 +8407,77 @@
         "x-contract-detail": "route-inventory",
         "x-fiber-path": "/api/v1/admin/users/:id/suspend",
         "x-go-handler": "ride-backend/controllers.(*AdminController).ChangeAccountStatus"
+      }
+    },
+    "/api/v1/admin/users/{id}/unlock": {
+      "post": {
+        "description": "Admin only. Clears the app login lockout and records an audit event.",
+        "operationId": "post_api_v1_admin_users_id_unlock",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Admin only. Clears the app login lockout and records an audit event.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/users/{id}/unlock",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/users/:id/unlock",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).UnlockUser"
       }
     },
     "/api/v1/admin/verifications": {
@@ -8238,7 +8758,7 @@
     },
     "/api/v1/auth/google": {
       "get": {
-        "description": "Current OAuth redirect; B5 state/replay and callback hardening remain pending.",
+        "description": "Creates short-lived one-use server-side state bound to an HttpOnly browser cookie, then redirects to Google. The configured redirect URI must be allowlisted.",
         "operationId": "get_api_v1_auth_google",
         "parameters": [
           {
@@ -8270,20 +8790,37 @@
               }
             }
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Google OAuth or its redirect allowlist is not configured.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/components/responses/Error"
           }
         },
         "security": [],
         "summary": "GET /api/v1/auth/google",
-        "x-contract-detail": "route-inventory",
+        "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/auth/google",
         "x-go-handler": "ride-backend/controllers.(*AuthController).GoogleLogin"
       }
     },
     "/api/v1/auth/google/callback": {
       "get": {
-        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "description": "Callback for a short-lived one-use state bound to an HttpOnly browser cookie. App tokens are returned in JSON and never in the redirect URL.",
         "operationId": "get_api_v1_auth_google_callback",
         "parameters": [
           {
@@ -8299,8 +8836,56 @@
           }
         ],
         "responses": {
-          "2XX": {
-            "description": "Existing handler response; see endpoint implementation for the current payload."
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSessionToken"
+                }
+              }
+            },
+            "description": "Exchanges a validated one-use state and browser cookie, requires a verified Google email, and binds identities by Google subject. Tokens are returned in the response body only.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "State, browser binding or authorization code is invalid.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Google identity could not be verified.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/Error"
@@ -8308,14 +8893,14 @@
         },
         "security": [],
         "summary": "GET /api/v1/auth/google/callback",
-        "x-contract-detail": "route-inventory",
+        "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/auth/google/callback",
         "x-go-handler": "ride-backend/controllers.(*AuthController).GoogleCallback"
       }
     },
     "/api/v1/auth/login": {
       "post": {
-        "description": "Current B4 app authentication returns token, message and user. App refresh/session rotation endpoints are not implemented yet.",
+        "description": "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.",
         "operationId": "post_api_v1_auth_login",
         "parameters": [
           {
@@ -8345,27 +8930,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    },
-                    "token": {
-                      "type": "string"
-                    },
-                    "user": {
-                      "$ref": "#/components/schemas/UserResponse"
-                    }
-                  },
-                  "required": [
-                    "message",
-                    "token",
-                    "user"
-                  ],
-                  "type": "object"
+                  "$ref": "#/components/schemas/AppSessionToken"
                 }
               }
             },
-            "description": "Current B4 app authentication returns token, message and user. App refresh/session rotation endpoints are not implemented yet.",
+            "description": "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid credentials.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Rate limit exceeded.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -8383,6 +8986,122 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/auth/login",
         "x-go-handler": "ride-backend/controllers.(*AuthController).Login"
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "Revokes the current app session immediately.",
+        "operationId": "post_api_v1_auth_logout",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Revokes the current app session immediately.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/auth/logout",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/auth/logout",
+        "x-go-handler": "ride-backend/controllers.(*AuthController).Logout"
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "description": "Revokes every app session owned by the authenticated user immediately.",
+        "operationId": "post_api_v1_auth_logout_all",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Revokes the current app session immediately.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/auth/logout-all",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/auth/logout-all",
+        "x-go-handler": "ride-backend/controllers.(*AuthController).LogoutAll"
       }
     },
     "/api/v1/auth/me": {
@@ -8496,9 +9215,111 @@
         "x-go-handler": "ride-backend/controllers.(*AuthController).VerifyPhoneOTP"
       }
     },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "Rotates the hashed refresh token. Reuse of a rotated token revokes the full token family. Responses use Cache-Control: no-store.",
+        "operationId": "post_api_v1_auth_refresh",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "refresh_token"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSessionToken"
+                }
+              }
+            },
+            "description": "Rotates the hashed refresh token. Reuse of a rotated token revokes the full token family. Responses use Cache-Control: no-store.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid or reused refresh token.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Rate limit exceeded.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/auth/refresh",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/auth/refresh",
+        "x-go-handler": "ride-backend/controllers.(*AuthController).Refresh"
+      }
+    },
     "/api/v1/auth/register": {
       "post": {
-        "description": "Current B4 app authentication returns token, message and user. App refresh/session rotation endpoints are not implemented yet.",
+        "description": "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.",
         "operationId": "post_api_v1_auth_register",
         "parameters": [
           {
@@ -8528,27 +9349,28 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    },
-                    "token": {
-                      "type": "string"
-                    },
-                    "user": {
-                      "$ref": "#/components/schemas/UserResponse"
-                    }
-                  },
-                  "required": [
-                    "message",
-                    "token",
-                    "user"
-                  ],
-                  "type": "object"
+                  "$ref": "#/components/schemas/AppSessionToken"
                 }
               }
             },
-            "description": "Current B4 app authentication returns token, message and user. App refresh/session rotation endpoints are not implemented yet.",
+            "description": "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Rate limit exceeded.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -8566,6 +9388,153 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/auth/register",
         "x-go-handler": "ride-backend/controllers.(*AuthController).Register"
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "description": "Lists the authenticated user's app sessions. Refresh tokens and token hashes are never returned.",
+        "operationId": "get_api_v1_auth_sessions",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSessionPage"
+                }
+              }
+            },
+            "description": "Lists the authenticated user's app sessions. Refresh tokens and token hashes are never returned.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/auth/sessions",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/auth/sessions",
+        "x-go-handler": "ride-backend/controllers.(*AuthController).Sessions"
+      }
+    },
+    "/api/v1/auth/sessions/{id}": {
+      "delete": {
+        "description": "Revokes this session when it belongs to the authenticated user.",
+        "operationId": "delete_api_v1_auth_sessions_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Revokes this session when it belongs to the authenticated user.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Session not found.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "DELETE /api/v1/auth/sessions/{id}",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/auth/sessions/:id",
+        "x-go-handler": "ride-backend/controllers.(*AuthController).DeleteSession"
       }
     },
     "/api/v1/blocks": {
