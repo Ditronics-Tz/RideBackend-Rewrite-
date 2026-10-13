@@ -78,14 +78,14 @@ func TestFinanceLedgerIdempotencyRefundAndPayoutGuard(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := uuid.NewString()
-	p, err := s.InitiatePayment(a.ID, ride.ID, key, store.PayInput{Method: "wallet", Amount: 1})
+	p, err := s.InitiatePayment(a.ID, ride.ID, key, store.PayInput{Method: "cash", Amount: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p.Amount != 3000 || p.Status != "succeeded" {
 		t.Fatal("client amount trusted or not settled", p)
 	}
-	again, err := s.InitiatePayment(a.ID, ride.ID, key, store.PayInput{Method: "wallet", Amount: 1})
+	again, err := s.InitiatePayment(a.ID, ride.ID, key, store.PayInput{Method: "cash", Amount: 1})
 	if err != nil || p.ID != again.ID {
 		t.Fatal("not idempotent", err)
 	}
@@ -102,7 +102,7 @@ func TestFinanceLedgerIdempotencyRefundAndPayoutGuard(t *testing.T) {
 	if err := s.WorkRefund(refund.ID, "approve", "", admin); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.AdjustWallet(b.ID, admin.ID, uuid.NewString(), "seed earned balance", 20000); err != nil {
+	if err := s.AdjustWallet(b.ID, admin.ID, uuid.NewString(), "seed earned balance", 25000); err != nil {
 		t.Fatal(err)
 	}
 	success := 0
@@ -218,67 +218,33 @@ func TestCommissionRounding(t *testing.T) {
 		}
 	}
 }
-func TestMobileMoneyMockAndWebhookDeduplication(t *testing.T) {
-	for _, mode := range []string{"success", "failure", "pending", "timeout"} {
-		t.Run(mode, func(t *testing.T) {
-			s, cfg, err := testutil.SetupTestStore()
-			if err != nil {
-				t.Fatal(err)
-			}
-			cfg.PaymentEncryptionKey = []byte("12345678901234567890123456789012")
-			cfg.PaymentProviderName = "mock"
-			s.ConfigureOperations(cfg)
-			s.PaymentProvider = &payments.MockProvider{Mode: mode}
-			now := time.Now().UTC()
-			s.Clock = func() time.Time { return now }
-			u, err := s.CreateUser("P", uuid.NewString()+"@test.invalid", "", models.RolePassenger)
-			if err != nil {
-				t.Fatal(err)
-			}
-			p, err := s.InitiatePayment(u.ID, "", uuid.NewString(), store.PayInput{Method: "mpesa", Phone: "+255712345678", Amount: 5000})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := s.ProcessPayments(); err != nil {
-				t.Fatal(err)
-			}
-			now = now.Add(61 * time.Second)
-			if err := s.ProcessPayments(); err != nil {
-				t.Fatal(err)
-			}
-			var saved models.PaymentTransaction
-			if err := s.DB().First(&saved, "id = ?", p.ID).Error; err != nil {
-				t.Fatal(err)
-			}
-			want := "pending"
-			if mode == "timeout" {
-				want = "pending"
-			}
-			if mode == "success" {
-				want = "succeeded"
-			}
-			if mode == "failure" {
-				want = "failed"
-			}
-			if saved.Status != want {
-				t.Fatalf("got %s want %s", saved.Status, want)
-			}
-			if mode == "success" {
-				event := store.PaymentEvent{EventID: "webhook-1", Reference: p.ID, Status: "succeeded", Amount: 5000}
-				for i := 0; i < 2; i++ {
-					if err := s.ProcessPaymentEvent("mock", event, "hash"); err != nil {
-						t.Fatal(err)
-					}
-				}
-				w, err := s.GetWallet(u.ID)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if w.Balance != 5000 {
-					t.Fatal("duplicate credited")
-				}
+func TestRidePaymentsAreCashOnlyAndTopupsAreUnavailable(t *testing.T) {
+	s, _, err := testutil.SetupTestStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	passenger, err := s.CreateUser("P", uuid.NewString()+"@test.invalid", "", models.RolePassenger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver, err := s.CreateUser("D", uuid.NewString()+"@test.invalid", "", models.RoleDriver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	ride := models.Ride{ID: uuid.NewString(), PassengerID: passenger.ID, DriverID: driver.ID, Status: "completed", Fare: 5000, CompletedAt: &now}
+	if err := s.DB().Create(&ride).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, method := range []string{"wallet", "mpesa", "tigopesa", "airtelmoney"} {
+		t.Run(method, func(t *testing.T) {
+			if _, err := s.InitiatePayment(passenger.ID, ride.ID, uuid.NewString(), store.PayInput{Method: method}); err == nil {
+				t.Fatalf("unsupported ride payment method %q was accepted", method)
 			}
 		})
+	}
+	if _, err := s.InitiatePayment(passenger.ID, "", uuid.NewString(), store.PayInput{Method: "mpesa", Amount: 5000, Phone: "+255712345678"}); err == nil {
+		t.Fatal("wallet top-up was accepted without an integrated local provider")
 	}
 }
 
@@ -358,64 +324,17 @@ func TestReconciliationExceptionKindsAndIdempotency(t *testing.T) {
 		}
 	}
 }
-func TestTopupRefundProviderSuccessFailureAndRetry(t *testing.T) {
-	for _, mode := range []string{"success", "failure"} {
-		t.Run(mode, func(t *testing.T) {
-			s, cfg, err := testutil.SetupTestStore()
-			if err != nil {
-				t.Fatal(err)
-			}
-			cfg.PaymentProviderName = "mock"
-			cfg.PaymentEncryptionKey = []byte("12345678901234567890123456789012")
-			s.ConfigureOperations(cfg)
-			now := time.Now().UTC()
-			s.Clock = func() time.Time { return now }
-			user, err := s.CreateUser("Top-up", uuid.NewString()+"@test.invalid", "", models.RolePassenger)
-			if err != nil {
-				t.Fatal(err)
-			}
-			p, err := s.InitiatePayment(user.ID, "", uuid.NewString(), store.PayInput{Amount: 5000, Method: "mpesa", Phone: "+255712345678"})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := s.ProcessPayments(); err != nil {
-				t.Fatal(err)
-			}
-			now = now.Add(time.Minute)
-			if err := s.ProcessPayments(); err != nil {
-				t.Fatal(err)
-			}
-			admin := &models.StaffUser{ID: uuid.NewString(), Role: models.StaffRoleAdmin}
-			r, err := s.RequestRefund(p.ID, uuid.NewString(), "Requested return", 2000, admin)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := s.WorkRefund(r.ID, "approve", "", admin); err != nil {
-				t.Fatal(err)
-			}
-			s.PaymentProvider = &payments.MockProvider{Mode: mode}
-			for i := 0; i < 2; i++ {
-				if err := s.ProcessProviderRefunds(); err != nil {
-					t.Fatal(err)
-				}
-			}
-			var saved models.Refund
-			if err := s.DB().First(&saved, "id = ?", r.ID).Error; err != nil {
-				t.Fatal(err)
-			}
-			want, balance := "processed", int64(3000)
-			if mode == "failure" {
-				want = "rejected"
-				balance = 5000
-			}
-			w, err := s.GetWallet(user.ID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if saved.Status != want || w.Balance != balance {
-				t.Fatalf("status %s wallet %d", saved.Status, w.Balance)
-			}
-		})
+func TestWalletTopupsUnavailableUntilLocalProviderIntegration(t *testing.T) {
+	s, _, err := testutil.SetupTestStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := s.CreateUser("Passenger", uuid.NewString()+"@test.invalid", "", models.RolePassenger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.InitiatePayment(user.ID, "", uuid.NewString(), store.PayInput{Amount: 5000, Method: "mpesa", Phone: "+255712345678"}); err == nil {
+		t.Fatal("wallet top-up was accepted without an integrated local provider")
 	}
 }
 func TestCashLimitAndSupportRefundCap(t *testing.T) {
@@ -442,10 +361,10 @@ func TestCashLimitAndSupportRefundCap(t *testing.T) {
 	if _, err := s.InitiatePayment(passenger.ID, ride.ID, uuid.NewString(), store.PayInput{Method: "cash"}); err == nil {
 		t.Fatal("cash commission exceeded floor")
 	}
-	if err := s.AdjustWallet(passenger.ID, admin.ID, uuid.NewString(), "Funded", 100000); err != nil {
+	if err := s.AdjustWallet(driver.ID, admin.ID, uuid.NewString(), "Seed driver balance", 100000); err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.InitiatePayment(passenger.ID, ride.ID, uuid.NewString(), store.PayInput{Method: "wallet"})
+	p, err := s.InitiatePayment(passenger.ID, ride.ID, uuid.NewString(), store.PayInput{Method: "cash"})
 	if err != nil {
 		t.Fatal(err)
 	}

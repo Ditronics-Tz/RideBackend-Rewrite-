@@ -1,0 +1,197 @@
+name: rida-backend
+
+x-backend-environment: &backend-environment
+  APP_ENV: production
+  PORT: "3000"
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+  R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+  R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+  R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+  R2_PUBLIC_BUCKET: ${R2_PUBLIC_BUCKET:-}
+  R2_PRIVATE_BUCKET: ${R2_PRIVATE_BUCKET:-}
+  R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
+  DEVICE_HASH_PEPPER: ${DEVICE_HASH_PEPPER:-}
+  PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
+  PAYMENT_GATEWAY_URL: ${PAYMENT_GATEWAY_URL:-}
+  PAYMENT_GATEWAY_KEY: ${PAYMENT_GATEWAY_KEY:-}
+  PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-}
+  PAYMENT_WEBHOOK_PREVIOUS_SECRET: ${PAYMENT_WEBHOOK_PREVIOUS_SECRET:-}
+  PAYMENT_ENCRYPTION_KEY: ${PAYMENT_ENCRYPTION_KEY:-}
+  DRIVER_MAX_NEGATIVE_BALANCE: ${DRIVER_MAX_NEGATIVE_BALANCE:-10000}
+  PAYOUT_MIN: ${PAYOUT_MIN:-1000}
+  PAYOUT_AUTO_APPROVE_MAX: ${PAYOUT_AUTO_APPROVE_MAX:-10000}
+  REFUND_SUPPORT_LIMIT: ${REFUND_SUPPORT_LIMIT:-5000}
+  JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env before starting}
+  STAFF_JWT_SECRET: ${STAFF_JWT_SECRET:?Set STAFF_JWT_SECRET in .env before starting}
+  STAFF_ACCESS_TTL: ${STAFF_ACCESS_TTL:-15m}
+  STAFF_REFRESH_TTL: ${STAFF_REFRESH_TTL:-7d}
+  STAFF_TOTP_KEY: ${STAFF_TOTP_KEY:?Set STAFF_TOTP_KEY in .env before starting}
+  STAFF_REQUIRE_2FA_FOR_ADMIN: ${STAFF_REQUIRE_2FA_FOR_ADMIN:-true}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL:-}
+  GOOGLE_REDIRECT_ALLOWED_URLS: ${GOOGLE_REDIRECT_ALLOWED_URLS:-}
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_USER: ${DB_USER:-ride_app}
+  DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env before starting}
+  DB_NAME: ${DB_NAME:-ride}
+  DB_SSLMODE: verify-full
+  PGSSLROOTCERT: /run/postgres-ca/server.crt
+  EXPORT_DIR: /app/uploads/private/exports
+  DELETION_GRACE_DAYS: ${DELETION_GRACE_DAYS:-14}
+  EXPORT_TTL_HOURS: ${EXPORT_TTL_HOURS:-168}
+  FINANCIAL_RETENTION_YEARS: ${FINANCIAL_RETENTION_YEARS:-0}
+  RUN_BACKGROUND_JOBS: ${RUN_BACKGROUND_JOBS:-false}
+  REPORT_FLAG_THRESHOLD: ${REPORT_FLAG_THRESHOLD:-3}
+  REPORT_FLAG_WINDOW_DAYS: ${REPORT_FLAG_WINDOW_DAYS:-30}
+  SOS_ACK_SLA_SECONDS: ${SOS_ACK_SLA_SECONDS:-60}
+  SOS_ONCALL_PHONES: ${SOS_ONCALL_PHONES:-}
+  SOS_LOCATION_RETENTION_DAYS: ${SOS_LOCATION_RETENTION_DAYS:-30}
+  SOS_FALSE_ALARM_THRESHOLD: ${SOS_FALSE_ALARM_THRESHOLD:-3}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://api.example.com}
+  RIDE_BASE_FARE_TZS: ${RIDE_BASE_FARE_TZS:-0}
+  RIDE_PER_KM_FARE_TZS: ${RIDE_PER_KM_FARE_TZS:-0}
+  RIDE_PER_MINUTE_FARE_TZS: ${RIDE_PER_MINUTE_FARE_TZS:-0}
+  RIDE_ESTIMATED_SPEED_KMPH: ${RIDE_ESTIMATED_SPEED_KMPH:-20}
+  RIDE_OFFER_TIMEOUT_SECONDS: ${RIDE_OFFER_TIMEOUT_SECONDS:-30}
+  RIDE_SEARCH_RADIUS_KM: ${RIDE_SEARCH_RADIUS_KM:-10}
+  DISABLE_LEGACY_RATINGS: ${DISABLE_LEGACY_RATINGS:-false}
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+    image: rida-postgres:16-bookworm-tls
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?Set DB_ADMIN_PASSWORD in .env before starting}
+      POSTGRES_DB: ${DB_NAME:-ride}
+      APP_DB_USER: ${DB_USER:-ride_app}
+      APP_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env before starting}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    command: ["postgres"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_tls_private:/run/postgresql/tls
+      - postgres_tls_public:/run/postgresql/ca
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    stop_grace_period: 1m
+    mem_limit: ${DB_MEMORY_LIMIT:-768m}
+    logging: &rotated-logs
+      driver: json-file
+      options:
+        max-size: ${DOCKER_LOG_MAX_SIZE:-10m}
+        max-file: ${DOCKER_LOG_MAX_FILE:-5}
+
+  migrate:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-rida-backend:local}
+    entrypoint: ["/app/migrate"]
+    command: ["up"]
+    restart: "no"
+    environment:
+      APP_ENV: production
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${DB_ADMIN_USER:-postgres}
+      DB_PASSWORD: ${DB_ADMIN_PASSWORD:?Set DB_ADMIN_PASSWORD in .env before starting}
+      DB_NAME: ${DB_NAME:-ride}
+      DB_SSLMODE: verify-full
+      PGSSLROOTCERT: /run/postgres-ca/server.crt
+    volumes:
+      - postgres_tls_public:/run/postgres-ca:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001
+    logging: *rotated-logs
+
+  create-admin:
+    profiles: ["tools"]
+    image: ${BACKEND_IMAGE:-rida-backend:local}
+    entrypoint: ["/app/create-admin"]
+    restart: "no"
+    environment:
+      <<: *backend-environment
+      STAFF_BOOTSTRAP_PASSWORD: ${STAFF_BOOTSTRAP_PASSWORD:?Set STAFF_BOOTSTRAP_PASSWORD in .env before bootstrapping}
+    volumes:
+      - postgres_tls_public:/run/postgres-ca:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001
+    logging: *rotated-logs
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-rida-backend:local}
+    restart: unless-stopped
+    init: true
+    environment:
+      <<: *backend-environment
+    ports:
+      - "${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-3000}:3000"
+    volumes:
+      - uploads_data:/app/uploads
+      - postgres_tls_public:/run/postgres-ca:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/ready"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+    mem_limit: ${API_MEMORY_LIMIT:-512m}
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,uid=10001,gid=10001
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    logging: *rotated-logs
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  postgres_tls_private:
+  postgres_tls_public:
+  uploads_data:

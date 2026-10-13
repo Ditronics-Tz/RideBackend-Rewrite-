@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+func mobileMethod(method string) bool {
+	return method == "mpesa" || method == "tigopesa" || method == "airtelmoney"
+}
+
 type PayInput struct {
 	Method    string `json:"method"`
 	Phone     string `json:"phone"`
@@ -99,6 +103,14 @@ func (s *Store) InitiatePayment(user, ride, key string, in PayInput) (*models.Pa
 	})
 	return &p, err
 }
+
+func maskPhone(phone string) string {
+	if len(phone) < 7 {
+		return "***"
+	}
+	return phone[:5] + "** *** " + phone[len(phone)-3:]
+}
+
 func (s *Store) settlePayment(p *models.PaymentTransaction) error {
 	if p.Status == "succeeded" || p.Status == "refunded" || p.Status == "partially_refunded" {
 		return nil
