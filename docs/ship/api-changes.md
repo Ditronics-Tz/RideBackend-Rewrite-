@@ -46,3 +46,41 @@ document URL (refetch document metadata for its protected URL).
 Affected: driver document uploader, passenger/driver profile photos, admin
 document viewer and deployment operator. Mobile clients must implement the
 presign -> direct PUT -> confirm flow when R2 is enabled.
+
+## 2026-10-13 - B4
+
+- Server startup no longer changes database schemas. Run `go run ./cmd/migrate up`
+  with injected DB configuration first. Startup refuses an unapplied schema;
+  `status` only reports the recorded version. Existing compatible tables are
+  adopted; incompatible column types/constraints require operator review.
+- `GET /health` and `/api/v1/health` remain cheap. New `GET /ready` and
+  `/api/v1/ready` ping the DB with a two-second timeout; return
+  `{status,database,version,uptime_seconds}` or 503 on failure.
+- Every HTTP response has X-Request-ID. JSON errors include `request_id`; safe
+  incoming IDs (1-64 ASCII letters/digits/dot/underscore/dash) are preserved.
+- CORS only allows explicit `CORS_ALLOWED_ORIGINS`; empty means no browser
+  cross-origin access, wildcard is rejected. X-Request-ID and Retry-After are
+  exposed. Same-origin/native clients remain compatible. Production DB_SSLMODE
+  defaults to require; allow/prefer/disable are rejected, verify-full is supported.
+- Existing paginated lists now default to limit=50, maximum=200, offset=0.
+  Invalid bounds return 400 with `fields`. Users are always paginated and accept
+  `role,status,q,verification_status`. No authoritative vehicle type exists yet.
+  Status includes banned; inactive/deactivated are aliases for is_active=false
+  (all restricted account statuses), preserving driver count card semantics.
+- Audit lists retain `logs` and accept `q,action,actor` (actor_id alias), from/to
+  (date or RFC3339), with total/limit/offset. Staff supports q/role/active|inactive.
+- Verification queues support q/status and expiring_soon=true (within 30 days),
+  with verifications/total/limit/offset. Notes, notifications, ratings and export
+  lists also retain their collection keys and add pagination metadata. Available
+  promos are paged after the existing eligibility evaluation, preserving its
+  rules. User
+  history pages both existing streams independently with the same limit/offset;
+  `totals` provides each stream count and `total` is the maximum count.
+- User stats now use COUNT queries. `operational_counts_available=false` marks
+  the three legacy zero operational fields unavailable until B8 persists counts.
+  Admin ride/ticket list and ticket update placeholders now return 501; ticket
+  writes never claim an unsaved success. Existing nested
+  resource timelines await B7/B8; this milestone does not make dispatch live.
+
+Affected: admin tables and all clients fetching pageable collections; deployment
+must apply schema migrations before starting the API and configure approved origins.

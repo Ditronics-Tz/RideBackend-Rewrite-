@@ -525,3 +525,17 @@ No file is overwritten. Quarantine review and deletion are operator decisions.
 ## Object storage
 
 STORAGE_DRIVER=local retains development multipart handlers. R2 requires separate public/private buckets and an HTTPS public domain. Driver documents use presign, direct PUT, confirm; GET private documents requires owner/staff authentication and short-lived links. Temporary PUT keys never become evidence keys. See docs/ship/api-changes.md and needs-owner.md for contracts and lifecycle requirements. Run go run ./cmd/migrate-files-to-r2 --dry-run with injected database configuration before maintenance migration. The command never deletes source files. New object references block deletion completion until operator cleanup/export integration is supplied.
+
+## Runtime deployment
+
+Go 1.27.2 or newer is required. Apply the frozen PostgreSQL schema with go run ./cmd/migrate up using injected DB configuration; go run ./cmd/migrate status is read-only. API startup does not AutoMigrate and refuses an unapplied schema. GET /health is cheap; GET /ready checks database reachability with a 2-second timeout. Both also exist under /api/v1. HTTP read/write/idle limits are 15/30/60 seconds; SIGTERM cancels worker database contexts and allows 10 seconds for HTTP shutdown, then a bounded worker wait. CORS_ALLOWED_ORIGINS accepts explicit comma-separated origins; empty denies browser cross-origin access. Production requires database TLS. JSON errors and responses expose correlated request IDs. Logs use route patterns, omit request bodies/headers/query values, and redact background database errors.
+
+## Existing staff permissions in this milestone
+
+| Action | Support | Admin |
+| --- | --- | --- |
+| User/driver review, protected document reads, claims, support notes, suspension/reactivation | Yes | Yes |
+| Staff management, audit collection, app role changes, permanent ban, note deletion | No | Yes (configured 2FA applies) |
+| New app sessions, dispatch, persisted tickets, ride administration, rating moderation | Pending backend B5/B7/B8 | Pending backend B5/B7/B8 |
+
+See docs/ship/backend-status.md for completed and pending tasks. New frontend controls do not imply those APIs already exist. Existing phase 6-9 operational workflows are preserved.

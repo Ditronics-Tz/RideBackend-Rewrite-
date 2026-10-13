@@ -52,3 +52,59 @@ Validation: storage fake-S3 tests, document lifecycle/ownership/audit tests,
 migration retry/dry-run tests, `go vet ./...` and `go test ./... -count=1` passed.
 Real Cloudflare, bucket CORS/lifecycle and PostgreSQL deployment checks require
 owner configuration. Windows symlink coverage skips when privilege is absent.
+
+## B4 - Runtime and database deployment
+
+Implemented frozen goose SQL migrations for the 56-table existing schema, explicit
+storage additions, and preserved verification/account backfills. Compatible
+tables are adopted; conflicting types, required columns/constraints or duplicate
+identity values fail with redacted errors. The API no longer AutoMigrates and
+requires the current recorded schema version. Tests retain AutoMigrate solely
+for isolated fixtures. Deployment uses a separate up/status command; rollback
+requires a reviewed plan rather than a destructive command.
+
+Added public health/readiness aliases, a two-second DB ping, production TLS
+validation, explicit browser-origin allowlists, safe request IDs, JSON logs using
+route patterns and no sensitive headers/bodies/query values, HTTP timeouts,
+SIGTERM shutdown and cancellable worker database contexts. DSN credential values
+are quoted and connection establishment is bounded. Existing list helpers now
+use default 50/max 200; new users/staff/audit/verification SQL filters and
+metadata are implemented. Banned/inactive status filters have regression tests.
+Notes, ratings, notifications, history and export lists are bounded. Existing
+detail resources retain their nested timelines; rides/tickets await B7/B8.
+User counts and rating summaries use SQL aggregates.
+Ride/ticket placeholders return 501; the former ticket update success without
+saving is disabled. Stats explicitly mark unimplemented operational counts
+unavailable, so the admin UI cannot display a fabricated zero as real data.
+
+Updated to Go 1.27.2 after the installed 1.27.1 failed vulnerability checks.
+`govulncheck ./...` now reports zero called/imported vulnerabilities. Its remaining
+required-module advisory GO-2026-5932 concerns unimported x/crypto/openpgp, has no
+fix, and does not justify removing the maintained bcrypt/TOTP dependencies.
+Added the pinned vulnerability check to CI.
+
+Early OpenAPI/route guard inventory describes existing routes and B3/B4 contracts;
+future B5/B7/B8 endpoints are not invented. Coverage does not substitute for the
+PostgreSQL CI and completed contracts required by B9.
+
+Validation: full `go vet ./...`, `go test ./... -count=1`, `go build ./...` and
+govulncheck pass locally; request correlation/redacted logs, ready with closed DB,
+CORS denials, pagination/filter bounds and worker cancellation tests pass.
+Frozen baseline application/adoption tests pass on SQLite. Actual PostgreSQL
+adoption/advisory-lock tests remain opt-in and unavailable locally.
+
+## Starting milestone and remaining backend work
+
+B1-B4 are the starting implementation milestone. B5-B9 remain required: app auth
+and sessions, public profile DTOs/image sanitization/IDOR fixes, authoritative
+ride dispatch, persisted support/admin rides/rating moderation, and PostgreSQL CI.
+Known public profile field exposure remains explicitly mapped for B6. The admin
+UI contains controls for these contracts, but missing endpoints must stay honest
+unavailable states. Credential rotation, storage lifecycle, host/browser checks
+and production acceptance remain owner dependencies.
+
+Changed file groups: config and environment example; CI/scanner and fixtures;
+upload migration utilities/store/commands; storage adapters and tests;
+document/profile models/controllers/routes; schema migrations and command;
+runtime/request middleware/jobs/readiness; list query helpers and regression tests;
+early API/guard inventory and generator; README and docs/ship handoff.

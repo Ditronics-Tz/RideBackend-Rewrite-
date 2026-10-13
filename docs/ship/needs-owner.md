@@ -27,3 +27,11 @@ continue implementation using mocks and interfaces.
 - Integrate private object cleanup and export before enabling completed account
   deletion for object-backed users. An explicit blocker currently retains keys;
   incident/export storage adapters and backups are outside this implementation.
+- Before deploying, take a recoverable database backup and run the schema command
+  as a separate job with approved DB credentials. Review any rejected schema drift
+  or duplicate licence/plate/phone counts using an authorized private process.
+  Migration errors deliberately exclude identities and raw database details.
+- Set CORS_ALLOWED_ORIGINS to approved explicit origins (comma-separated); empty
+  disables browser cross-origin access. Use DB_SSLMODE=require or verify-full
+  with deployment trust roots and a verified hostname. Server no longer applies
+  migrations automatically; run cmd/migrate up before server startup.
