@@ -130,7 +130,7 @@ func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handle
 			if observer, ok := accounts[0].(interface {
 				ObserveDevice(string, string, string, string) error
 			}); ok {
-				if err := observer.ObserveDevice(uid, c.Get("X-Device-ID"), c.Get("X-Platform"), c.IP()); err != nil {
+				if err := observer.ObserveDevice(uid, c.Get("X-Device-ID"), c.Get("X-Device-Platform", c.Get("X-Platform")), c.IP()); err != nil {
 					return c.Status(500).JSON(fiber.Map{"error": "unable to record device event"})
 				}
 			}

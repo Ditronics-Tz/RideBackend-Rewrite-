@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"gorm.io/gorm/clause"
 	"ride-backend/config"
 	"ride-backend/models"
@@ -74,6 +75,7 @@ func (s *Store) ProcessSafety(cfg *config.Config) error {
 	return s.ProcessNotifications()
 }
 func (s *Store) ProcessNotifications() error {
+	var deliveryErrors error
 	if err := s.db.Model(&models.NotificationDelivery{}).Where("status = ? AND claimed_at < ?", "processing", s.now().Add(-time.Minute)).Update("status", "pending").Error; err != nil {
 		return err
 	}
@@ -117,10 +119,10 @@ func (s *Store) ProcessNotifications() error {
 			return updateErr
 		}
 		if err != nil {
-			return OpError(502, "notification provider failed; delivery retained for retry")
+			deliveryErrors = errors.Join(deliveryErrors, OpError(502, "notification provider failed; delivery retained for retry"))
 		}
 	}
-	return nil
+	return deliveryErrors
 }
 func init() {
 	RegisterDeletionBlocker("active_rides", func(s *Store, id string) ([]string, error) {
@@ -172,6 +174,9 @@ func (s *Store) CreateIncident(user string, r *models.IncidentReport) error {
 			}
 			report := models.Report{ID: newID(), ReporterID: user, ReportedID: other, RideID: ride.ID, Category: "other", Description: r.Description, Status: "open", Priority: "high", CreatedAt: tx.now()}
 			if err := tx.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&report).Error; err != nil {
+				return err
+			}
+			if err := tx.db.Model(&models.Report{}).Where("reporter_id = ? AND reported_id = ? AND ride_id = ? AND status IN ?", user, other, ride.ID, []string{"open", "in_review"}).Update("priority", "high").Error; err != nil {
 				return err
 			}
 			return tx.enqueue("staff:support", "account_flag", "", "")

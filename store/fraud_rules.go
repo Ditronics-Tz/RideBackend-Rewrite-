@@ -136,8 +136,31 @@ func (r builtinRule) Evaluate(ctx context.Context, event models.FraudEvent) ([]F
 			ids = append(ids, id)
 		}
 		if r.Key() == "shared_device" {
-			found = len(ids) > int(p["max_accounts"])
-			evidence["account_count"] = len(ids)
+			accountsByDevice := map[string]map[string]bool{}
+			for _, d := range others {
+				if accountsByDevice[d.DeviceHash] == nil {
+					accountsByDevice[d.DeviceHash] = map[string]bool{}
+				}
+				accountsByDevice[d.DeviceHash][d.UserID] = true
+			}
+			linked := map[string]bool{}
+			maxAccounts := 0
+			for _, accounts := range accountsByDevice {
+				if len(accounts) > int(p["max_accounts"]) {
+					found = true
+					if len(accounts) > maxAccounts {
+						maxAccounts = len(accounts)
+					}
+					for id := range accounts {
+						linked[id] = true
+					}
+				}
+			}
+			ids = []string{}
+			for id := range linked {
+				ids = append(ids, id)
+			}
+			evidence["account_count"] = maxAccounts
 		} else {
 			var referrals, redemptions, unqualified int64
 			if err := db.Model(&models.Referral{}).Where("referee_id IN ? AND created_at >= ?", ids, cutoff).Count(&referrals).Error; err != nil {

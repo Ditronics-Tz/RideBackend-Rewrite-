@@ -306,8 +306,26 @@ func (s *Store) WorkRefund(id, action, note string, actor *models.StaffUser) err
 		} else {
 			before := p.RefundedAmount
 			after := before + r.Amount
-			commission := mulDiv(p.Commission, after, p.Amount) - mulDiv(p.Commission, before, p.Amount)
-			subsidy := mulDiv(p.DiscountAmount, after, p.Amount) - mulDiv(p.DiscountAmount, before, p.Amount)
+			beforeSubsidy := mulDiv(p.DiscountAmount, before, p.Amount)
+			afterSubsidy := mulDiv(p.DiscountAmount, after, p.Amount)
+			subsidy := afterSubsidy - beforeSubsidy
+			// Allocate commission from the rounded gross fare being reversed.
+			// Independent rounding against the paid amount can make the driver
+			// portion negative for a partial refund of a discounted ride.
+			var reversedCommission int64
+			processedRefunds := tx.db.Model(&models.Refund{}).Select("id").Where("transaction_id = ? AND status = ?", p.ID, "processed")
+			if err := tx.db.Model(&models.LedgerEntry{}).Where("ref_type = ? AND ref_id IN (?) AND account = ?", "refund", processedRefunds, "platform_revenue").Select("COALESCE(SUM(CASE WHEN direction = 'debit' THEN amount ELSE -amount END),0)").Scan(&reversedCommission).Error; err != nil {
+				return err
+			}
+			commission := mulDiv(p.Commission, after+afterSubsidy, p.Fare) - reversedCommission
+			// Earlier partial refunds may have used the previous rounding rule.
+			// Respect their immutable entries and carry rounding differences forward.
+			if commission < 0 {
+				commission = 0
+			}
+			if commission > r.Amount+subsidy {
+				commission = r.Amount + subsidy
+			}
 			if err := tx.postWallet(*p.DriverID, "driver_wallet", "debit", r.Amount+subsidy-commission, -MaxMoney, "refund", r.ID, prefix+":driver"); err != nil {
 				return err
 			}

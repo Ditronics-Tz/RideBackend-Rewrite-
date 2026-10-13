@@ -91,3 +91,46 @@ Financial retention is provisional. **A lawyer must confirm retention periods** 
 ## Reused modules and assumptions
 
 Account deletion/export, promo/referral engines, driver verification and rating aggregation already existed in this checkout and were extended through their registries/hooks. No ride booking, dispatch or existing payment gateway API spec was present, so a limited internal ride record and the documented gateway adapter assumption were added. The operations admin UI uses the existing React/Vite/TanStack/Axios/Zustand/Radix/Sonner/Recharts stack. It has no map dependency, so the SOS and fraud evidence maps use attributed OpenStreetMap raster tiles in a small native SVG view. Provider SMS/push adapters remain mock/logging implementations behind the notification interface until credentials and delivery-provider contract are supplied.
+
+## Task review corrections (2026-10-13)
+
+The models, routes, privacy registries, provider interfaces, background commands,
+staff permissions and UI pages for phases 6-9 already existed and were reused.
+The following changes repair defects without changing endpoint shapes:
+
+- Phase 6: flagged-account links now forward the user filter in the reports UI.
+- Phase 7: a severe incident raises an existing open/in-review report to high
+  priority without overwriting its evidence. Notification batches attempt all
+  selected recipients, preserve failed deliveries for retry, and return delivery
+  errors after the batch. The SOS UI has pagination past 100 alerts and is the
+  support staff default home; login retains requested query parameters.
+- Phase 8: partial refunds allocate commission from the rounded gross fare
+  being reversed. All ledger amounts stay positive, each refund balances, and
+  full refunds reverse the full original commission and subsidy.
+- Phase 9: login and authenticated requests accept X-Device-Platform, including
+  CORS preflight; X-Platform remains a fallback. Shared-device thresholds apply
+  to each device separately, with linked accounts limited to offending devices.
+- All phases: Postman authorization variables now have matching double braces.
+  Controller tests use an explicit ten-second request timeout and report errors
+  before inspecting the response; production password costs are unchanged.
+
+Backend implementation files changed: controllers/auth_controller.go,
+middleware/auth_middleware.go, routes/app.go, store/safety_jobs.go,
+store/payout_store.go and store/fraud_rules.go. Regression coverage was added in
+routes/device_capture_test.go, routes/cors_test.go, store/fraud_test.go,
+store/operations_regression_test.go and postman/collection_test.go, with request
+handling repaired in controllers/controllers_test.go. Postman examples and the
+README were updated. The existing driver verification, account status,
+notifications, payment provider, ledger, promo and privacy implementations were
+retained.
+
+Run go vet ./... and go test ./... from the backend folder. The PostgreSQL
+concurrency/integration checks require explicit test flags and an isolated
+POSTGRES_TEST_DSN; they are skipped when those are not configured. Production
+ride dispatch, real SMS/push delivery and a confirmed gateway contract remain
+existing integration dependencies, as documented above.
+
+MOBILE APP CHANGES: the existing phase 6-9 adoption lists above still apply.
+The header contract is additive: prefer X-Device-Platform; existing X-Platform
+clients remain supported. No new breaking endpoint or database migration is
+required by these corrections.

@@ -93,7 +93,7 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 	}
 
-	if err := ac.Store.ObserveDevice(user.ID, c.Get("X-Device-ID"), c.Get("X-Platform"), c.IP()); err != nil {
+	if err := ac.Store.ObserveDevice(user.ID, c.Get("X-Device-ID"), c.Get("X-Device-Platform", c.Get("X-Platform")), c.IP()); err != nil {
 		return operationError(c, err)
 	}
 	token, err := utils.GenerateAppToken(user.ID, user.Role, ac.Cfg.JWTSecret, utils.DefaultAppTTL)

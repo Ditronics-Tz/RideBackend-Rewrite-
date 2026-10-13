@@ -487,3 +487,12 @@ when a ride is accepted (before first-ride receipt), then call
 `ConfirmPromo(rideID)` on settlement or `ReleasePromo(rideID)` on cancellation.
 `POST /api/v1/rides/:rideId/sos` requires a real assigned/in-progress ride.
 Never make these operations records a substitute for a booking system.
+
+### Task review (2026-10-13)
+
+The existing operations phases 6-9 were reused. The review corrected report
+priority after severe incidents, notification batch delivery, discounted partial
+refund rounding, device-platform capture, and shared-device false positives.
+Postman token variables were repaired and are covered by go test ./postman.
+Device capture accepts X-Device-Platform with X-Platform as a legacy fallback.
+See docs/OPERATIONS_PHASES_6_9.md for permissions and mobile integration notes.

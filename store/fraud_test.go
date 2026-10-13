@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/google/uuid"
 	"ride-backend/models"
 	"ride-backend/store"
@@ -130,6 +131,64 @@ func TestFraudRulesPositiveAndNegative(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestSharedDeviceThresholdAppliesToEachDevice(t *testing.T) {
+	s, cfg, err := testutil.SetupTestStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.DeviceHashPepper = "test"
+	s.ConfigureOperations(cfg)
+	user, err := s.CreateUser("Owner", uuid.NewString()+"@test.invalid", "", models.RolePassenger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, device := range []string{"family-phone", "family-tablet"} {
+		if err := s.ObserveDevice(user.ID, device, "android", ""); err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < 2; i++ {
+			other, err := s.CreateUser("Family", uuid.NewString()+"@test.invalid", "", models.RolePassenger)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.ObserveDevice(other.ID, device, "android", ""); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := s.EvaluateFraud(context.Background(), models.FraudEvent{UserID: user.ID, Type: "nightly"}); err != nil {
+		t.Fatal(err)
+	}
+	var count int64
+	if err := s.DB().Model(&models.FraudFlag{}).Where("user_id = ? AND rule_key = ?", user.ID, "shared_device").Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("three accounts per device should be allowed; got %d flags", count)
+	}
+	other, err := s.CreateUser("Fourth account", uuid.NewString()+"@test.invalid", "", models.RolePassenger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ObserveDevice(other.ID, "family-phone", "android", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EvaluateFraud(context.Background(), models.FraudEvent{UserID: user.ID, Type: "nightly"}); err != nil {
+		t.Fatal(err)
+	}
+	var flag models.FraudFlag
+	if err := s.DB().Where("user_id = ? AND rule_key = ?", user.ID, "shared_device").First(&flag).Error; err != nil {
+		t.Fatal(err)
+	}
+	var linked []string
+	if err := json.Unmarshal([]byte(flag.RelatedUserIDs), &linked); err != nil {
+		t.Fatal(err)
+	}
+	if len(linked) != 3 {
+		t.Fatalf("only accounts from the over-threshold device should be linked, got %v", linked)
 	}
 }
 

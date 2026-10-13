@@ -17,8 +17,21 @@ import (
 	"ride-backend/testutil"
 	"ride-backend/utils"
 
+	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func controllerTestRequest(t *testing.T, app *fiber.App, req *http.Request) (*http.Response, error) {
+	t.Helper()
+	// Cost-12 password checks can exceed Fiber's default one-second test
+	// timeout when the package suite runs concurrently on a busy machine.
+	resp, err := app.Test(req, 10000)
+	if err != nil {
+		t.Fatalf("%s %s: %v", req.Method, req.URL.Path, err)
+	}
+	t.Cleanup(func() { resp.Body.Close() })
+	return resp, nil
+}
 
 func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 	appStore, cfg, err := testutil.SetupTestStore()
@@ -59,7 +72,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req, 10000)
+		resp, _ := controllerTestRequest(t, app, req)
 
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401, got %d", resp.StatusCode)
@@ -73,7 +86,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req, 10000)
+		resp, _ := controllerTestRequest(t, app, req)
 
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401, got %d", resp.StatusCode)
@@ -92,7 +105,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			})
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
-			resp, _ := app.Test(req, 10000)
+			resp, _ := controllerTestRequest(t, app, req)
 			if resp.StatusCode != http.StatusUnauthorized {
 				t.Fatalf("Attempt %d: expected 401, got %d", i, resp.StatusCode)
 			}
@@ -111,7 +124,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req, 10000)
+		resp, _ := controllerTestRequest(t, app, req)
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401 for locked account, got %d", resp.StatusCode)
 		}
@@ -125,7 +138,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req, 10000)
+		resp, _ := controllerTestRequest(t, app, req)
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401 for missing TOTP, got %d", resp.StatusCode)
 		}
@@ -139,7 +152,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req2 := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body2))
 		req2.Header.Set("Content-Type", "application/json")
-		resp2, err := app.Test(req2)
+		resp2, err := controllerTestRequest(t, app, req2)
 		if err != nil || resp2.StatusCode != http.StatusOK {
 			t.Fatalf("Expected 200 for valid login + TOTP, got %d", resp2.StatusCode)
 		}
@@ -160,7 +173,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			})
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
-			_, _ = app.Test(req, 10000)
+			_, _ = controllerTestRequest(t, app, req)
 		}
 
 		// 11th request must receive 429
@@ -170,7 +183,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := app.Test(req, 10000)
+		resp, _ := controllerTestRequest(t, app, req)
 		if resp.StatusCode != http.StatusTooManyRequests {
 			t.Fatalf("Expected 429 after 10 requests, got %d", resp.StatusCode)
 		}
@@ -185,7 +198,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		})
 		loginReq := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(loginBody))
 		loginReq.Header.Set("Content-Type", "application/json")
-		loginResp, _ := app.Test(loginReq)
+		loginResp, _ := controllerTestRequest(t, app, loginReq)
 
 		var loginData map[string]interface{}
 		_ = json.NewDecoder(loginResp.Body).Decode(&loginData)
@@ -198,7 +211,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		refreshBody, _ := json.Marshal(map[string]string{"refresh_token": rt1})
 		refReq := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/refresh", bytes.NewReader(refreshBody))
 		refReq.Header.Set("Content-Type", "application/json")
-		refResp, err := app.Test(refReq)
+		refResp, err := controllerTestRequest(t, app, refReq)
 		if err != nil || refResp.StatusCode != http.StatusOK {
 			t.Fatalf("Expected 200 on refresh, got %d", refResp.StatusCode)
 		}
@@ -213,7 +226,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		// 2. Reuse detection: presenting rt1 again must fail AND revoke rt2 (entire family)
 		refReqReplay := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/refresh", bytes.NewReader(refreshBody))
 		refReqReplay.Header.Set("Content-Type", "application/json")
-		refRespReplay, _ := app.Test(refReqReplay)
+		refRespReplay, _ := controllerTestRequest(t, app, refReqReplay)
 		if refRespReplay.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401 on reused refresh token, got %d", refRespReplay.StatusCode)
 		}
@@ -222,7 +235,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		body2, _ := json.Marshal(map[string]string{"refresh_token": rt2})
 		refReq2 := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/refresh", bytes.NewReader(body2))
 		refReq2.Header.Set("Content-Type", "application/json")
-		refResp2, _ := app.Test(refReq2)
+		refResp2, _ := controllerTestRequest(t, app, refReq2)
 		if refResp2.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("Expected 401 for compromised token family, got %d", refResp2.StatusCode)
 		}
@@ -248,7 +261,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			// Support must succeed (200)
 			reqS := httptest.NewRequest(sr.method, sr.path, nil)
 			reqS.Header.Set("Authorization", "Bearer "+supportTok)
-			respS, err := app.Test(reqS)
+			respS, err := controllerTestRequest(t, app, reqS)
 			if err != nil || respS.StatusCode != http.StatusOK {
 				var b []byte
 				if respS != nil {
@@ -260,7 +273,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			// Admin must succeed (200)
 			reqA := httptest.NewRequest(sr.method, sr.path, nil)
 			reqA.Header.Set("Authorization", "Bearer "+adminTok)
-			respA, err := app.Test(reqA)
+			respA, err := controllerTestRequest(t, app, reqA)
 			if err != nil || respA.StatusCode != http.StatusOK {
 				t.Errorf("Admin failed on shared route %s %s: expected 200, got %d", sr.method, sr.path, respA.StatusCode)
 			}
@@ -279,7 +292,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			// Support must be forbidden (403)
 			reqS := httptest.NewRequest(ar.method, ar.path, nil)
 			reqS.Header.Set("Authorization", "Bearer "+supportTok)
-			respS, err := app.Test(reqS)
+			respS, err := controllerTestRequest(t, app, reqS)
 			if err != nil || respS.StatusCode != http.StatusForbidden {
 				t.Errorf("Support should be forbidden on %s %s: expected 403, got %d", ar.method, ar.path, respS.StatusCode)
 			}
@@ -287,7 +300,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			// Admin must succeed (200)
 			reqA := httptest.NewRequest(ar.method, ar.path, nil)
 			reqA.Header.Set("Authorization", "Bearer "+adminTok)
-			respA, err := app.Test(reqA)
+			respA, err := controllerTestRequest(t, app, reqA)
 			if err != nil || respA.StatusCode != http.StatusOK {
 				t.Errorf("Admin should succeed on %s %s: expected 200, got %d", ar.method, ar.path, respA.StatusCode)
 			}
@@ -302,7 +315,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		reqSelfDeact := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/staff/"+admin.ID, bytes.NewReader(bodySelfDeact))
 		reqSelfDeact.Header.Set("Authorization", "Bearer "+adminTok)
 		reqSelfDeact.Header.Set("Content-Type", "application/json")
-		respSelfDeact, _ := app.Test(reqSelfDeact)
+		respSelfDeact, _ := controllerTestRequest(t, app, reqSelfDeact)
 		if respSelfDeact.StatusCode != http.StatusBadRequest {
 			t.Fatalf("Expected 400 for self-deactivation, got %d", respSelfDeact.StatusCode)
 		}
@@ -312,7 +325,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		reqSelfRole := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/staff/"+admin.ID+"/role", bytes.NewReader(bodySelfRole))
 		reqSelfRole.Header.Set("Authorization", "Bearer "+adminTok)
 		reqSelfRole.Header.Set("Content-Type", "application/json")
-		respSelfRole, _ := app.Test(reqSelfRole)
+		respSelfRole, _ := controllerTestRequest(t, app, reqSelfRole)
 		if respSelfRole.StatusCode != http.StatusBadRequest {
 			t.Fatalf("Expected 400 for self-role change, got %d", respSelfRole.StatusCode)
 		}
@@ -329,7 +342,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		reqDeact2 := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/staff/"+admin2.ID, bytes.NewReader(bodySelfDeact))
 		reqDeact2.Header.Set("Authorization", "Bearer "+adminTok)
 		reqDeact2.Header.Set("Content-Type", "application/json")
-		respDeact2, _ := app.Test(reqDeact2)
+		respDeact2, _ := controllerTestRequest(t, app, reqDeact2)
 		if respDeact2.StatusCode != http.StatusOK {
 			t.Fatalf("Expected 200 when deactivating non-last admin, got %d", respDeact2.StatusCode)
 		}
@@ -339,7 +352,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		reqDemoteLast := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/staff/"+admin.ID+"/role", bytes.NewReader(bodySelfRole))
 		reqDemoteLast.Header.Set("Authorization", "Bearer "+adminTok)
 		reqDemoteLast.Header.Set("Content-Type", "application/json")
-		respDemoteLast, _ := app.Test(reqDemoteLast)
+		respDemoteLast, _ := controllerTestRequest(t, app, reqDemoteLast)
 		if respDemoteLast.StatusCode != http.StatusBadRequest {
 			t.Fatalf("Expected 400 when attempting to demote last active admin, got %d", respDemoteLast.StatusCode)
 		}
@@ -356,7 +369,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/staff", bytes.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+adminTok)
 		req.Header.Set("Content-Type", "application/json")
-		resp, err := app.Test(req, 10000)
+		resp, err := controllerTestRequest(t, app, req)
 		if err != nil || resp.StatusCode != http.StatusCreated {
 			t.Fatalf("Expected 201, got %d", resp.StatusCode)
 		}
@@ -413,7 +426,7 @@ func TestLicenceFilePermissions(t *testing.T) {
 
 	// 1. Unauthenticated -> 401
 	reqAnon := httptest.NewRequest(http.MethodGet, "/api/v1/files/licences/"+testFilename, nil)
-	respAnon, _ := app.Test(reqAnon)
+	respAnon, _ := controllerTestRequest(t, app, reqAnon)
 	if respAnon.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("Expected 401 for anonymous access to licence, got %d", respAnon.StatusCode)
 	}
@@ -421,7 +434,7 @@ func TestLicenceFilePermissions(t *testing.T) {
 	// 2. Other driver -> 403
 	reqD2 := httptest.NewRequest(http.MethodGet, "/api/v1/files/licences/"+testFilename, nil)
 	reqD2.Header.Set("Authorization", "Bearer "+tokD2)
-	respD2, _ := app.Test(reqD2)
+	respD2, _ := controllerTestRequest(t, app, reqD2)
 	if respD2.StatusCode != http.StatusForbidden {
 		t.Fatalf("Expected 403 for non-owning driver, got %d", respD2.StatusCode)
 	}
@@ -429,7 +442,7 @@ func TestLicenceFilePermissions(t *testing.T) {
 	// 3. Owning driver -> 200
 	reqD1 := httptest.NewRequest(http.MethodGet, "/api/v1/files/licences/"+testFilename, nil)
 	reqD1.Header.Set("Authorization", "Bearer "+tokD1)
-	respD1, _ := app.Test(reqD1)
+	respD1, _ := controllerTestRequest(t, app, reqD1)
 	if respD1.StatusCode != http.StatusOK {
 		t.Fatalf("Expected 200 for owning driver, got %d", respD1.StatusCode)
 	}
@@ -437,7 +450,7 @@ func TestLicenceFilePermissions(t *testing.T) {
 	// 4. Staff member -> 200
 	reqStaff := httptest.NewRequest(http.MethodGet, "/api/v1/files/licences/"+testFilename, nil)
 	reqStaff.Header.Set("Authorization", "Bearer "+tokStaff)
-	respStaff, _ := app.Test(reqStaff)
+	respStaff, _ := controllerTestRequest(t, app, reqStaff)
 	if respStaff.StatusCode != http.StatusOK {
 		t.Fatalf("Expected 200 for staff access to licence, got %d", respStaff.StatusCode)
 	}

@@ -45,7 +45,7 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	v1.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowMethods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS",
-		AllowHeaders: "Origin,Content-Type,Accept,Authorization,Idempotency-Key,X-Device-ID,X-Platform",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization,Idempotency-Key,X-Device-ID,X-Device-Platform,X-Platform",
 	}))
 
 	// Health endpoint (no auth)

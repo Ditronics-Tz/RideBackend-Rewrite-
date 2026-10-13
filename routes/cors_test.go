@@ -32,7 +32,7 @@ func TestUnrestrictedCORSPreflight(t *testing.T) {
 			req := httptest.NewRequest(http.MethodOptions, endpoint.path, nil)
 			req.Header.Set("Origin", "http://localhost:5173")
 			req.Header.Set("Access-Control-Request-Method", endpoint.method)
-			req.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
+			req.Header.Set("Access-Control-Request-Headers", "authorization,content-type,x-device-id,x-device-platform")
 			resp, err := app.Test(req)
 			if err != nil {
 				t.Fatal(err)
@@ -47,7 +47,7 @@ func TestUnrestrictedCORSPreflight(t *testing.T) {
 			if !strings.Contains(resp.Header.Get("Access-Control-Allow-Methods"), endpoint.method) {
 				t.Fatalf("Requested method %s is not allowed", endpoint.method)
 			}
-			for _, header := range []string{"authorization", "content-type"} {
+			for _, header := range []string{"authorization", "content-type", "x-device-id", "x-device-platform"} {
 				if !strings.Contains(strings.ToLower(resp.Header.Get("Access-Control-Allow-Headers")), header) {
 					t.Fatalf("Requested header %s is not allowed", header)
 				}
