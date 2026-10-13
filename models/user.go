@@ -121,6 +121,7 @@ type Rating struct {
 	ToUserID   string     `json:"to_user_id" gorm:"type:uuid;not null;index"`
 	Score      int        `json:"score" gorm:"not null"` // 1-5
 	Comment    string     `json:"comment"`
+	Hidden     bool       `json:"hidden" gorm:"-"`
 	HiddenAt   *time.Time `json:"hidden_at,omitempty"`
 	HiddenBy   *string    `json:"hidden_by,omitempty" gorm:"type:uuid"`
 	CreatedAt  time.Time  `json:"created_at"`

@@ -86,18 +86,37 @@ func txStore(tx *gorm.DB, base *Store) *Store {
 	return &scoped
 }
 
-func (s *Store) AdminRatings(hidden string, page Page) ([]models.Rating, int64, error) {
+type AdminRatingFilter struct {
+	User     string
+	Q        string
+	MaxScore int
+}
+
+func (s *Store) AdminRatings(hidden string, filter AdminRatingFilter, page Page) ([]models.Rating, int64, error) {
 	if page.Limit == 0 {
 		page.Limit = 50
 	}
 	if page.Limit < 1 || page.Limit > 200 || page.Offset < 0 {
 		return nil, 0, FieldError("pagination", "limit must be 1-200 and offset non-negative")
 	}
+	if filter.MaxScore < 0 || filter.MaxScore > 5 {
+		return nil, 0, FieldError("max_score", "max_score must be between 0 and 5")
+	}
 	q := s.db.Model(&models.Rating{})
 	if hidden == "true" {
 		q = q.Where("hidden_at IS NOT NULL")
 	} else if hidden != "all" {
 		q = q.Where("hidden_at IS NULL")
+	}
+	if filter.User != "" {
+		q = q.Where("to_user_id = ?", filter.User)
+	}
+	if filter.MaxScore > 0 {
+		q = q.Where("score <= ?", filter.MaxScore)
+	}
+	if needle := strings.ToLower(strings.TrimSpace(filter.Q)); needle != "" {
+		like := "%" + needle + "%"
+		q = q.Where("LOWER(comment) LIKE ?", like)
 	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
@@ -107,10 +126,17 @@ func (s *Store) AdminRatings(hidden string, page Page) ([]models.Rating, int64, 
 	if err := q.Order("created_at DESC, id DESC").Limit(page.Limit).Offset(page.Offset).Find(&rows).Error; err != nil {
 		return nil, 0, OpError(503, "Ratings query unavailable")
 	}
+	for i := range rows {
+		rows[i].Hidden = rows[i].HiddenAt != nil
+	}
 	return rows, total, nil
 }
 
-func (s *Store) ModerateRating(id, staffID string, hidden bool) error {
+func (s *Store) ModerateRating(id, staffID string, hidden bool, reason string) error {
+	reason = strings.TrimSpace(reason)
+	if reason == "" || len([]rune(reason)) > 500 {
+		return FieldError("reason", "reason must contain 1-500 characters")
+	}
 	var rating models.Rating
 	err := s.Transaction(func(tx *Store) error {
 		if err := tx.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&rating, "id = ?", id).Error; err != nil {
@@ -128,7 +154,7 @@ func (s *Store) ModerateRating(id, staffID string, hidden bool) error {
 		if hidden {
 			action = "rating_hide"
 		}
-		return tx.CreateAuditLog(staffID, action, "rating", id, "", nil)
+		return tx.CreateAuditLog(staffID, action, "rating", id, "", map[string]string{"reason": reason})
 	})
 	if err != nil {
 		return rideOperationError(err)

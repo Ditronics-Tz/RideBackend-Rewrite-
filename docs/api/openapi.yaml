@@ -954,6 +954,19 @@
         ],
         "type": "object"
       },
+      "ModerateRatingInput": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
       "PassengerProfile": {
         "properties": {
           "average_rating": {
@@ -1485,6 +1498,9 @@
             "format": "uuid",
             "type": "string"
           },
+          "hidden": {
+            "type": "boolean"
+          },
           "hidden_at": {
             "format": "date-time",
             "nullable": true,
@@ -1515,6 +1531,7 @@
           "comment",
           "created_at",
           "from_user_id",
+          "hidden",
           "id",
           "score",
           "to_user_id"
@@ -6155,6 +6172,33 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "user",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_score",
+            "required": false,
+            "schema": {
+              "maximum": 5,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -6223,7 +6267,7 @@
     },
     "/api/v1/admin/ratings/{id}/hide": {
       "post": {
-        "description": "Admin hide or restore updates rating visibility and recomputes the recipient's public average.",
+        "description": "Admin hide or restore updates rating visibility, records the required reason, and recomputes the recipient's public average.",
         "operationId": "post_api_v1_admin_ratings_id_hide",
         "parameters": [
           {
@@ -6247,6 +6291,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerateRatingInput"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -6269,7 +6323,7 @@
                 }
               }
             },
-            "description": "Admin hide or restore updates rating visibility and recomputes the recipient's public average.",
+            "description": "Admin hide or restore updates rating visibility, records the required reason, and recomputes the recipient's public average.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -6298,7 +6352,7 @@
     },
     "/api/v1/admin/ratings/{id}/restore": {
       "post": {
-        "description": "Admin hide or restore updates rating visibility and recomputes the recipient's public average.",
+        "description": "Admin hide or restore updates rating visibility, records the required reason, and recomputes the recipient's public average.",
         "operationId": "post_api_v1_admin_ratings_id_restore",
         "parameters": [
           {
@@ -6322,6 +6376,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerateRatingInput"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -6344,7 +6408,7 @@
                 }
               }
             },
-            "description": "Admin hide or restore updates rating visibility and recomputes the recipient's public average.",
+            "description": "Admin hide or restore updates rating visibility, records the required reason, and recomputes the recipient's public average.",
             "headers": {
               "X-Request-ID": {
                 "schema": {

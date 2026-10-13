@@ -37,3 +37,7 @@ type RateRideInput struct {
 	Score   int    `json:"score"`
 	Comment string `json:"comment"`
 }
+
+type ModerateRatingInput struct {
+	Reason string `json:"reason"`
+}

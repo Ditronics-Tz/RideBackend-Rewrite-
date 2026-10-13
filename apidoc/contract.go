@@ -299,11 +299,15 @@ func describeCurrent(route Route, operation, schemas object) {
 	if path == "/admin/ratings" && route.Method == "GET" {
 		pagination()
 		params(query("hidden", object{"type": "string", "enum": []string{"false", "true", "all"}, "default": "false"}))
+		params(query("user", object{"type": "string", "format": "uuid"}))
+		params(query("q", scalar("string")))
+		params(query("max_score", object{"type": "integer", "minimum": 1, "maximum": 5}))
 		set("200", "Admin-only paged rating moderation queue. Hidden ratings are excluded from public profiles and averages.", paged("ratings", ref("Rating"), false))
 		return
 	}
 	if strings.HasPrefix(path, "/admin/ratings/:id/") && route.Method == "POST" {
-		set("200", "Admin hide or restore updates rating visibility and recomputes the recipient's public average.", object{"type": "object", "required": []string{"id", "hidden"}, "properties": object{"id": object{"type": "string", "format": "uuid"}, "hidden": scalar("boolean")}})
+		set("200", "Admin hide or restore updates rating visibility, records the required reason, and recomputes the recipient's public average.", object{"type": "object", "required": []string{"id", "hidden"}, "properties": object{"id": object{"type": "string", "format": "uuid"}, "hidden": scalar("boolean")}})
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("ModerateRatingInput")}}}
 		return
 	}
 	if path == "/admin/reports" && route.Method == "GET" {

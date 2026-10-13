@@ -3,6 +3,7 @@ package controllers
 import (
 	"crypto/rand"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -247,7 +248,15 @@ func (ac *AdminController) ListRatings(c *fiber.Ctx) error {
 	if hidden != "true" && hidden != "false" && hidden != "all" {
 		return operationError(c, store.FieldError("hidden", "hidden must be true, false or all"))
 	}
-	rows, total, err := ac.Store.AdminRatings(hidden, page)
+	maxScore := 0
+	if value := c.Query("max_score"); value != "" {
+		parsed, parseErr := strconv.Atoi(value)
+		if parseErr != nil || parsed < 1 || parsed > 5 {
+			return operationError(c, store.FieldError("max_score", "max_score must be between 1 and 5"))
+		}
+		maxScore = parsed
+	}
+	rows, total, err := ac.Store.AdminRatings(hidden, store.AdminRatingFilter{User: c.Query("user"), Q: c.Query("q"), MaxScore: maxScore}, page)
 	if err != nil {
 		return operationError(c, err)
 	}
@@ -256,12 +265,16 @@ func (ac *AdminController) ListRatings(c *fiber.Ctx) error {
 
 func (ac *AdminController) ModerateRating(c *fiber.Ctx) error {
 	actor := middleware.CurrentStaff(c)
+	var input models.ModerateRatingInput
+	if len(c.Body()) > 2048 || c.BodyParser(&input) != nil {
+		return fiber.NewError(400, "Invalid rating moderation request")
+	}
 	action := "restore"
 	if strings.HasSuffix(c.Route().Path, "/hide") {
 		action = "hide"
 	}
 	hidden := action == "hide"
-	if err := ac.Store.ModerateRating(c.Params("id"), actor.ID, hidden); err != nil {
+	if err := ac.Store.ModerateRating(c.Params("id"), actor.ID, hidden, input.Reason); err != nil {
 		return operationError(c, err)
 	}
 	return c.JSON(fiber.Map{"id": c.Params("id"), "hidden": hidden})

@@ -131,15 +131,20 @@ func TestPersistedSupportAdminRidesAndRideBoundRatings(t *testing.T) {
 		t.Fatalf("ride rating missing from public ratings: %v", public)
 	}
 	request("GET", "/admin/ratings", supportToken, nil, 403)
-	request("POST", "/admin/ratings/"+ratingID+"/hide", adminToken, nil, 200)
+	request("POST", "/admin/ratings/"+ratingID+"/hide", adminToken, map[string]string{"reason": "Abusive content"}, 200)
 	public = request("GET", "/ratings/user/"+driver.ID, passengerToken, nil, 200)
 	if public["total_ratings"].(float64) != 0 {
 		t.Fatalf("hidden rating remained public: %v", public)
 	}
-	queue := request("GET", "/admin/ratings?hidden=true", adminToken, nil, 200)
+	request("POST", "/admin/ratings/"+ratingID+"/restore", adminToken, nil, 400)
+	queue := request("GET", "/admin/ratings?hidden=true&user="+driver.ID+"&q=good&max_score=5", adminToken, nil, 200)
 	if queue["total"].(float64) != 1 {
 		t.Fatalf("hidden rating missing from moderation queue: %v", queue)
 	}
-	request("POST", "/admin/ratings/"+ratingID+"/restore", adminToken, nil, 200)
+	rows := queue["ratings"].([]any)
+	if rows[0].(map[string]any)["hidden"] != true {
+		t.Fatalf("rating visibility flag missing from moderation response: %v", rows[0])
+	}
+	request("POST", "/admin/ratings/"+ratingID+"/restore", adminToken, map[string]string{"reason": "Review completed"}, 200)
 	request("POST", "/rides/"+completed.ID+"/rating", driverToken, map[string]any{"score": 5}, 201)
 }
