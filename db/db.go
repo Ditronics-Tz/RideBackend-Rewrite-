@@ -12,18 +12,13 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// Open creates the Postgres connection and runs auto-migrations, returning an error if it fails.
+// Open creates a connection only. Production schema changes run via cmd/migrate.
 func Open(cfg *config.Config) (*gorm.DB, error) {
 	gdb, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Postgres (%s:%s/%s as %s): %w",
-			cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.DBUser, err)
-	}
-
-	if err := AutoMigrate(gdb); err != nil {
-		return nil, fmt.Errorf("failed to run database migrations: %w", err)
+		return nil, fmt.Errorf("failed to connect to Postgres")
 	}
 
 	return gdb, nil
@@ -35,7 +30,7 @@ func Connect(cfg *config.Config) *gorm.DB {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	log.Println("Connected to Postgres and migrations are up to date")
+	log.Println("Connected to Postgres")
 	return gdb
 }
 

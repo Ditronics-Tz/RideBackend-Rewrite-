@@ -70,13 +70,22 @@ type Config struct {
 
 // DSN builds a Postgres connection string for the pgx/gorm driver.
 func (c *Config) DSN() string {
+	quote := func(value string) string {
+		return "'" + strings.ReplaceAll(strings.ReplaceAll(value, "\\", "\\\\"), "'", "\\'") + "'"
+	}
 	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, c.DBSSLMode,
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s connect_timeout=10",
+		quote(c.DBHost), quote(c.DBPort), quote(c.DBUser), quote(c.DBPassword), quote(c.DBName), quote(c.DBSSLMode),
 	)
 }
 
 func (c *Config) Validate() error {
+	if err := ValidateOrigins(c.CORSAllowedOrigins); err != nil {
+		return err
+	}
+	if c.AppEnv == "production" && c.DBSSLMode != "require" && c.DBSSLMode != "verify-ca" && c.DBSSLMode != "verify-full" {
+		return errors.New("DB_SSLMODE must require TLS in production")
+	}
 	if c.StorageDriver != "" && c.StorageDriver != "local" && c.StorageDriver != "r2" {
 		return errors.New("STORAGE_DRIVER must be local or r2")
 	}
@@ -187,7 +196,7 @@ func NewConfigFromEnv() (*Config, error) {
 		DBUser:                   getEnv("DB_USER", "postgres"),
 		DBPassword:               os.Getenv("DB_PASSWORD"),
 		DBName:                   getEnv("DB_NAME", "ride_db"),
-		DBSSLMode:                getEnv("DB_SSLMODE", "disable"),
+		DBSSLMode:                getEnv("DB_SSLMODE", defaultSSLMode()),
 		DeletionGraceDays:        getEnvInt("DELETION_GRACE_DAYS", 14),
 		ExportTTLHours:           getEnvInt("EXPORT_TTL_HOURS", 168),
 		ExportDir:                getEnv("EXPORT_DIR", "./uploads/private/exports"),
@@ -213,6 +222,13 @@ func getEnvInt(key string, fallback int) int {
 		return value
 	}
 	return fallback
+}
+
+func defaultSSLMode() string {
+	if getEnv("APP_ENV", "development") == "production" {
+		return "require"
+	}
+	return "disable"
 }
 
 func LoadConfig() *Config {

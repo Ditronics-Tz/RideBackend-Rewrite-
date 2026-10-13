@@ -10,13 +10,12 @@ import (
 	"ride-backend/testutil"
 )
 
-func TestUnrestrictedCORSPreflight(t *testing.T) {
+func TestAllowlistedCORSPreflight(t *testing.T) {
 	appStore, cfg, err := testutil.SetupTestStore()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// An unset environment setting must never leave OPTIONS requests unhandled.
-	cfg.CORSAllowedOrigins = ""
+	cfg.CORSAllowedOrigins = "http://localhost:5173"
 	app := routes.BuildApp(cfg, appStore)
 	defer app.Shutdown()
 
@@ -41,8 +40,8 @@ func TestUnrestrictedCORSPreflight(t *testing.T) {
 			if resp.StatusCode != http.StatusNoContent {
 				t.Fatalf("Preflight should succeed without authentication, got %d", resp.StatusCode)
 			}
-			if resp.Header.Get("Access-Control-Allow-Origin") != "*" {
-				t.Fatal("Expected unrestricted CORS origin")
+			if resp.Header.Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
+				t.Fatal("Expected only allowlisted origin")
 			}
 			if !strings.Contains(resp.Header.Get("Access-Control-Allow-Methods"), endpoint.method) {
 				t.Fatalf("Requested method %s is not allowed", endpoint.method)
@@ -53,5 +52,18 @@ func TestUnrestrictedCORSPreflight(t *testing.T) {
 				}
 			}
 		})
+	}
+	for _, origin := range []string{"https://unapproved.example.invalid", "null"} {
+		req := httptest.NewRequest(http.MethodOptions, "/api/v1/staff/auth/login", nil)
+		req.Header.Set("Origin", origin)
+		req.Header.Set("Access-Control-Request-Method", "POST")
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.Header.Get("Access-Control-Allow-Origin") != "" {
+			t.Fatal("unapproved origin allowed")
+		}
 	}
 }

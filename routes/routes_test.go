@@ -20,13 +20,16 @@ func TestAllRoutesPrefixAndJSON404(t *testing.T) {
 
 	app := routes.BuildApp(cfg, appStore)
 
-	t.Run("Every route in app.GetRoutes() starts with /api/v1", func(t *testing.T) {
-		allRoutes := app.GetRoutes()
+	t.Run("Application routes use /api/v1 except health aliases", func(t *testing.T) {
+		allRoutes := app.GetRoutes(true)
 		if len(allRoutes) == 0 {
 			t.Fatal("Expected registered routes, got 0")
 		}
 
 		for _, r := range allRoutes {
+			if r.Path == "/health" || r.Path == "/ready" {
+				continue
+			}
 			if !strings.HasPrefix(r.Path, "/api/v1") {
 				t.Fatalf("Route %s %s does NOT start with /api/v1", r.Method, r.Path)
 			}
@@ -50,7 +53,6 @@ func TestAllRoutesPrefixAndJSON404(t *testing.T) {
 	t.Run("Unknown paths return a JSON 404", func(t *testing.T) {
 		unknownPaths := []string{
 			"/",
-			"/health",
 			"/unknown",
 			"/api/v2/anything",
 			"/api/v1/nonexistent/endpoint",
@@ -73,6 +75,9 @@ func TestAllRoutesPrefixAndJSON404(t *testing.T) {
 			}
 			if data["error"] == nil {
 				t.Fatalf("Expected error field in JSON response for %s, got %v", p, data)
+			}
+			if data["request_id"] == nil || resp.Header.Get("X-Request-ID") == "" {
+				t.Fatal("404 missing request correlation")
 			}
 		}
 	})

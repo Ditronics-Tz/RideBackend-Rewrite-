@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -34,6 +35,14 @@ type Store struct {
 
 func New(db *gorm.DB) *Store {
 	return &Store{db: db, Notifier: notifier.Logging{}, ExportNotifier: notifier.Logging{}, Delivery: notifications.Logging{}, Events: NewEventHub()}
+}
+
+// WithContext retains adapters while bounding every worker database operation
+// with the worker cancellation context. It leaves the request store unchanged.
+func (s *Store) WithContext(ctx context.Context) *Store {
+	scoped := *s
+	scoped.db = s.db.WithContext(ctx)
+	return &scoped
 }
 
 func newID() string { return uuid.NewString() }

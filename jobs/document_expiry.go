@@ -2,7 +2,7 @@ package jobs
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"ride-backend/config"
 	"ride-backend/store"
 	"time"
@@ -14,7 +14,7 @@ func RunDocumentExpiry(ctx context.Context, s *store.Store) {
 	zone := time.FixedZone("EAT", 3*3600)
 	for {
 		if err := s.ExpireDriverDocuments(time.Now().UTC(), ""); err != nil {
-			log.Printf("Document expiry sweep failed: %v", err)
+			slog.Error("Document expiry sweep failed")
 		}
 		now := time.Now().In(zone)
 		next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, zone)
@@ -34,7 +34,7 @@ func RunDataRequests(ctx context.Context, s *store.Store, cfg *config.Config) {
 	defer ticker.Stop()
 	for {
 		if err := s.ProcessDataRequests(cfg); err != nil {
-			log.Printf("Data request processing failed: %v", err)
+			slog.Error("Data request processing failed")
 		}
 		select {
 		case <-ctx.Done():

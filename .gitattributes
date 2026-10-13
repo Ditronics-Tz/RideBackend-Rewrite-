@@ -1,0 +1,3 @@
+# Generated artifacts have byte-for-byte freshness checks on Windows and Linux.
+docs/api/openapi.yaml text eol=lf
+docs/ship/route-guards.md text eol=lf

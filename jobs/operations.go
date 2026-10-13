@@ -2,7 +2,7 @@ package jobs
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"ride-backend/config"
 	"ride-backend/store"
 	"time"
@@ -14,24 +14,24 @@ func RunOperations(ctx context.Context, s *store.Store, cfg *config.Config) {
 	lastFraudDay := ""
 	for {
 		if err := s.ProcessSafety(cfg); err != nil {
-			log.Printf("Safety job failed: %v", err)
+			slog.Error("Safety job failed")
 		}
 		if err := s.ProcessFraud(); err != nil {
-			log.Printf("Fraud job failed: %v", err)
+			slog.Error("Fraud job failed")
 		}
 		if err := s.ProcessPayments(); err != nil {
-			log.Printf("Payment job failed: %v", err)
+			slog.Error("Payment job failed")
 		}
 		if _, err := s.Reconcile("daily:" + time.Now().UTC().Format("2006-01-02")); err != nil {
-			log.Printf("Reconciliation queue failed: %v", err)
+			slog.Error("Reconciliation queue failed")
 		}
 		if err := s.ProcessReconciliation(); err != nil {
-			log.Printf("Reconciliation job failed: %v", err)
+			slog.Error("Reconciliation job failed")
 		}
 		day := time.Now().UTC().Format("2006-01-02")
 		if lastFraudDay != day {
 			if err := s.QueueNightlyFraud(); err != nil {
-				log.Printf("Fraud queue failed: %v", err)
+				slog.Error("Fraud queue failed")
 			} else {
 				lastFraudDay = day
 			}

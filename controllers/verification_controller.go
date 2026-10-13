@@ -229,10 +229,15 @@ func (pc *ProfileController) MyVerificationNotifications(c *fiber.Ctx) error {
 		return verificationError(c, err)
 	}
 	notes := []models.DriverNotification{}
-	if err := pc.Store.DB().Where("driver_id = ?", id).Order("created_at DESC").Find(&notes).Error; err != nil {
+	p, err := operationPage(c)
+	if err != nil {
 		return verificationError(c, err)
 	}
-	return c.JSON(fiber.Map{"notifications": notes})
+	total, err := pc.Store.PageRows(pc.Store.DB().Model(&models.DriverNotification{}).Where("driver_id = ?", id), p, &notes)
+	if err != nil {
+		return verificationError(c, err)
+	}
+	return c.JSON(fiber.Map{"notifications": notes, "total": total, "limit": p.Limit, "offset": p.Offset})
 }
 
 func (fc *FileController) GetDocument(c *fiber.Ctx) error {

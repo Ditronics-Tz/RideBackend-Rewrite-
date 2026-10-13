@@ -97,11 +97,21 @@ func (dc *DataRequestController) RequestExport(c *fiber.Ctx) error {
 }
 func (dc *DataRequestController) ExportRequests(c *fiber.Ctx) error {
 	uid, _ := middleware.CurrentUser(c)
-	rows, err := dc.Store.ListExportRequests(uid)
+	p, err := operationPage(c)
+	if err != nil {
+		return verificationError(c, err)
+	}
+	rows := []models.DataExportRequest{}
+	var total int64
+	q := dc.Store.DB().Model(&models.DataExportRequest{}).Where("user_id = ?", uid)
+	err = q.Count(&total).Error
+	if err == nil {
+		err = q.Order("requested_at DESC,id DESC").Limit(p.Limit).Offset(p.Offset).Find(&rows).Error
+	}
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Unable to fetch export requests"})
 	}
-	return c.JSON(fiber.Map{"requests": rows})
+	return c.JSON(fiber.Map{"requests": rows, "total": total, "limit": p.Limit, "offset": p.Offset})
 }
 func (dc *DataRequestController) DownloadExport(c *fiber.Ctx) error {
 	uid, _ := middleware.CurrentUser(c)
@@ -122,7 +132,11 @@ func (dc *DataRequestController) AdminList(c *fiber.Ctx) error {
 	if kind != "deletion" && kind != "export" {
 		return c.Status(400).JSON(fiber.Map{"error": "type must be deletion or export"})
 	}
-	limit, offset := pageParams(c)
+	p, err := operationPage(c)
+	if err != nil {
+		return verificationError(c, err)
+	}
+	limit, offset := p.Limit, p.Offset
 	var total int64
 	var rows any
 	db := dc.Store.DB()
@@ -283,18 +297,4 @@ func fiberErrStatus(err error) int {
 		return e.Code
 	}
 	return 500
-}
-func pageParams(c *fiber.Ctx) (int, int) {
-	limit := c.QueryInt("limit", 50)
-	offset := c.QueryInt("offset", 0)
-	if limit < 1 {
-		limit = 50
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
 }

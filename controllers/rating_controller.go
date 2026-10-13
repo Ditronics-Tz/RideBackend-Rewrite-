@@ -41,11 +41,19 @@ func (rc *RatingController) ListRatingsForUser(c *fiber.Ctx) error {
 	if _, ok := rc.Store.GetUserByID(id); !ok {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
-	ratings, avg, total := rc.Store.ListRatingsForUser(id)
+	p, err := operationPage(c)
+	if err != nil {
+		return verificationError(c, err)
+	}
+	ratings, avg, total, err := rc.Store.RatingsPage(id, p)
+	if err != nil {
+		return verificationError(c, err)
+	}
 	return c.JSON(fiber.Map{
 		"user_id":        id,
 		"average_rating": avg,
 		"total_ratings":  total,
 		"ratings":        ratings,
+		"total":          total, "limit": p.Limit, "offset": p.Offset,
 	})
 }

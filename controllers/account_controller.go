@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"ride-backend/middleware"
 	"ride-backend/models"
+	"ride-backend/store"
 	"strings"
 	"time"
 )
@@ -47,10 +48,15 @@ func (ac *AdminController) UserNotes(c *fiber.Ctx) error {
 		return c.Status(201).JSON(note)
 	}
 	notes := []models.SupportNote{}
-	if err := ac.Store.DB().Where("user_id = ?", id).Order("created_at DESC").Find(&notes).Error; err != nil {
+	p, err := operationPage(c)
+	if err != nil {
 		return verificationError(c, err)
 	}
-	return c.JSON(fiber.Map{"notes": notes})
+	total, err := ac.Store.PageRows(ac.Store.DB().Model(&models.SupportNote{}).Where("user_id = ?", id), p, &notes)
+	if err != nil {
+		return verificationError(c, err)
+	}
+	return c.JSON(fiber.Map{"notes": notes, "total": total, "limit": p.Limit, "offset": p.Offset})
 }
 func (ac *AdminController) DeleteUserNote(c *fiber.Ctx) error {
 	result := ac.Store.DB().Where("id = ? AND user_id = ?", c.Params("noteId"), c.Params("id")).Delete(&models.SupportNote{})
@@ -69,15 +75,25 @@ func (ac *AdminController) UserHistory(c *fiber.Ctx) error {
 	}
 	events := []models.UserStatusEvent{}
 	reviews := []models.VerificationReview{}
-	if err := ac.Store.DB().Where("user_id = ?", id).Order("created_at DESC").Find(&events).Error; err != nil {
+	p, err := operationPage(c)
+	if err != nil {
 		return verificationError(c, err)
 	}
-	if err := ac.Store.DB().Where("driver_id = ?", id).Order("created_at DESC").Find(&reviews).Error; err != nil {
+	eventTotal, err := ac.Store.PageRows(ac.Store.DB().Model(&models.UserStatusEvent{}).Where("user_id = ?", id), p, &events)
+	if err != nil {
 		return verificationError(c, err)
 	}
-	return c.JSON(fiber.Map{"status_events": events, "verification_reviews": reviews})
+	reviewTotal, err := ac.Store.PageRows(ac.Store.DB().Model(&models.VerificationReview{}).Where("driver_id = ?", id), p, &reviews)
+	if err != nil {
+		return verificationError(c, err)
+	}
+	return c.JSON(fiber.Map{"status_events": events, "verification_reviews": reviews, "total": max(eventTotal, reviewTotal), "totals": fiber.Map{"status_events": eventTotal, "verification_reviews": reviewTotal}, "limit": p.Limit, "offset": p.Offset})
 }
 func (ac *AdminController) VerificationQueue(c *fiber.Ctx) error {
+	p, err := operationPage(c)
+	if err != nil {
+		return verificationError(c, err)
+	}
 	if err := ac.Store.ExpireDriverDocuments(time.Now(), ""); err != nil {
 		return verificationError(c, err)
 	}
@@ -94,10 +110,20 @@ func (ac *AdminController) VerificationQueue(c *fiber.Ctx) error {
 	} else {
 		q = q.Where("verification_status IN ?", []models.VerificationStatus{models.Submitted, models.UnderReview})
 	}
-	if err := q.Select("driver_profiles.*").Find(&profiles).Error; err != nil {
+	if search := strings.ToLower(strings.TrimSpace(c.Query("q"))); search != "" {
+		q = q.Where("LOWER(users.name) LIKE ? OR LOWER(users.email) LIKE ? OR users.phone LIKE ? OR driver_profiles.plate_number LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+store.CanonicalIdentifier(search)+"%")
+	}
+	if c.Query("expiring_soon") == "true" {
+		q = q.Where("driver_profiles.user_id IN (?)", ac.Store.DB().Model(&models.DriverDocument{}).Select("driver_id").Where("is_current = ? AND expires_at > ? AND expires_at <= ?", true, time.Now().UTC(), time.Now().UTC().AddDate(0, 0, 30)))
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
 		return verificationError(c, err)
 	}
-	return c.JSON(fiber.Map{"verifications": profiles, "count": len(profiles)})
+	if err := q.Select("driver_profiles.*").Limit(p.Limit).Offset(p.Offset).Find(&profiles).Error; err != nil {
+		return verificationError(c, err)
+	}
+	return c.JSON(fiber.Map{"verifications": profiles, "count": len(profiles), "total": total, "limit": p.Limit, "offset": p.Offset})
 }
 func (ac *AdminController) ReviewDocumentByID(c *fiber.Ctx) error {
 	var doc models.DriverDocument

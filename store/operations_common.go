@@ -30,12 +30,12 @@ type Page struct {
 }
 
 func ParsePage(limit, offset string) (Page, error) {
-	p := Page{Limit: 20}
+	p := Page{Limit: 50}
 	var err error
 	if limit != "" {
 		p.Limit, err = strconv.Atoi(limit)
-		if err != nil || p.Limit < 1 || p.Limit > 100 {
-			return p, FieldError("limit", "limit must be 1-100")
+		if err != nil || p.Limit < 1 || p.Limit > 200 {
+			return p, FieldError("limit", "limit must be 1-200")
 		}
 	}
 	if offset != "" {

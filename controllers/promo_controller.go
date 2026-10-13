@@ -53,15 +53,15 @@ func decodePromoBody(c *fiber.Ctx, out interface{}) error {
 	return nil
 }
 func promoPage(c *fiber.Ctx) (int, int, error) {
-	limit, err := strconv.Atoi(c.Query("limit", "20"))
-	if err != nil || limit < 1 || limit > 100 {
-		return 0, 0, &store.PromoError{Message: "limit must be 1-100", Fields: map[string]string{"limit": "limit must be 1-100"}}
+	p, err := store.ParsePage(c.Query("limit"), c.Query("offset"))
+	if err != nil {
+		var invalid *store.OperationError
+		if errors.As(err, &invalid) {
+			return 0, 0, &store.PromoError{Message: invalid.Message, Fields: map[string]string{invalid.Field: invalid.Message}}
+		}
+		return 0, 0, err
 	}
-	offset, err := strconv.Atoi(c.Query("offset", "0"))
-	if err != nil || offset < 0 {
-		return 0, 0, &store.PromoError{Message: "offset must not be negative", Fields: map[string]string{"offset": "offset must not be negative"}}
-	}
-	return limit, offset, nil
+	return p.Limit, p.Offset, nil
 }
 func (pc *PromoController) write(c *fiber.Ctx, action string, fn func(*store.Store) (interface{}, error)) error {
 	var result interface{}
@@ -237,6 +237,10 @@ func (pc *PromoController) Referrals(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"total": total, "limit": limit, "offset": offset, "referrals": rows})
 }
 func (pc *PromoController) Available(c *fiber.Ctx) error {
+	limit, offset, err := promoPage(c)
+	if err != nil {
+		return promoError(c, err)
+	}
 	fare, err := strconv.ParseInt(c.Query("fare", "0"), 10, 64)
 	if err != nil || fare < 0 {
 		return invalidPromoBody(c, "fare", "fare must be a non-negative whole TZS amount")
@@ -246,7 +250,10 @@ func (pc *PromoController) Available(c *fiber.Ctx) error {
 	if err != nil {
 		return promoError(c, err)
 	}
-	return c.JSON(fiber.Map{"promos": rows})
+	total := len(rows)
+	first := min(offset, total)
+	last := min(first+limit, total)
+	return c.JSON(fiber.Map{"promos": rows[first:last], "total": total, "limit": limit, "offset": offset})
 }
 func (pc *PromoController) Validate(c *fiber.Ctx) error {
 	var input struct {

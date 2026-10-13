@@ -3,6 +3,7 @@ package controllers_test
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -252,9 +253,7 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		}{
 			{http.MethodGet, "/api/v1/admin/users"},
 			{http.MethodGet, "/api/v1/admin/stats"},
-			{http.MethodGet, "/api/v1/admin/rides"},
 			{http.MethodGet, "/api/v1/admin/complaints"},
-			{http.MethodGet, "/api/v1/admin/tickets"},
 		}
 
 		for _, sr := range sharedRoutes {
@@ -276,6 +275,24 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 			respA, err := controllerTestRequest(t, app, reqA)
 			if err != nil || respA.StatusCode != http.StatusOK {
 				t.Errorf("Admin failed on shared route %s %s: expected 200, got %d", sr.method, sr.path, respA.StatusCode)
+			}
+		}
+
+		// Authorized staff see explicit unavailability until persisted B8 work lands.
+		for _, staffToken := range []string{supportTok, adminTok} {
+			for _, route := range []struct{ method, path string }{{http.MethodGet, "/api/v1/admin/rides"}, {http.MethodGet, "/api/v1/admin/tickets"}, {http.MethodPatch, "/api/v1/admin/tickets/" + uuid.NewString()}} {
+				req := httptest.NewRequest(route.method, route.path, nil)
+				req.Header.Set("Authorization", "Bearer "+staffToken)
+				resp, err := controllerTestRequest(t, app, req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var body map[string]any
+				_ = json.NewDecoder(resp.Body).Decode(&body)
+				resp.Body.Close()
+				if resp.StatusCode != http.StatusNotImplemented || body["error"] == nil || body["request_id"] == nil {
+					t.Fatalf("unimplemented %s returned success or invalid error: %d %+v", route.path, resp.StatusCode, body)
+				}
 			}
 		}
 

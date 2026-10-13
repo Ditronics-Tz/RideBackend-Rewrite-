@@ -3,7 +3,6 @@ package controllers
 import (
 	"crypto/rand"
 	"math/big"
-	"strconv"
 	"strings"
 
 	"ride-backend/config"
@@ -32,23 +31,19 @@ func (ac *AdminController) ListUsers(c *fiber.Ctx) error {
 	if role != "" && role != "driver" && role != "passenger" {
 		return invalidPromoBody(c, "role", "role must be driver or passenger")
 	}
-	limit, offset := -1, 0
-	if c.Query("limit") != "" || c.Query("offset") != "" {
-		var err error
-		limit, offset, err = promoPage(c)
-		if err != nil {
-			return promoError(c, err)
-		}
-	}
-	users, total, err := ac.Store.SearchUsers(role, c.Query("q"), limit, offset)
+	p, err := operationPage(c)
 	if err != nil {
-		return promoError(c, err)
+		return verificationError(c, err)
+	}
+	users, total, err := ac.Store.SearchUsersFiltered(role, c.Query("q"), c.Query("status"), c.Query("verification_status"), p)
+	if err != nil {
+		return verificationError(c, err)
 	}
 	out := make([]models.UserResponse, 0, len(users))
 	for _, u := range users {
 		out = append(out, models.ToUserResponse(u))
 	}
-	return c.JSON(fiber.Map{"count": len(out), "total": total, "limit": limit, "offset": offset, "users": out})
+	return c.JSON(fiber.Map{"count": len(out), "total": total, "limit": p.Limit, "offset": p.Offset, "users": out})
 }
 
 // GetUser — support/admin. Includes profiles + rating summary.
@@ -70,7 +65,10 @@ func (ac *AdminController) GetUser(c *fiber.Ctx) error {
 	if pp, ok := ac.Store.GetPassengerProfile(id); ok {
 		resp["passenger_profile"] = pp
 	}
-	_, avg, total := ac.Store.ListRatingsForUser(id)
+	avg, total, err := ac.Store.RatingSummary(id)
+	if err != nil {
+		return verificationError(c, err)
+	}
 	resp["average_rating"] = avg
 	resp["total_ratings"] = total
 	return c.JSON(resp)
@@ -111,20 +109,23 @@ func (ac *AdminController) VerifyDriver(c *fiber.Ctx) error {
 
 // GetStats — support/admin
 func (ac *AdminController) GetStats(c *fiber.Ctx) error {
-	drivers := len(ac.Store.ListUsers("driver"))
-	passengers := len(ac.Store.ListUsers("passenger"))
+	drivers, passengers, err := ac.Store.UserCounts()
+	if err != nil {
+		return verificationError(c, err)
+	}
 	return c.JSON(fiber.Map{
-		"total_drivers":    drivers,
-		"total_passengers": passengers,
-		"active_rides":     0,
-		"open_tickets":     0,
-		"open_complaints":  0,
+		"total_drivers":                drivers,
+		"total_passengers":             passengers,
+		"operational_counts_available": false,
+		"active_rides":                 0,
+		"open_tickets":                 0,
+		"open_complaints":              0,
 	})
 }
 
 // ListRides — support/admin
 func (ac *AdminController) ListRides(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"count": 0, "rides": []interface{}{}})
+	return c.Status(501).JSON(fiber.Map{"error": "Ride administration is not implemented yet"})
 }
 
 // ListComplaints — support/admin
@@ -139,34 +140,31 @@ func (ac *AdminController) UpdateComplaint(c *fiber.Ctx) error {
 
 // ListTickets — support/admin
 func (ac *AdminController) ListTickets(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"count": 0, "tickets": []interface{}{}})
+	return c.Status(501).JSON(fiber.Map{"error": "Persisted ticket workflow is not implemented yet"})
 }
 
 // UpdateTicket — support/admin
 func (ac *AdminController) UpdateTicket(c *fiber.Ctx) error {
-	id := c.Params("id")
-	staff := middleware.CurrentStaff(c)
-	if staff != nil {
-		_ = ac.Store.CreateAuditLog(staff.ID, "work_ticket", "ticket", id, c.IP(), nil)
-	}
-	return c.JSON(fiber.Map{"message": "ticket updated", "id": id, "status": "in_progress"})
+	return c.Status(501).JSON(fiber.Map{"error": "Persisted ticket workflow is not implemented yet"})
 }
 
 // ---------- Audit Logs (Admin only) ----------
 
 // ListAuditLogs — Admin only
 func (ac *AdminController) ListAuditLogs(c *fiber.Ctx) error {
-	limit, _ := strconv.Atoi(c.Query("limit", "50"))
-	offset, _ := strconv.Atoi(c.Query("offset", "0"))
-
-	logs, total, err := ac.Store.ListAuditLogs(limit, offset)
+	p, err := operationPage(c)
+	if err != nil {
+		return verificationError(c, err)
+	}
+	logs, total, err := ac.Store.SearchAuditLogs(store.AuditFilter{Q: c.Query("q"), Action: c.Query("action"), Actor: c.Query("actor", c.Query("actor_id")), From: c.Query("from"), To: c.Query("to")}, p)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch audit logs"})
 	}
 	return c.JSON(fiber.Map{
-		"total": total,
-		"limit": limit,
-		"logs":  logs,
+		"total":  total,
+		"limit":  p.Limit,
+		"offset": p.Offset,
+		"logs":   logs,
 	})
 }
 
@@ -220,12 +218,19 @@ func (ac *AdminController) CreateStaff(c *fiber.Ctx) error {
 
 // ListStaff lists all staff members.
 func (ac *AdminController) ListStaff(c *fiber.Ctx) error {
-	staffList := ac.Store.ListStaffUsers()
+	p, err := operationPage(c)
+	if err != nil {
+		return verificationError(c, err)
+	}
+	staffList, total, err := ac.Store.SearchStaff(c.Query("q"), c.Query("role"), c.Query("status"), p)
+	if err != nil {
+		return verificationError(c, err)
+	}
 	out := make([]models.StaffUserResponse, 0, len(staffList))
 	for _, s := range staffList {
 		out = append(out, models.ToStaffUserResponse(s))
 	}
-	return c.JSON(fiber.Map{"count": len(out), "staff": out})
+	return c.JSON(fiber.Map{"count": len(out), "staff": out, "total": total, "limit": p.Limit, "offset": p.Offset})
 }
 
 // UpdateStaff updates staff name or is_active status.

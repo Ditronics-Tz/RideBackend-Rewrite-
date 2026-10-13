@@ -1,6 +1,7 @@
 .env
 uploads/
 .gocache/
+.tmp/
 .idea/
 bin/
 *.exe

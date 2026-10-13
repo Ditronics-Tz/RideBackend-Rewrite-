@@ -1,16 +1,20 @@
 package routes
 
 import (
+	"context"
 	"errors"
+	"log/slog"
+	"os"
+	"time"
 
 	"ride-backend/config"
 	"ride-backend/controllers"
+	"ride-backend/middleware"
 	"ride-backend/store"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 )
 
@@ -25,8 +29,11 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 		}
 	}
 	app := fiber.New(fiber.Config{
-		AppName:   "Ride Backend Service",
-		BodyLimit: 10 * 1024 * 1024,
+		AppName:      "Ride Backend Service",
+		BodyLimit:    10 * 1024 * 1024,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			msg := "Internal Server Error"
@@ -36,32 +43,46 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 				msg = e.Message
 			}
 			return c.Status(code).JSON(fiber.Map{
-				"error": msg,
+				"error":      msg,
+				"request_id": middleware.RequestID(c),
 			})
 		},
 	})
+	app.Use(middleware.RequestContext(slog.New(slog.NewJSONHandler(os.Stdout, nil))))
+	app.Use(recover.New())
+	started := time.Now()
+	health := func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"status": "ok", "version": "1.0.0"}) }
+	ready := func(c *fiber.Ctx) error {
+		ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
+		defer cancel()
+		sqlDB, err := appStore.DB().DB()
+		if err == nil {
+			err = sqlDB.PingContext(ctx)
+		}
+		if err != nil {
+			return c.Status(503).JSON(fiber.Map{"error": "database unavailable", "status": "unavailable", "database": "unavailable", "version": "1.0.0", "uptime_seconds": int64(time.Since(started).Seconds())})
+		}
+		return c.JSON(fiber.Map{"status": "ok", "database": "ok", "version": "1.0.0", "uptime_seconds": int64(time.Since(started).Seconds())})
+	}
 
 	// Root group: /api/v1
 	v1 := app.Group("/api/v1")
 
 	// Global security and logging middlewares on /api/v1
-	v1.Use(recover.New())
 	v1.Use(helmet.New())
-	v1.Use(logger.New())
 	// Allow cross-origin clients and answer preflight before authentication.
 	v1.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS",
-		AllowHeaders: "Origin,Content-Type,Accept,Authorization,Idempotency-Key,X-Device-ID,X-Device-Platform,X-Platform",
+		AllowOriginsFunc: func(origin string) bool { return config.OriginAllowed(cfg.CORSAllowedOrigins, origin) },
+		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,Idempotency-Key,X-Request-ID,X-Device-ID,X-Device-Platform,X-Platform",
+		ExposeHeaders:    "X-Request-ID,Retry-After",
 	}))
 
 	// Health endpoint (no auth)
-	v1.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status":  "ok",
-			"version": "1.0.0",
-		})
-	})
+	v1.Get("/health", health)
+	v1.Get("/ready", ready)
+	app.Get("/health", health)
+	app.Get("/ready", ready)
 
 	// Static public uploads (profile pictures)
 	v1.Static("/uploads", "./uploads/public")
