@@ -2,12 +2,14 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"time"
 
 	"ride-backend/config"
 	"ride-backend/models"
+	"ride-backend/store"
 	"ride-backend/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -117,7 +119,13 @@ func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handle
 				ValidateAppSession(context.Context, string, string) error
 			}); ok {
 				sid, _ := claims["sid"].(string)
-				if sid == "" || sessions.ValidateAppSession(c.UserContext(), uid, sid) != nil {
+				if sid == "" {
+					return c.Status(401).JSON(fiber.Map{"error": "invalid credentials"})
+				}
+				if err := sessions.ValidateAppSession(c.UserContext(), uid, sid); err != nil {
+					if errors.Is(err, store.ErrAuthUnavailable) {
+						return c.Status(503).JSON(fiber.Map{"error": "authentication temporarily unavailable", "code": "AUTH_TEMPORARILY_UNAVAILABLE"})
+					}
 					return c.Status(401).JSON(fiber.Map{"error": "invalid credentials"})
 				}
 				c.Locals("app_session_id", sid)

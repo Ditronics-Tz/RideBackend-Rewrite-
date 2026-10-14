@@ -19,7 +19,8 @@ import (
 	"ride-backend/models"
 )
 
-const AppRefreshTTL = 30 * 24 * time.Hour
+const AppRefreshTTL = 90 * 24 * time.Hour
+const AppRefreshAbsoluteTTL = 365 * 24 * time.Hour
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
 var ErrAuthUnavailable = errors.New("authentication temporarily unavailable")
@@ -28,6 +29,20 @@ type SessionDevice struct{ DeviceID, Platform, IP string }
 type IssuedAppSession struct {
 	Session      *models.AppSession
 	RefreshToken string `json:"-"`
+}
+
+func (s *Store) sessionLifetimes() (time.Duration, time.Duration) {
+	if s.Policy == nil {
+		return AppRefreshTTL, AppRefreshAbsoluteTTL
+	}
+	inactive, absolute := s.Policy.AppRefreshInactivityTTL, s.Policy.AppRefreshAbsoluteTTL
+	if inactive == 0 {
+		inactive = AppRefreshTTL
+	}
+	if absolute == 0 {
+		absolute = AppRefreshAbsoluteTTL
+	}
+	return inactive, absolute
 }
 
 func refreshCredential() (string, string, error) {
@@ -103,7 +118,8 @@ func (s *Store) IssueAppSession(ctx context.Context, userID string, device Sessi
 		return nil, err
 	}
 	now := s.now()
-	session := &models.AppSession{ID: newID(), UserID: userID, FamilyID: newID(), TokenHash: hash, DeviceID: device.DeviceID, Platform: device.Platform, IP: device.IP, CreatedAt: now, LastUsedAt: now, ExpiresAt: now.Add(AppRefreshTTL)}
+	inactive, absolute := s.sessionLifetimes()
+	session := &models.AppSession{ID: newID(), UserID: userID, FamilyID: newID(), TokenHash: hash, DeviceID: device.DeviceID, Platform: device.Platform, IP: device.IP, CreatedAt: now, LastUsedAt: now, ExpiresAt: now.Add(inactive), AbsoluteExpiresAt: now.Add(absolute)}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		user, err := lockAuthUser(tx, userID)
 		if err != nil {
@@ -124,8 +140,8 @@ func (s *Store) IssueAppSession(ctx context.Context, userID string, device Sessi
 }
 
 // RotateAppSession replaces both refresh token and sid. Previously issued access
-// tokens referring to the old sid are immediately invalid. A family expires
-// thirty days after initial issuance, rather than extending indefinitely.
+// tokens referring to the old sid are immediately invalid. The inactivity window
+// slides on refresh, but cannot exceed the family's absolute deadline.
 func (s *Store) RotateAppSession(ctx context.Context, rawRefresh string, device SessionDevice) (*IssuedAppSession, error) {
 	hash, err := hashRefresh(rawRefresh)
 	if err != nil {
@@ -168,7 +184,7 @@ func (s *Store) RotateAppSession(ctx context.Context, rawRefresh string, device 
 			rejected = true
 			return recordSecurityEvent(tx, previous.UserID, "refresh_reuse_detected", device.IP, now)
 		}
-		if previous.RevokedAt != nil || !previous.ExpiresAt.After(now) || !authActive(user) || user.LockedUntil != nil && user.LockedUntil.After(now) {
+		if previous.RevokedAt != nil || !previous.ExpiresAt.After(now) || !previous.AbsoluteExpiresAt.After(now) || !authActive(user) || user.LockedUntil != nil && user.LockedUntil.After(now) {
 			return ErrInvalidCredentials
 		}
 		if device.DeviceID == "" {
@@ -177,7 +193,12 @@ func (s *Store) RotateAppSession(ctx context.Context, rawRefresh string, device 
 		if device.Platform == "" {
 			device.Platform = previous.Platform
 		}
-		replacement = models.AppSession{ID: newID(), UserID: previous.UserID, FamilyID: previous.FamilyID, TokenHash: newHash, DeviceID: device.DeviceID, Platform: device.Platform, IP: device.IP, CreatedAt: now, LastUsedAt: now, ExpiresAt: previous.ExpiresAt}
+		inactivity, _ := s.sessionLifetimes()
+		expires := now.Add(inactivity)
+		if expires.After(previous.AbsoluteExpiresAt) {
+			expires = previous.AbsoluteExpiresAt
+		}
+		replacement = models.AppSession{ID: newID(), UserID: previous.UserID, FamilyID: previous.FamilyID, TokenHash: newHash, DeviceID: device.DeviceID, Platform: device.Platform, IP: device.IP, CreatedAt: now, LastUsedAt: now, ExpiresAt: expires, AbsoluteExpiresAt: previous.AbsoluteExpiresAt}
 		if err := tx.Create(&replacement).Error; err != nil {
 			return ErrAuthUnavailable
 		}
@@ -213,7 +234,7 @@ func (s *Store) ValidateAppSession(ctx context.Context, userID, sid string) erro
 			return ErrInvalidCredentials
 		}
 		var session models.AppSession
-		if err := tx.First(&session, "id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?", sid, userID, now).Error; err != nil {
+		if err := tx.First(&session, "id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ? AND absolute_expires_at > ?", sid, userID, now, now).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrInvalidCredentials
 			}
@@ -226,6 +247,23 @@ func (s *Store) ValidateAppSession(ctx context.Context, userID, sid string) erro
 		}
 		return nil
 	}))
+}
+
+// AppUserForSession distinguishes a missing/inactive account from a database
+// outage after refresh rotation, so clients do not discard valid credentials
+// on a transient failure.
+func (s *Store) AppUserForSession(ctx context.Context, userID string) (*models.User, error) {
+	var user models.User
+	if err := s.db.WithContext(ctx).First(&user, "id = ?", userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidCredentials
+		}
+		return nil, ErrAuthUnavailable
+	}
+	if !authActive(&user) {
+		return nil, ErrInvalidCredentials
+	}
+	return &user, nil
 }
 
 // RevokeAppSessionsInTransaction is an invalidation hook for account status,
@@ -293,7 +331,7 @@ func (s *Store) ListAppSessions(ctx context.Context, userID string, page Page) (
 	}
 	sessions := []models.AppSession{}
 	var total int64
-	query := s.db.WithContext(ctx).Model(&models.AppSession{}).Where("user_id = ? AND revoked_at IS NULL AND expires_at > ?", userID, s.now())
+	query := s.db.WithContext(ctx).Model(&models.AppSession{}).Where("user_id = ? AND revoked_at IS NULL AND expires_at > ? AND absolute_expires_at > ?", userID, s.now(), s.now())
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, ErrAuthUnavailable
 	}

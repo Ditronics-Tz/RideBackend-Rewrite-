@@ -19,7 +19,7 @@ import (
 //go:embed *.sql schema*.json
 var files embed.FS
 
-const LatestVersion int64 = 9
+const LatestVersion int64 = 10
 
 var ErrMigration = errors.New("database migration failed; database details and personal data are redacted")
 var ErrIncompatibleSchema = errors.New("existing database schema is incompatible with the frozen baseline; review schema drift before migrating")
@@ -38,8 +38,9 @@ var storageColumns = map[string]map[string]bool{
 }
 
 var appAuthColumns = map[string]map[string]bool{
-	"users":       {"failed_login_count": true, "locked_until": true},
-	"staff_users": {"auth_version": true, "pending_totp_secret_enc": true, "pending_totp_expires_at": true},
+	"users":        {"failed_login_count": true, "locked_until": true},
+	"staff_users":  {"auth_version": true, "pending_totp_secret_enc": true, "pending_totp_expires_at": true},
+	"app_sessions": {"absolute_expires_at": true},
 }
 
 var publicProfileColumns = map[string]map[string]bool{

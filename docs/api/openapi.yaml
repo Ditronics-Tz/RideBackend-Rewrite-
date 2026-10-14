@@ -182,6 +182,10 @@
       },
       "AppSession": {
         "properties": {
+          "absolute_expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
@@ -213,6 +217,7 @@
           }
         },
         "required": [
+          "absolute_expires_at",
           "created_at",
           "expires_at",
           "id",
@@ -248,16 +253,30 @@
       },
       "AppSessionToken": {
         "properties": {
+          "accessToken": {
+            "type": "string"
+          },
           "access_token": {
             "type": "string"
           },
+          "expiresIn": {
+            "default": 900,
+            "type": "integer"
+          },
           "expires_in": {
-            "enum": [
-              900
-            ],
+            "default": 900,
             "type": "integer"
           },
           "message": {
+            "type": "string"
+          },
+          "onboardingRequired": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "refreshToken": {
             "type": "string"
           },
           "refresh_expires_at": {
@@ -270,20 +289,29 @@
           "restricted": {
             "type": "boolean"
           },
+          "sessionId": {
+            "format": "uuid",
+            "type": "string"
+          },
           "token": {
             "type": "string"
           },
           "user": {
-            "$ref": "#/components/schemas/UserResponse"
+            "$ref": "#/components/schemas/MobileUser"
           }
         },
         "required": [
+          "accessToken",
           "access_token",
+          "expiresIn",
           "expires_in",
           "message",
+          "onboardingRequired",
+          "refreshToken",
           "refresh_expires_at",
           "refresh_token",
           "restricted",
+          "sessionId",
           "token",
           "user"
         ],
@@ -976,13 +1004,74 @@
           "email": {
             "type": "string"
           },
+          "identifier": {
+            "type": "string"
+          },
           "password": {
+            "type": "string"
+          },
+          "phone": {
             "type": "string"
           }
         },
         "required": [
           "email",
-          "password"
+          "identifier",
+          "password",
+          "phone"
+        ],
+        "type": "object"
+      },
+      "MobileUser": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phone_verified_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "passenger",
+              "driver"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "suspended_until": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "id",
+          "is_active",
+          "name",
+          "phone",
+          "phone_verified_at",
+          "role",
+          "status",
+          "suspended_until"
         ],
         "type": "object"
       },
@@ -11168,6 +11257,141 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/auth/google",
         "x-go-handler": "ride-backend/controllers.(*AuthController).GoogleLogin"
+      },
+      "post": {
+        "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.",
+        "operationId": "post_api_v1_auth_google",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "challengeId": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "idToken": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "challengeId",
+                  "idToken"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSessionToken"
+                }
+              }
+            },
+            "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid token, expired challenge, or replay.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "ACCOUNT_LINK_REQUIRED: sign in to existing account before linking Google.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Rate limit exceeded.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Google is not configured or authentication storage is unavailable.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "summary": "POST /api/v1/auth/google",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/auth/google",
+        "x-go-handler": "ride-backend/controllers.(*AuthController).GoogleMobileExchange"
       }
     },
     "/api/v1/auth/google/callback": {
@@ -11250,9 +11474,107 @@
         "x-go-handler": "ride-backend/controllers.(*AuthController).GoogleCallback"
       }
     },
+    "/api/v1/auth/google/challenge": {
+      "post": {
+        "description": "Issues a five-minute, one-use Google nonce. Pass nonce to Google and send the returned ID token with challengeId to POST /api/v1/auth/google.",
+        "operationId": "post_api_v1_auth_google_challenge",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "challengeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "nonce": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "challengeId",
+                    "expiresAt",
+                    "nonce"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Issues a five-minute, one-use Google nonce. Pass nonce to Google and send the returned ID token with challengeId to POST /api/v1/auth/google.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Rate limit exceeded.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "GOOGLE_WEB_CLIENT_ID is not configured.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "summary": "POST /api/v1/auth/google/challenge",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/auth/google/challenge",
+        "x-go-handler": "ride-backend/controllers.(*AuthController).GoogleMobileChallenge"
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
-        "description": "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.",
+        "description": "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.",
         "operationId": "post_api_v1_auth_login",
         "parameters": [
           {
@@ -11286,7 +11608,7 @@
                 }
               }
             },
-            "description": "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.",
+            "description": "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -11569,7 +11891,7 @@
     },
     "/api/v1/auth/refresh": {
       "post": {
-        "description": "Rotates the hashed refresh token. Reuse of a rotated token revokes the full token family. Responses use Cache-Control: no-store.",
+        "description": "Rotates the hashed refresh token and session ID. Reuse of a rotated token revokes the full token family. Successful refresh extends inactivity expiry up to the absolute deadline. Responses use Cache-Control: no-store.",
         "operationId": "post_api_v1_auth_refresh",
         "parameters": [
           {
@@ -11588,15 +11910,30 @@
           "content": {
             "application/json": {
               "schema": {
-                "properties": {
-                  "refresh_token": {
-                    "type": "string"
+                "oneOf": [
+                  {
+                    "properties": {
+                      "refresh_token": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "refresh_token"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "refreshToken": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "refreshToken"
+                    ],
+                    "type": "object"
                   }
-                },
-                "required": [
-                  "refresh_token"
-                ],
-                "type": "object"
+                ]
               }
             }
           },
@@ -11611,7 +11948,7 @@
                 }
               }
             },
-            "description": "Rotates the hashed refresh token. Reuse of a rotated token revokes the full token family. Responses use Cache-Control: no-store.",
+            "description": "Rotates the hashed refresh token and session ID. Reuse of a rotated token revokes the full token family. Successful refresh extends inactivity expiry up to the absolute deadline. Responses use Cache-Control: no-store.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -11654,6 +11991,23 @@
               }
             }
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Temporary authentication backend failure. Keep the locally stored refresh token and retry.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/components/responses/Error"
           }
@@ -11671,7 +12025,7 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "description": "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.",
+        "description": "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.",
         "operationId": "post_api_v1_auth_register",
         "parameters": [
           {
@@ -11705,7 +12059,7 @@
                 }
               }
             },
-            "description": "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.",
+            "description": "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -13942,6 +14296,71 @@
         "x-contract-detail": "route-inventory",
         "x-fiber-path": "/api/v1/incidents/:id/attachments",
         "x-go-handler": "ride-backend/controllers.(*OperationsController).IncidentAttachment"
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "description": "Current app account. A revoked session is rejected on the next request.",
+        "operationId": "get_api_v1_me",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "onboardingRequired": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/MobileUser"
+                    }
+                  },
+                  "required": [
+                    "onboardingRequired",
+                    "user"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Current app account. A revoked session is rejected on the next request.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/me",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/me",
+        "x-go-handler": "ride-backend/controllers.(*AuthController).MobileMe"
       }
     },
     "/api/v1/passenger/preferences": {

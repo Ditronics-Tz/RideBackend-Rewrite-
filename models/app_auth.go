@@ -3,18 +3,19 @@ package models
 import "time"
 
 type AppSession struct {
-	ID         string     `json:"id" gorm:"primaryKey;type:uuid"`
-	UserID     string     `json:"user_id" gorm:"type:uuid;not null;index:idx_app_session_user_expiry,priority:1"`
-	FamilyID   string     `json:"-" gorm:"type:uuid;not null;index"`
-	TokenHash  string     `json:"-" gorm:"type:varchar(64);not null;uniqueIndex"`
-	DeviceID   string     `json:"device_id" gorm:"size:128"`
-	Platform   string     `json:"platform" gorm:"size:32"`
-	IP         string     `json:"ip" gorm:"size:45"`
-	CreatedAt  time.Time  `json:"created_at" gorm:"not null"`
-	LastUsedAt time.Time  `json:"last_used_at" gorm:"not null"`
-	ExpiresAt  time.Time  `json:"expires_at" gorm:"not null;index:idx_app_session_user_expiry,priority:2"`
-	RevokedAt  *time.Time `json:"revoked_at,omitempty" gorm:"index"`
-	ReplacedBy *string    `json:"replaced_by,omitempty" gorm:"type:uuid"`
+	ID                string     `json:"id" gorm:"primaryKey;type:uuid"`
+	UserID            string     `json:"user_id" gorm:"type:uuid;not null;index:idx_app_session_user_expiry,priority:1"`
+	FamilyID          string     `json:"-" gorm:"type:uuid;not null;index"`
+	TokenHash         string     `json:"-" gorm:"type:varchar(64);not null;uniqueIndex"`
+	DeviceID          string     `json:"device_id" gorm:"size:128"`
+	Platform          string     `json:"platform" gorm:"size:32"`
+	IP                string     `json:"ip" gorm:"size:45"`
+	CreatedAt         time.Time  `json:"created_at" gorm:"not null"`
+	LastUsedAt        time.Time  `json:"last_used_at" gorm:"not null"`
+	ExpiresAt         time.Time  `json:"expires_at" gorm:"not null;index:idx_app_session_user_expiry,priority:2"`
+	AbsoluteExpiresAt time.Time  `json:"absolute_expires_at" gorm:"not null"`
+	RevokedAt         *time.Time `json:"revoked_at,omitempty" gorm:"index"`
+	ReplacedBy        *string    `json:"replaced_by,omitempty" gorm:"type:uuid"`
 }
 
 type AppSecurityEvent struct {

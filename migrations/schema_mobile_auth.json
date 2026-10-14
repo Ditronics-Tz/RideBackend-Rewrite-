@@ -1,0 +1,11 @@
+{
+  "app_sessions": [
+    {"name":"absolute_expires_at","type":"timestamptz","not_null":true}
+  ],
+  "google_challenges": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"nonce_hash","type":"varchar(64)","not_null":true},
+    {"name":"expires_at","type":"timestamptz","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true}
+  ]
+}

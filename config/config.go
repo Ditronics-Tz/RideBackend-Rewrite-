@@ -43,8 +43,12 @@ type Config struct {
 	StaffTOTPKey            []byte
 	StaffRequire2FAForAdmin bool
 	CORSAllowedOrigins      string
+	AppAccessTTL            time.Duration
+	AppRefreshInactivityTTL time.Duration
+	AppRefreshAbsoluteTTL   time.Duration
 
 	GoogleClientID            string
+	GoogleWebClientID         string
 	GoogleClientSecret        string
 	GoogleRedirectURL         string
 	GoogleRedirectAllowedURLs string
@@ -88,6 +92,21 @@ func (c *Config) DSN() string {
 }
 
 func (c *Config) Validate() error {
+	accessTTL, inactiveTTL, absoluteTTL := c.AppAccessTTL, c.AppRefreshInactivityTTL, c.AppRefreshAbsoluteTTL
+	if accessTTL == 0 {
+		accessTTL = 15 * time.Minute
+	}
+	if inactiveTTL == 0 {
+		inactiveTTL = 90 * 24 * time.Hour
+	}
+	if absoluteTTL == 0 {
+		absoluteTTL = 365 * 24 * time.Hour
+	}
+	if accessTTL < time.Minute || accessTTL > time.Hour ||
+		inactiveTTL < time.Hour || inactiveTTL > 365*24*time.Hour ||
+		absoluteTTL < inactiveTTL || absoluteTTL > 730*24*time.Hour {
+		return errors.New("invalid app session lifetime configuration")
+	}
 	if err := ValidateOrigins(c.CORSAllowedOrigins); err != nil {
 		return err
 	}
@@ -150,6 +169,18 @@ func (c *Config) Validate() error {
 
 // NewConfigFromEnv loads and validates configuration from environment variables.
 func NewConfigFromEnv() (*Config, error) {
+	appAccessTTL, err := parseDuration(os.Getenv("APP_ACCESS_TTL"), "15m")
+	if err != nil {
+		return nil, fmt.Errorf("invalid APP_ACCESS_TTL: %w", err)
+	}
+	appInactivityTTL, err := parseDuration(os.Getenv("APP_REFRESH_INACTIVITY_TTL"), "2160h")
+	if err != nil {
+		return nil, fmt.Errorf("invalid APP_REFRESH_INACTIVITY_TTL: %w", err)
+	}
+	appAbsoluteTTL, err := parseDuration(os.Getenv("APP_REFRESH_ABSOLUTE_TTL"), "8760h")
+	if err != nil {
+		return nil, fmt.Errorf("invalid APP_REFRESH_ABSOLUTE_TTL: %w", err)
+	}
 	accessTTL, err := parseDuration(os.Getenv("STAFF_ACCESS_TTL"), "15m")
 	if err != nil {
 		return nil, fmt.Errorf("invalid STAFF_ACCESS_TTL: %w", err)
@@ -194,8 +225,12 @@ func NewConfigFromEnv() (*Config, error) {
 		StaffTOTPKey:            totpKey,
 		StaffRequire2FAForAdmin: parseBool(os.Getenv("STAFF_REQUIRE_2FA_FOR_ADMIN"), true),
 		CORSAllowedOrigins:      getEnv("CORS_ALLOWED_ORIGINS", ""),
+		AppAccessTTL:            appAccessTTL,
+		AppRefreshInactivityTTL: appInactivityTTL,
+		AppRefreshAbsoluteTTL:   appAbsoluteTTL,
 
 		GoogleClientID:            getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleWebClientID:         getEnv("GOOGLE_WEB_CLIENT_ID", ""),
 		GoogleClientSecret:        getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:         getEnv("GOOGLE_REDIRECT_URL", ""),
 		GoogleRedirectAllowedURLs: getEnv("GOOGLE_REDIRECT_ALLOWED_URLS", ""),

@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 	"ride-backend/config"
+	backenddb "ride-backend/db"
 	"ride-backend/middleware"
 	"ride-backend/models"
 	"ride-backend/store"
@@ -19,10 +20,11 @@ import (
 )
 
 type AuthController struct {
-	Cfg     *config.Config
-	Store   *store.Store
-	Limiter store.AuthLimiter
-	Google  utils.GoogleAuthenticator
+	Cfg      *config.Config
+	Store    *store.Store
+	Limiter  store.AuthLimiter
+	Google   utils.GoogleAuthenticator
+	GoogleID utils.GoogleIDTokenVerifier
 }
 
 func NewAuthController(cfg *config.Config, s *store.Store) *AuthController {
@@ -34,7 +36,7 @@ func invalidCredentials(c *fiber.Ctx) error {
 }
 func authError(c *fiber.Ctx, err error) error {
 	if errors.Is(err, store.ErrAuthUnavailable) {
-		return c.Status(503).JSON(fiber.Map{"error": "authentication temporarily unavailable"})
+		return c.Status(503).JSON(fiber.Map{"error": "authentication temporarily unavailable", "code": "AUTH_TEMPORARILY_UNAVAILABLE"})
 	}
 	if errors.Is(err, store.ErrInvalidCredentials) {
 		return invalidCredentials(c)
@@ -47,7 +49,7 @@ func (ac *AuthController) throttle(c *fiber.Ctx, scope, key string, limit int) e
 	}
 	decision, err := ac.Limiter.Allow(c.UserContext(), scope, key, store.AuthRate{Limit: limit, Window: time.Minute})
 	if err != nil {
-		return store.OpError(503, "authentication temporarily unavailable")
+		return store.ErrAuthUnavailable
 	}
 	if !decision.Allowed {
 		return &store.OperationError{Status: 429, Message: "Too many requests", RetryAfter: decision.RetryAfter}
@@ -68,13 +70,45 @@ func appDevice(c *fiber.Ctx) store.SessionDevice {
 	return store.SessionDevice{DeviceID: c.Get("X-Device-ID"), Platform: c.Get("X-Device-Platform", c.Get("X-Platform")), IP: c.IP()}
 }
 
+func appAccessTTL(cfg *config.Config) time.Duration {
+	if cfg.AppAccessTTL > 0 {
+		return cfg.AppAccessTTL
+	}
+	return utils.DefaultAppTTL
+}
+
+func mobileUser(user *models.User) fiber.Map {
+	var phone any
+	if user.Phone != "" {
+		phone = user.Phone
+	}
+	return fiber.Map{"id": user.ID, "name": user.Name, "email": user.Email,
+		"phone": phone, "role": user.Role, "status": user.Status,
+		"is_active": user.IsActive, "phone_verified_at": user.PhoneVerifiedAt,
+		"suspended_until": user.SuspendedUntil}
+}
+
+func onboardingRequired(user *models.User) []string {
+	if user.Role == models.RolePassenger && (user.Phone == "" || user.PhoneVerifiedAt == nil) {
+		return []string{"phone_verification"}
+	}
+	return []string{}
+}
+
 func (ac *AuthController) respondSession(c *fiber.Ctx, user *models.User, issued *store.IssuedAppSession, status int, message string) error {
-	access, err := utils.GenerateAppSessionToken(user.ID, user.Role, issued.Session.ID, ac.Cfg.JWTSecret, utils.DefaultAppTTL)
+	ttl := appAccessTTL(ac.Cfg)
+	access, err := utils.GenerateAppSessionToken(user.ID, user.Role, issued.Session.ID, ac.Cfg.JWTSecret, ttl)
 	if err != nil {
 		return authError(c, err)
 	}
 	c.Set("Cache-Control", "no-store")
-	return c.Status(status).JSON(fiber.Map{"message": message, "token": access, "access_token": access, "refresh_token": issued.RefreshToken, "expires_in": int(utils.DefaultAppTTL.Seconds()), "refresh_expires_at": issued.Session.ExpiresAt, "restricted": user.Status == "pending_deletion", "user": models.ToUserResponse(user)})
+	return c.Status(status).JSON(fiber.Map{"message": message, "token": access,
+		"access_token": access, "refresh_token": issued.RefreshToken,
+		"expires_in": int(ttl.Seconds()), "refresh_expires_at": issued.Session.ExpiresAt,
+		"accessToken": access, "refreshToken": issued.RefreshToken,
+		"expiresIn": int(ttl.Seconds()), "sessionId": issued.Session.ID,
+		"onboardingRequired": onboardingRequired(user),
+		"restricted":         user.Status == "pending_deletion", "user": mobileUser(user)})
 }
 func (ac *AuthController) issue(c *fiber.Ctx, user *models.User, status int, message string) error {
 	issued, err := ac.Store.IssueAppSession(c.UserContext(), user.ID, appDevice(c))
@@ -143,13 +177,45 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte("invalid"))
 		return invalidCredentials(c)
 	}
-	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
-	if err := ac.throttle(c, "app_login_account", input.Email, 10); err != nil {
+	provided := 0
+	for _, value := range []string{input.Identifier, input.Email, input.Phone} {
+		if strings.TrimSpace(value) != "" {
+			provided++
+		}
+	}
+	if provided != 1 || input.Password == "" || len(input.Password) > 72 {
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(input.Password))
+		return invalidCredentials(c)
+	}
+	identifier := strings.TrimSpace(input.Identifier)
+	if identifier == "" {
+		identifier = strings.TrimSpace(input.Email)
+	}
+	if identifier == "" {
+		identifier = strings.TrimSpace(input.Phone)
+	}
+	identifier = strings.ToLower(identifier)
+	if strings.Contains(identifier, "@") {
+		if !validAuthEmail(identifier) {
+			identifier = ""
+		}
+	} else {
+		phone, err := backenddb.CanonicalPhone(identifier)
+		if err != nil {
+			identifier = ""
+		} else {
+			identifier = phone
+		}
+	}
+	if err := ac.throttle(c, "app_login_account", identifier, 10); err != nil {
 		return authError(c, err)
 	}
-	user, ok := ac.Store.GetUserByEmail(input.Email)
-	if !ok || !validAuthEmail(input.Email) {
+	user, lookupErr := ac.Store.FindUserForLogin(c.UserContext(), identifier)
+	if lookupErr != nil {
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(input.Password))
+		if errors.Is(lookupErr, store.ErrAuthUnavailable) {
+			return authError(c, lookupErr)
+		}
 		return invalidCredentials(c)
 	}
 	hash := []byte(user.PasswordHash)
@@ -197,18 +263,28 @@ func (ac *AuthController) Refresh(c *fiber.Ctx) error {
 		return authError(c, err)
 	}
 	var input struct {
-		RefreshToken string `json:"refresh_token"`
+		RefreshToken       string `json:"refresh_token"`
+		MobileRefreshToken string `json:"refreshToken"`
 	}
 	if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
-		return invalidCredentials(c)
+		return c.Status(401).JSON(fiber.Map{"error": "invalid refresh credential", "code": "INVALID_REFRESH_TOKEN"})
+	}
+	if input.RefreshToken == "" {
+		input.RefreshToken = input.MobileRefreshToken
 	}
 	issued, err := ac.Store.RotateAppSession(c.UserContext(), input.RefreshToken, appDevice(c))
 	if err != nil {
+		if errors.Is(err, store.ErrInvalidCredentials) {
+			return c.Status(401).JSON(fiber.Map{"error": "invalid refresh credential", "code": "INVALID_REFRESH_TOKEN"})
+		}
 		return authError(c, err)
 	}
-	user, ok := ac.Store.GetUserByID(issued.Session.UserID)
-	if !ok {
-		return invalidCredentials(c)
+	user, err := ac.Store.AppUserForSession(c.UserContext(), issued.Session.UserID)
+	if err != nil {
+		if errors.Is(err, store.ErrInvalidCredentials) {
+			return c.Status(401).JSON(fiber.Map{"error": "invalid refresh credential", "code": "INVALID_REFRESH_TOKEN"})
+		}
+		return authError(c, err)
 	}
 	return ac.respondSession(c, user, issued, 200, "Session refreshed")
 }

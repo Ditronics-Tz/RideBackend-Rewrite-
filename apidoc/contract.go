@@ -475,7 +475,7 @@ func describeCurrent(route Route, operation, schemas object) {
 			input = reflect.TypeOf(models.RegisterInput{})
 			status = "201"
 		}
-		set(status, "App authentication returns a 15-minute access token in both token and access_token, plus a 30-day refresh token. Login failures use a generic response; registration validates password strength and may be rate limited.", ref("AppSessionToken"))
+		set(status, "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.", ref("AppSessionToken"))
 		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": schemaFor(input, schemas)}}}
 		responses["429"] = jsonResponse("Rate limit exceeded.", ref("Error"))
 		if path == "/auth/login" {
@@ -484,9 +484,10 @@ func describeCurrent(route Route, operation, schemas object) {
 		return
 	}
 	if path == "/auth/refresh" {
-		set("200", "Rotates the hashed refresh token. Reuse of a rotated token revokes the full token family. Responses use Cache-Control: no-store.", ref("AppSessionToken"))
-		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"refresh_token": scalar("string")}, "refresh_token")}}}
+		set("200", "Rotates the hashed refresh token and session ID. Reuse of a rotated token revokes the full token family. Successful refresh extends inactivity expiry up to the absolute deadline. Responses use Cache-Control: no-store.", ref("AppSessionToken"))
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": object{"oneOf": []any{properties(object{"refresh_token": scalar("string")}, "refresh_token"), properties(object{"refreshToken": scalar("string")}, "refreshToken")}}}}}
 		responses["401"] = jsonResponse("Invalid or reused refresh token.", ref("Error"))
+		responses["503"] = jsonResponse("Temporary authentication backend failure. Keep the locally stored refresh token and retry.", ref("Error"))
 		responses["429"] = jsonResponse("Rate limit exceeded.", ref("Error"))
 		return
 	}
@@ -495,6 +496,10 @@ func describeCurrent(route Route, operation, schemas object) {
 		if path == "/auth/logout-all" {
 			operation["description"] = "Revokes every app session owned by the authenticated user immediately."
 		}
+		return
+	}
+	if path == "/me" {
+		set("200", "Current app account. A revoked session is rejected on the next request.", properties(object{"user": ref("MobileUser"), "onboardingRequired": array(scalar("string"))}, "user", "onboardingRequired"))
 		return
 	}
 	if path == "/auth/sessions" {
@@ -525,6 +530,21 @@ func describeCurrent(route Route, operation, schemas object) {
 	}
 	if path == "/admin/users/:id/unlock" {
 		set("200", "Admin only. Clears the app login lockout and records an audit event.", properties(object{"message": scalar("string")}, "message"))
+		return
+	}
+	if path == "/auth/google/challenge" {
+		set("200", "Issues a five-minute, one-use Google nonce. Pass nonce to Google and send the returned ID token with challengeId to POST /api/v1/auth/google.", properties(object{"challengeId": object{"type": "string", "format": "uuid"}, "nonce": scalar("string"), "expiresAt": object{"type": "string", "format": "date-time"}}, "challengeId", "nonce", "expiresAt"))
+		responses["503"] = jsonResponse("GOOGLE_WEB_CLIENT_ID is not configured.", ref("Error"))
+		responses["429"] = jsonResponse("Rate limit exceeded.", ref("Error"))
+		return
+	}
+	if path == "/auth/google" && route.Method == "POST" {
+		set("200", "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.", ref("AppSessionToken"))
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"idToken": scalar("string"), "challengeId": object{"type": "string", "format": "uuid"}}, "idToken", "challengeId")}}}
+		responses["401"] = jsonResponse("Invalid token, expired challenge, or replay.", ref("Error"))
+		responses["409"] = jsonResponse("ACCOUNT_LINK_REQUIRED: sign in to existing account before linking Google.", ref("Error"))
+		responses["503"] = jsonResponse("Google is not configured or authentication storage is unavailable.", ref("Error"))
+		responses["429"] = jsonResponse("Rate limit exceeded.", ref("Error"))
 		return
 	}
 	if path == "/auth/google" {

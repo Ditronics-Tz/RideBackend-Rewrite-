@@ -137,8 +137,10 @@ type RegisterInput struct {
 }
 
 type LoginInput struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email      string `json:"email"`
+	Identifier string `json:"identifier"`
+	Phone      string `json:"phone"`
+	Password   string `json:"password"`
 }
 
 type UpdateRoleInput struct {

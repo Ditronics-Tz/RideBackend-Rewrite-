@@ -13,6 +13,14 @@ import (
 	"ride-backend/utils"
 )
 
+func googleIdentityConflict(err error) bool {
+	if errors.Is(err, gorm.ErrDuplicatedKey) || err != nil && err.Error() == "email already registered" {
+		return true
+	}
+	var sqlState interface{ SQLState() string }
+	return errors.As(err, &sqlState) && sqlState.SQLState() == "23505"
+}
+
 func randomOAuthValue() (string, error) {
 	value := make([]byte, 32)
 	if _, err := rand.Read(value); err != nil {
@@ -103,6 +111,9 @@ func (s *Store) ResolveGoogleIdentity(ctx context.Context, subject, name, email 
 		result = u
 		return nil
 	})
+	if googleIdentityConflict(err) {
+		return nil, OpError(409, "Sign in to the existing account; automatic Google linking is unavailable")
+	}
 	return result, err
 }
 
@@ -113,8 +124,10 @@ func init() {
 
 type oauthExporter struct{ s *Store }
 
-func (oauthExporter) Name() string     { return "oauth" }
-func (oauthExporter) Tables() []string { return []string{"oauth_states", "oauth_identities"} }
+func (oauthExporter) Name() string { return "oauth" }
+func (oauthExporter) Tables() []string {
+	return []string{"oauth_states", "oauth_identities", "google_challenges"}
+}
 func (e oauthExporter) Export(id string) (any, []string, error) {
 	var rows []struct {
 		Provider  string
@@ -126,10 +139,12 @@ func (e oauthExporter) Export(id string) (any, []string, error) {
 
 type oauthAnonymizer struct{}
 
-func (oauthAnonymizer) Name() string     { return "oauth" }
-func (oauthAnonymizer) Tables() []string { return []string{"oauth_states", "oauth_identities"} }
+func (oauthAnonymizer) Name() string { return "oauth" }
+func (oauthAnonymizer) Tables() []string {
+	return []string{"oauth_states", "oauth_identities", "google_challenges"}
+}
 func (oauthAnonymizer) Description() string {
-	return "deletes linked identities; anonymous browser state contains no account association and expires after ten minutes"
+	return "deletes linked identities; anonymous browser state and mobile Google challenges contain no account association and expire automatically"
 }
 func (oauthAnonymizer) Anonymize(tx *gorm.DB, id string) error {
 	return tx.Where("user_id = ?", id).Delete(&models.OAuthIdentity{}).Error

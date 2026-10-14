@@ -45,6 +45,9 @@ func schemaStatements(t *testing.T, name string) []string {
 }
 
 func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) {
+	if !appAuthColumns["app_sessions"]["absolute_expires_at"] {
+		t.Fatal("migration adoption must allow new absolute deadline column")
+	}
 	db, err := gorm.Open(sqlite.Open("file:"+uuid.NewString()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatal(err)
@@ -54,8 +57,11 @@ func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) 
 		t.Fatal(err)
 	}
 	defer sqlDB.Close()
-	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql", "00007_rides.sql", "00008_support.sql", "00009_mobile_passenger.sql"} {
+	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql", "00007_rides.sql", "00008_support.sql", "00009_mobile_passenger.sql", "00010_mobile_auth.sql"} {
 		for _, statement := range schemaStatements(t, name) {
+			if name == "00010_mobile_auth.sql" && (strings.Contains(statement, "interval '365 days'") || strings.Contains(statement, "ALTER COLUMN absolute_expires_at SET NOT NULL")) {
+				continue
+			}
 			// SQLite metadata fixtures lack PostgreSQL's ADD COLUMN IF NOT EXISTS.
 			statement = strings.Replace(statement, " ADD COLUMN IF NOT EXISTS ", " ADD COLUMN ", 1)
 			if err := db.Exec(statement).Error; err != nil {
@@ -74,7 +80,7 @@ func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) 
 			}
 		}
 	}
-	for _, table := range []string{"app_sessions", "app_security_events", "auth_rate_buckets", "oauth_states", "oauth_identities", "ride_events", "driver_locations", "ride_idempotency_keys", "support_tickets", "support_ticket_notes", "saved_places", "passenger_preferences", "scheduled_rides", "support_ticket_messages", "support_ticket_attachments"} {
+	for _, table := range []string{"app_sessions", "app_security_events", "auth_rate_buckets", "oauth_states", "oauth_identities", "google_challenges", "ride_events", "driver_locations", "ride_idempotency_keys", "support_tickets", "support_ticket_notes", "saved_places", "passenger_preferences", "scheduled_rides", "support_ticket_messages", "support_ticket_attachments"} {
 		if expected[table] == nil {
 			t.Errorf("latest manifest omits %s", table)
 		}

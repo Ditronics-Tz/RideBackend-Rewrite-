@@ -51,7 +51,7 @@ func AutoMigrateModels() []interface{} {
 	return []interface{}{
 		&models.User{},
 		&models.AppSession{}, &models.AppSecurityEvent{}, &models.AuthRateBucket{},
-		&models.OAuthState{}, &models.OAuthIdentity{},
+		&models.OAuthState{}, &models.OAuthIdentity{}, &models.GoogleChallenge{},
 		&models.DriverProfile{},
 		&models.PassengerProfile{},
 		&models.Rating{},

@@ -15,6 +15,8 @@ func SetupAuthRoutes(router fiber.Router, authController *controllers.AuthContro
 	api.Post("/register", authController.Register)
 	api.Post("/login", authController.Login)
 	api.Post("/refresh", authController.Refresh)
+	api.Post("/google/challenge", authController.GoogleMobileChallenge)
+	api.Post("/google", authController.GoogleMobileExchange)
 	protected := middleware.AppProtected(cfg, authController.Store)
 	api.Post("/logout", protected, authController.Logout)
 	api.Post("/logout-all", protected, authController.LogoutAll)
@@ -32,4 +34,5 @@ func SetupAuthRoutes(router fiber.Router, authController *controllers.AuthContro
 		middleware.AppProtected(cfg, authController.Store),
 		authController.Me,
 	)
+	router.Get("/me", middleware.AppProtected(cfg, authController.Store), authController.MobileMe)
 }

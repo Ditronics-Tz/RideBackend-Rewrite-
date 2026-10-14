@@ -22,7 +22,7 @@ func authTestStore(t *testing.T) (*Store, *models.User, *time.Time) {
 	if err != nil {
 		t.Fatal("test database unavailable")
 	}
-	if err := database.AutoMigrate(&models.User{}, &models.AppSession{}, &models.AppSecurityEvent{}, &models.AuthRateBucket{}, &models.StaffAuditLog{}); err != nil {
+	if err := database.AutoMigrate(&models.User{}, &models.AppSession{}, &models.AppSecurityEvent{}, &models.AuthRateBucket{}, &models.StaffAuditLog{}, &models.GoogleChallenge{}); err != nil {
 		t.Fatal("test schema unavailable")
 	}
 	sqlDB, err := database.DB()
@@ -61,8 +61,8 @@ func TestAppSessionHashesCredentialsAndHidesSecretMetadata(t *testing.T) {
 	if err != nil || stored.TokenHash != hash || stored.TokenHash == issued.RefreshToken || len(stored.TokenHash) != 64 {
 		t.Fatal("refresh credential was not hashed")
 	}
-	if !stored.ExpiresAt.Equal(now.Add(AppRefreshTTL)) {
-		t.Fatal("refresh expiry differs from 30 days")
+	if !stored.ExpiresAt.Equal(now.Add(AppRefreshTTL)) || !stored.AbsoluteExpiresAt.Equal(now.Add(AppRefreshAbsoluteTTL)) {
+		t.Fatal("refresh deadlines differ from policy")
 	}
 	encoded, err := json.Marshal(issued)
 	if err != nil {
@@ -89,7 +89,7 @@ func TestAppSessionRotationInvalidatesOldSIDAndKeepsFamilyExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatal("rotation failed")
 	}
-	if rotated.Session.ID == original.Session.ID || rotated.RefreshToken == original.RefreshToken || rotated.Session.FamilyID != original.Session.FamilyID || !rotated.Session.ExpiresAt.Equal(original.Session.ExpiresAt) || rotated.Session.DeviceID != original.Session.DeviceID {
+	if rotated.Session.ID == original.Session.ID || rotated.RefreshToken == original.RefreshToken || rotated.Session.FamilyID != original.Session.FamilyID || !rotated.Session.ExpiresAt.Equal(now.Add(AppRefreshTTL)) || !rotated.Session.AbsoluteExpiresAt.Equal(original.Session.AbsoluteExpiresAt) || rotated.Session.DeviceID != original.Session.DeviceID {
 		t.Fatal("rotation contract violated")
 	}
 	if err := s.ValidateAppSession(context.Background(), user.ID, original.Session.ID); !errors.Is(err, ErrInvalidCredentials) {
@@ -256,5 +256,33 @@ func TestAppSessionAccountTransitionHookPreventsNewSessionAfterSuspension(t *tes
 	}
 	if _, err := s.IssueAppSession(context.Background(), user.ID, SessionDevice{}); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatal("issuance after suspension accepted")
+	}
+}
+
+func TestAppSessionInactivitySlidesButAbsoluteDeadlineDoesNot(t *testing.T) {
+	s, user, now := authTestStore(t)
+	original := issueForTest(t, s, user)
+	*now = now.Add(AppRefreshTTL - time.Hour)
+	first, err := s.RotateAppSession(context.Background(), original.RefreshToken, SessionDevice{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !first.Session.ExpiresAt.Equal(now.Add(AppRefreshTTL)) {
+		t.Fatal("inactivity deadline did not slide")
+	}
+	current := first
+	for i := 0; i < 3; i++ {
+		*now = now.Add(89 * 24 * time.Hour)
+		current, err = s.RotateAppSession(context.Background(), current.RefreshToken, SessionDevice{})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !current.Session.ExpiresAt.Equal(original.Session.AbsoluteExpiresAt) {
+		t.Fatal("inactivity extension exceeded absolute deadline")
+	}
+	*now = original.Session.AbsoluteExpiresAt.Add(time.Second)
+	if _, err := s.RotateAppSession(context.Background(), current.RefreshToken, SessionDevice{}); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatal("expired absolute lifetime accepted")
 	}
 }
