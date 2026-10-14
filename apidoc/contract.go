@@ -502,6 +502,10 @@ func describeCurrent(route Route, operation, schemas object) {
 		set("200", "Current app account. A revoked session is rejected on the next request.", properties(object{"user": ref("MobileUser"), "onboardingRequired": array(scalar("string"))}, "user", "onboardingRequired"))
 		return
 	}
+	if path == "/auth/me" {
+		set("200", "Existing app account detail with optional passenger or driver profile and rating summary. Passenger Android clients can use /api/v1/me for the compact nullable-phone contract.", properties(object{"user": schemaFor(reflect.TypeOf(models.UserResponse{}), schemas), "passenger_profile": object{"type": "object"}, "driver_profile": object{"type": "object"}, "average_rating": scalar("number"), "total_ratings": scalar("integer")}, "user", "average_rating", "total_ratings"))
+		return
+	}
 	if path == "/auth/sessions" {
 		pagination()
 		set("200", "Lists the authenticated user's app sessions. Refresh tokens and token hashes are never returned.", ref("AppSessionPage"))

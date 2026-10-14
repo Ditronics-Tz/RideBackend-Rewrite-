@@ -11780,7 +11780,7 @@
     },
     "/api/v1/auth/me": {
       "get": {
-        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "description": "Existing app account detail with optional passenger or driver profile and rating summary. Passenger Android clients can use /api/v1/me for the compact nullable-phone contract.",
         "operationId": "get_api_v1_auth_me",
         "parameters": [
           {
@@ -11796,8 +11796,44 @@
           }
         ],
         "responses": {
-          "2XX": {
-            "description": "Existing handler response; see endpoint implementation for the current payload."
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "average_rating": {
+                      "type": "number"
+                    },
+                    "driver_profile": {
+                      "type": "object"
+                    },
+                    "passenger_profile": {
+                      "type": "object"
+                    },
+                    "total_ratings": {
+                      "type": "integer"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/UserResponse"
+                    }
+                  },
+                  "required": [
+                    "average_rating",
+                    "total_ratings",
+                    "user"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Existing app account detail with optional passenger or driver profile and rating summary. Passenger Android clients can use /api/v1/me for the compact nullable-phone contract.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/Error"
@@ -11809,7 +11845,7 @@
           }
         ],
         "summary": "GET /api/v1/auth/me",
-        "x-contract-detail": "route-inventory",
+        "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/auth/me",
         "x-go-handler": "ride-backend/controllers.(*AuthController).Me"
       }

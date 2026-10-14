@@ -13,6 +13,7 @@ import (
 	"ride-backend/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 // AccountRequestLimiter limits credential-sensitive deletion/export POSTs per
@@ -103,7 +104,14 @@ func AppProtected(cfg *config.Config, accounts ...AppAccountGetter) fiber.Handle
 			} else {
 				u, err = accounts[0].ActiveAccount(uid)
 			}
-			if err != nil || u.Role != role {
+			if err != nil {
+				var operation *store.OperationError
+				if !errors.Is(err, gorm.ErrRecordNotFound) && !errors.Is(err, store.ErrVerificationConflict) && !errors.As(err, &operation) {
+					return c.Status(503).JSON(fiber.Map{"error": "authentication temporarily unavailable", "code": "AUTH_TEMPORARILY_UNAVAILABLE"})
+				}
+				return c.Status(403).JSON(fiber.Map{"error": "Account unavailable or token role changed"})
+			}
+			if u == nil || u.Role != role {
 				return c.Status(403).JSON(fiber.Map{"error": "Account unavailable or token role changed"})
 			}
 			account = u

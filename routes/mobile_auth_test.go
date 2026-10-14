@@ -182,6 +182,10 @@ func TestMobileRefreshDatabaseOutageKeepsCredentialClassification(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	access, err := utils.GenerateAppSessionToken(u.ID, models.RolePassenger, issued.Session.ID, cfg.JWTSecret, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
 	app := routes.BuildApp(cfg, s)
 	sqlDB, err := s.DB().DB()
 	if err != nil {
@@ -193,5 +197,9 @@ func TestMobileRefreshDatabaseOutageKeepsCredentialClassification(t *testing.T) 
 	status, body, _ := authRequest(t, app, "POST", "/auth/refresh", "", map[string]string{"refreshToken": issued.RefreshToken})
 	if status != 503 || body["code"] != "AUTH_TEMPORARILY_UNAVAILABLE" {
 		t.Fatal("temporary refresh failure was classified as invalid credential")
+	}
+	status, body, _ = authRequest(t, app, "GET", "/me", access, nil)
+	if status != 503 || body["code"] != "AUTH_TEMPORARILY_UNAVAILABLE" {
+		t.Fatal("temporary protected-request failure was classified as an account restriction")
 	}
 }

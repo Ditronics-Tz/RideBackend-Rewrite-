@@ -10,11 +10,11 @@ Run `go run ./cmd/migrate up` before starting the updated API. Migration 10 adds
 
 ```json
 {
-  "user": {"id":"uuid","name":"Asha","email":"asha@example.com","phone":null,"role":"passenger","status":"active","is_active":true,"phone_verified_at":null,"suspended_until":null},
+  "user": {"id":"d2a2f6ec-7b8c-4eca-afec-2bd4f9b95220","name":"Asha","email":"asha@example.com","phone":null,"role":"passenger","status":"active","is_active":true,"phone_verified_at":null,"suspended_until":null},
   "accessToken":"eyJ...",
   "expiresIn":900,
   "refreshToken":"opaque-random-token",
-  "sessionId":"uuid",
+  "sessionId":"1746f12d-c7aa-45d0-8403-d02d1e334f4a",
   "onboardingRequired":["phone_verification"],
   "message":"Login successful",
   "token":"eyJ...",
@@ -26,7 +26,7 @@ Run `go run ./cmd/migrate up` before starting the updated API. Migration 10 adds
 }
 ```
 
-`user.id` and `sessionId` are UUID strings. `name`, `email`, `role`, and `status` are strings; `phone` is a string or JSON null; `is_active` and `restricted` are booleans; `phone_verified_at` and `suspended_until` are RFC 3339 timestamps or null. `expiresIn`/`expires_in` are integer seconds, configurable with a default of 900. `onboardingRequired` is an array of strings, empty for a passenger with a verified phone; `phone_verification` means phone verification is incomplete. Current ride booking has no server phone-verification gate. A real SMS sender must be configured before the existing `/auth/phone/request-otp` and `/auth/phone/verify-otp` flow can finish onboarding. The snake_case fields are retained for existing clients.
+`user.id` and `sessionId` are UUID strings. `name`, `email`, `role`, and `status` are strings; `phone` is a string or JSON null; `is_active` and `restricted` are booleans; `phone_verified_at` and `suspended_until` are RFC 3339 timestamps or null. `accessToken` is a signed Rida JWT string, `refreshToken` is an opaque string, and `refresh_expires_at` is an RFC 3339 timestamp. `expiresIn`/`expires_in` are integer seconds, configurable with a default of 900. `onboardingRequired` is an array of strings, empty for a passenger with a verified phone; `phone_verification` means phone verification is incomplete. Current ride booking has no server phone-verification gate. A real SMS sender must be configured before the existing `/auth/phone/request-otp` and `/auth/phone/verify-otp` flow can finish onboarding. The snake_case fields are retained for existing clients.
 
 Store the refresh token in Android encrypted storage. Send the access token as `Authorization: Bearer <accessToken>`. `X-Device-ID` and `X-Device-Platform: android` are optional informational metadata, never proof of identity. Access tokens expire after 15 minutes by default. Refresh inactivity expires after 90 days without a successful refresh; every refresh slides that deadline but never past 365 days from the original session creation. Rotation also replaces `sessionId`, so the prior access token stops working immediately. Access tokens are checked against the session database on every protected request: logout, logout-all, reuse detection, and administrative revocation take effect on the next request after the revocation transaction commits.
 
@@ -34,7 +34,7 @@ Store the refresh token in Android encrypted storage. Send the access token as `
 
 On the Docker VPS, apply migration 10 with `docker compose --profile tools run --rm migrate up` before recreating the API service.
 
-`POST /api/v1/auth/register`:
+`POST /api/v1/auth/register` (201; response is the session JSON above):
 
 ```json
 {"name":"Asha","email":"asha@example.com","password":"a-unique-long-password"}
@@ -42,19 +42,19 @@ On the Docker VPS, apply migration 10 with `docker compose --profile tools run -
 
 New registrations default to passenger. Existing driver registration remains supported through the optional `role` field. Passwords use bcrypt and the existing 10-character minimum/72-byte maximum policy.
 
-`POST /api/v1/auth/login` accepts an email or a **verified** Tanzanian phone number. Use `identifier` for new clients; `email` and `phone` remain accepted aliases. Phone values are normalized to `+255...` before lookup. Unknown account and wrong password both return a generic 401.
+`POST /api/v1/auth/login` (200; response is the session JSON above) accepts an email or a **verified** Tanzanian phone number. Use `identifier` for new clients; `email` and `phone` remain accepted aliases. Phone values are normalized to `+255...` before lookup. Unknown account and wrong password both return a generic 401.
 
 ```json
 {"identifier":"0712 345 678","password":"a-unique-long-password"}
 ```
 
-`POST /api/v1/auth/google/challenge` accepts `{}` and returns:
+`POST /api/v1/auth/google/challenge` accepts `{}` with no Bearer token and returns 200:
 
 ```json
 {"challengeId":"uuid","nonce":"64-hex-character-random-value","expiresAt":"2026-10-14T12:05:00Z"}
 ```
 
-Pass `nonce` to the Google ID token request. Within five minutes, call `POST /api/v1/auth/google`:
+`challengeId` is a UUID string, `nonce` is a random 64-character hex string, and `expiresAt` is an RFC 3339 timestamp. Pass `nonce` to the Google ID token request. Within five minutes, call `POST /api/v1/auth/google` (200; response is the session JSON above):
 
 ```json
 {"idToken":"google-signed-id-token","challengeId":"uuid"}
@@ -62,11 +62,21 @@ Pass `nonce` to the Google ID token request. Within five minutes, call `POST /ap
 
 The backend validates Google's signature and certificate, Web client audience, issuer, expiry, verified email, and the challenge nonce. It consumes the challenge atomically after token verification. Accounts are looked up by Google `sub` and provider `google`. An existing password account with the same email returns 409 `ACCOUNT_LINK_REQUIRED`; automatic email matching never links it. Authenticated account linking is not yet exposed. A new Google account can have `phone: null`.
 
-`POST /api/v1/auth/refresh` accepts either `{"refreshToken":"opaque-random-token"}` or the legacy `{"refresh_token":"opaque-random-token"}`. It returns a new session response. The old refresh token is invalidated, and replay revokes its entire device token family. Allow only one refresh in flight per stored token. A lost refresh response is ambiguous: keep the local token on a network error, but avoid parallel or blind replay; a later 401 means the session must be reauthenticated.
+`POST /api/v1/auth/refresh` accepts either `{"refreshToken":"opaque-random-token"}` or the legacy `{"refresh_token":"opaque-random-token"}`. It returns 200 with a new session response. The old refresh token and session ID are invalidated, and replay revokes its entire device token family. Allow only one refresh in flight per stored token. A lost refresh response is ambiguous: keep the local token on a network error, but avoid parallel or blind replay; a later 401 means the session must be reauthenticated.
 
-`GET /api/v1/me` returns `{"user":{...},"onboardingRequired":[]}` using the `MobileUser` shape above. The existing `GET /api/v1/auth/me` remains available with profile and rating fields.
+`GET /api/v1/me` requires `Authorization: Bearer <accessToken>` and has no request body. It returns 200 using the same `MobileUser` shape as the session response:
 
-`POST /api/v1/auth/logout` and `POST /api/v1/auth/logout-all` require the current access token and return `{"message":"Logged out"}` or `{"message":"All sessions revoked"}`. Logout revokes the current refresh session; logout-all revokes all of the account's sessions.
+```json
+{"user":{"id":"d2a2f6ec-7b8c-4eca-afec-2bd4f9b95220","name":"Asha","email":"asha@example.com","phone":null,"role":"passenger","status":"active","is_active":true,"phone_verified_at":null,"suspended_until":null},"onboardingRequired":["phone_verification"]}
+```
+
+The existing `GET /api/v1/auth/me` also requires a Bearer token and no body. It returns the legacy account detail contract, including `average_rating` (number), `total_ratings` (integer), and optional `passenger_profile` or `driver_profile` objects. Its `user.phone` is an empty string when unset, so use `/api/v1/me` for the nullable-phone mobile contract. Example:
+
+```json
+{"user":{"id":"d2a2f6ec-7b8c-4eca-afec-2bd4f9b95220","name":"Asha","email":"asha@example.com","role":"passenger","is_active":true,"status":"active","suspended_until":null,"phone":"","phone_verified_at":null},"average_rating":0,"total_ratings":0}
+```
+
+`POST /api/v1/auth/logout` and `POST /api/v1/auth/logout-all` require the current Bearer token and accept no request body. They return 200 with `{"message":"Logged out"}` or `{"message":"All sessions revoked"}` respectively. Logout revokes the current device session; logout-all revokes all of the account's sessions. Clear local credentials after a successful response.
 
 ## Error handling
 
@@ -79,4 +89,34 @@ The backend validates Google's signature and certificate, Web client audience, i
 | 503 | `GOOGLE_NOT_CONFIGURED` | Google sign-in is unavailable until backend configuration is supplied. |
 | 429 | existing rate-limit response | Respect `Retry-After`; keep credentials. |
 
+Error body example: `{"error":"invalid refresh credential","code":"INVALID_REFRESH_TOKEN","request_id":"request-id"}`. `error` is a human-readable string, `code` is a machine-readable string when provided, `request_id` is a trace identifier, and validation errors may include `fields`. Do not parse `error` for app state. A protected endpoint can return 401 for an expired access token; try one serialized refresh. If refresh returns 401 `INVALID_REFRESH_TOKEN`, require sign-in. Keep stored credentials on network errors, 429, 500, and 503.
+
 Other validation errors include `error` and sometimes `fields`; requests are tagged with `request_id`. The API never logs passwords, ID tokens, access tokens, or refresh tokens. Configure `GOOGLE_WEB_CLIENT_ID`, `APP_ACCESS_TTL`, `APP_REFRESH_INACTIVITY_TTL`, and `APP_REFRESH_ABSOLUTE_TTL` in the server environment. Defaults are `15m`, `2160h`, and `8760h`. The Android app contains only the public Web client ID. See the generated [OpenAPI contract](openapi.yaml) for all fields and routes.
+
+## Passenger Android integration
+
+Configure the Android app `com.example.ridepassenger2` in Google Cloud with the signing certificate for each build variant. Use the Web OAuth client ID as the ID-token audience. Google Cloud credentials and the backend `GOOGLE_WEB_CLIENT_ID` must refer to that same Web client. The Android app does not use a Google client secret. The server's browser OAuth `GOOGLE_CLIENT_SECRET` is unrelated to this flow. Rotate any client secret that was pasted into a chat or other untrusted location.
+
+With Retrofit, expose the routes above as suspend calls using Moshi DTOs matching the JSON property names exactly (`idToken`, `challengeId`, `refreshToken`, `accessToken`, `expiresIn`, `sessionId`, `onboardingRequired`). Represent `user.phone` and the two user timestamps as nullable. Keep the refresh endpoint on a Retrofit/OkHttp client without the auth interceptor to avoid recursive refresh. A compact interface looks like this:
+
+```kotlin
+interface PassengerAuthApi {
+    @POST("api/v1/auth/google/challenge") suspend fun challenge(@Body body: Map<String, String> = emptyMap()): ChallengeDto
+    @POST("api/v1/auth/google") suspend fun google(@Body body: GoogleExchangeDto): SessionDto
+    @POST("api/v1/auth/refresh") suspend fun refresh(@Body body: RefreshDto): SessionDto
+    @GET("api/v1/me") suspend fun me(@Header("Authorization") bearer: String): MeDto
+    @POST("api/v1/auth/logout") suspend fun logout(@Header("Authorization") bearer: String): MessageDto
+    @POST("api/v1/auth/logout-all") suspend fun logoutAll(@Header("Authorization") bearer: String): MessageDto
+}
+
+data class GoogleExchangeDto(val idToken: String, val challengeId: String)
+data class RefreshDto(val refreshToken: String)
+```
+
+1. On a fresh Google sign-in, request a challenge, request a Google ID token with that exact nonce and the Web client ID, then exchange the ID token plus `challengeId`. Never send a Google access token or authorization code to this endpoint.
+2. Persist the latest Rida refresh token in Android secure storage and keep the access token in memory. On app launch, try refresh with the stored token before showing sign-in. A successful refresh replaces both tokens and the session ID; save the new refresh token before sending further authenticated calls.
+3. Attach `Authorization: Bearer <accessToken>` to protected calls. Serialize refresh attempts across requests and retry a failed protected call at most once with the new access token. A 401 on the refresh call ends the session; a timeout or server failure does not.
+4. For sign-out, call logout or logout-all while the access token is valid, then erase local tokens after success. If the access token has expired, refresh first. Device ID/platform headers may help display sessions but never replace credentials.
+5. Handle `onboardingRequired` explicitly. A new Google passenger has `phone: null` and `phone_verification` until the existing phone OTP flow succeeds; the server currently does not block booking based on that marker.
+
+In production use an HTTPS API URL, with the reverse proxy enforcing TLS and forwarding only to the loopback-bound backend. Do not permit cleartext traffic in the Android release build. For local development, start PostgreSQL, set the required values in a private environment, run `go run ./cmd/migrate up`, then `go run .`; the local HTTP URL is only for development. For the Ubuntu VPS, follow [Docker deployment](../../DOCKER_DEPLOYMENT.md): set the Web client ID in `.env`, run `docker compose config -q`, `docker compose build`, `docker compose up -d db`, `docker compose --profile tools run --rm migrate up`, and `docker compose up -d api`. Inspect `docker compose ps` and `docker compose logs -f --tail=100 api` before pointing the Android release build at the HTTPS domain.

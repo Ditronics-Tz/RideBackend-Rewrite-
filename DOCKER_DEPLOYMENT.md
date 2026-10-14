@@ -14,7 +14,7 @@ The API checks database readiness at `/ready` and exits if the schema is not at
 the embedded Goose migration version. Migrations are a separate, explicit step;
 the API never changes the schema during startup. The migration command takes an
 advisory lock and validates existing schema before applying the next migration.
-The current schema version is 9. The ride dispatch worker also activates due
+The current schema version is 10. The ride dispatch worker also activates due
 scheduled rides; it runs with the API even when optional `RUN_BACKGROUND_JOBS`
 is false. Private support attachments are stored in `uploads_data` with local
 storage and must be included in upload backups.
@@ -62,7 +62,11 @@ Set `CORS_ALLOWED_ORIGINS` to exact browser origins, without paths or wildcard
 characters, for example `https://admin.example.com`. Set `PUBLIC_BASE_URL` to
 the public API URL. Configure the approved `RIDE_*_TZS` values before enabling
 real rides. Leave `STORAGE_DRIVER=local` for named-volume storage, or configure
-all R2 variables before changing it to `r2`. Google OAuth values are optional.
+all R2 variables before changing it to `r2`. Set `GOOGLE_WEB_CLIENT_ID` to the
+Google Web OAuth client ID before enabling passenger Android Google sign-in.
+The Android ID-token flow does not need `GOOGLE_CLIENT_SECRET`; that setting is
+only for the separate browser redirect flow. The Google Web client ID is public,
+but all client secrets and issued tokens must stay out of the repository and app.
 Use a secret manager instead of a plaintext environment file when one is
 available. Docker administrators can inspect container environment variables.
 
