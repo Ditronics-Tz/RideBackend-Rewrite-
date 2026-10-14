@@ -175,6 +175,7 @@ type UserResponse struct {
 	SuspendedUntil  *time.Time `json:"suspended_until"`
 	Phone           string     `json:"phone"`
 	PhoneVerifiedAt *time.Time `json:"phone_verified_at"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 func ToUserResponse(u *User) UserResponse {
@@ -184,7 +185,7 @@ func ToUserResponse(u *User) UserResponse {
 		Email:    u.Email,
 		Role:     u.Role,
 		IsActive: u.IsActive,
-		Status:   u.Status, SuspendedUntil: u.SuspendedUntil, Phone: u.Phone, PhoneVerifiedAt: u.PhoneVerifiedAt,
+		Status:   u.Status, SuspendedUntil: u.SuspendedUntil, Phone: u.Phone, PhoneVerifiedAt: u.PhoneVerifiedAt, CreatedAt: u.CreatedAt,
 	}
 }
 

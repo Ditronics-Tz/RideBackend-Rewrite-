@@ -5,11 +5,13 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"ride-backend/config"
 	"ride-backend/middleware"
 	"ride-backend/models"
+	"ride-backend/notifications"
 	"ride-backend/store"
 
 	"github.com/gofiber/fiber/v2"
@@ -37,7 +39,7 @@ func (ac *AdminController) ListUsers(c *fiber.Ctx) error {
 	if err != nil {
 		return verificationError(c, err)
 	}
-	users, total, err := ac.Store.SearchUsersFiltered(role, c.Query("q"), c.Query("status"), c.Query("verification_status"), p)
+	users, total, err := ac.Store.SearchUsersFiltered(role, c.Query("q"), c.Query("status"), c.Query("verification_status"), c.Query("created_from"), c.Query("created_to"), p)
 	if err != nil {
 		return verificationError(c, err)
 	}
@@ -127,6 +129,113 @@ func (ac *AdminController) GetStats(c *fiber.Ctx) error {
 		"open_tickets":                 openTickets,
 		"open_complaints":              openComplaints,
 	})
+}
+
+// Analytics returns UTC daily account registrations and ride lifecycle counts.
+func (ac *AdminController) Analytics(c *fiber.Ctx) error {
+	const layout = "2006-01-02"
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	to := today
+	if raw := c.Query("to"); raw != "" {
+		parsed, err := time.Parse(layout, raw)
+		if err != nil {
+			return operationError(c, store.FieldError("to", "to must be a UTC date in YYYY-MM-DD format"))
+		}
+		to = parsed.UTC()
+	}
+	from := to.AddDate(0, 0, -29)
+	if raw := c.Query("from"); raw != "" {
+		parsed, err := time.Parse(layout, raw)
+		if err != nil {
+			return operationError(c, store.FieldError("from", "from must be a UTC date in YYYY-MM-DD format"))
+		}
+		from = parsed.UTC()
+	}
+	if from.After(to) || to.Sub(from) > 365*24*time.Hour {
+		return operationError(c, store.FieldError("from", "date range must be ordered and no longer than 366 days"))
+	}
+	until := to.AddDate(0, 0, 1)
+	registrations, err := ac.Store.AdminRegistrationCounts(from, until)
+	if err != nil {
+		return operationError(c, err)
+	}
+	requested, completed, err := ac.Store.AdminRideCounts(from, until)
+	if err != nil {
+		return operationError(c, err)
+	}
+	registrationByDay := map[string]models.DailyRegistrationPoint{}
+	ridesByDay := map[string]models.DailyRidePoint{}
+	for day := from; !day.After(to); day = day.AddDate(0, 0, 1) {
+		key := day.Format(layout)
+		registrationByDay[key] = models.DailyRegistrationPoint{Date: key}
+		ridesByDay[key] = models.DailyRidePoint{Date: key}
+	}
+	totals := models.AdminAnalyticsTotals{}
+	for _, row := range registrations {
+		point, ok := registrationByDay[row.Day]
+		if !ok {
+			continue
+		}
+		switch row.Key {
+		case string(models.RolePassenger):
+			point.Passengers = row.Count
+			totals.Passengers += row.Count
+		case string(models.RoleDriver):
+			point.Drivers = row.Count
+			totals.Drivers += row.Count
+		}
+		registrationByDay[row.Day] = point
+	}
+	for _, row := range requested {
+		point, ok := ridesByDay[row.Day]
+		if !ok {
+			continue
+		}
+		point.Requested += row.Count
+		totals.RideRequests += row.Count
+		ridesByDay[row.Day] = point
+	}
+	for _, row := range completed {
+		point, ok := ridesByDay[row.Day]
+		if !ok {
+			continue
+		}
+		point.Completed += row.Count
+		totals.CompletedRides += row.Count
+		ridesByDay[row.Day] = point
+	}
+	registrationPoints := make([]models.DailyRegistrationPoint, 0, len(registrationByDay))
+	ridePoints := make([]models.DailyRidePoint, 0, len(ridesByDay))
+	for day := from; !day.After(to); day = day.AddDate(0, 0, 1) {
+		key := day.Format(layout)
+		registrationPoints = append(registrationPoints, registrationByDay[key])
+		ridePoints = append(ridePoints, ridesByDay[key])
+	}
+	return c.JSON(models.AdminAnalyticsResponse{From: from.Format(layout), To: to.Format(layout), Registrations: registrationPoints, Rides: ridePoints, Totals: totals})
+}
+
+// NotificationDeliveries shows the privacy-safe notification queue history.
+// The current default sender is a logging stub and does not deliver SMS/push.
+func (ac *AdminController) NotificationDeliveries(c *fiber.Ctx) error {
+	p, err := operationPage(c)
+	if err != nil {
+		return operationError(c, err)
+	}
+	rows, total, counts, err := ac.Store.AdminNotificationDeliveries(c.Query("status"), p)
+	if err != nil {
+		return operationError(c, err)
+	}
+	items := make([]models.NotificationDeliveryResponse, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, models.NotificationDeliveryResponse{ID: row.ID, Template: row.Template, Language: row.Language, Status: row.Status, Attempts: row.Attempts, CreatedAt: row.CreatedAt})
+	}
+	senderMode := "configured"
+	switch ac.Store.Delivery.(type) {
+	case notifications.Logging, *notifications.Logging:
+		senderMode = "logging_stub"
+	}
+	c.Set("Cache-Control", "private, no-store")
+	return c.JSON(models.NotificationDeliveryPage{Notifications: items, Total: total, Limit: p.Limit, Offset: p.Offset, ByStatus: counts, SenderMode: senderMode})
 }
 
 // ListRides — support/admin

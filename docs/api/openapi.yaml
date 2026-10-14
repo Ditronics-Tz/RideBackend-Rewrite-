@@ -77,6 +77,66 @@
         ],
         "type": "object"
       },
+      "AdminAnalyticsResponse": {
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "registrations": {
+            "items": {
+              "$ref": "#/components/schemas/DailyRegistrationPoint"
+            },
+            "type": "array"
+          },
+          "rides": {
+            "items": {
+              "$ref": "#/components/schemas/DailyRidePoint"
+            },
+            "type": "array"
+          },
+          "to": {
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/AdminAnalyticsTotals"
+          }
+        },
+        "required": [
+          "from",
+          "registrations",
+          "rides",
+          "to",
+          "totals"
+        ],
+        "type": "object"
+      },
+      "AdminAnalyticsTotals": {
+        "properties": {
+          "completed_rides": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "drivers": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "passengers": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ride_requests": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "completed_rides",
+          "drivers",
+          "passengers",
+          "ride_requests"
+        ],
+        "type": "object"
+      },
       "AdminCancelRideInput": {
         "properties": {
           "reason": {
@@ -365,6 +425,48 @@
           "category",
           "description",
           "subject"
+        ],
+        "type": "object"
+      },
+      "DailyRegistrationPoint": {
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "drivers": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "passengers": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "drivers",
+          "passengers"
+        ],
+        "type": "object"
+      },
+      "DailyRidePoint": {
+        "properties": {
+          "completed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "date": {
+            "type": "string"
+          },
+          "requested": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "completed",
+          "date",
+          "requested"
         ],
         "type": "object"
       },
@@ -1085,6 +1187,103 @@
         },
         "required": [
           "reason"
+        ],
+        "type": "object"
+      },
+      "NotificationDeliveryCounts": {
+        "properties": {
+          "delivered": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "failed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pending": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "processing": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "delivered",
+          "failed",
+          "pending",
+          "processing"
+        ],
+        "type": "object"
+      },
+      "NotificationDeliveryPage": {
+        "properties": {
+          "by_status": {
+            "$ref": "#/components/schemas/NotificationDeliveryCounts"
+          },
+          "limit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "notifications": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationDeliveryResponse"
+            },
+            "type": "array"
+          },
+          "offset": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sender_mode": {
+            "type": "string"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "by_status",
+          "limit",
+          "notifications",
+          "offset",
+          "sender_mode",
+          "total"
+        ],
+        "type": "object"
+      },
+      "NotificationDeliveryResponse": {
+        "properties": {
+          "attempts": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempts",
+          "created_at",
+          "id",
+          "language",
+          "status",
+          "template"
         ],
         "type": "object"
       },
@@ -2961,6 +3160,10 @@
       },
       "UserResponse": {
         "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
           "email": {
             "type": "string"
           },
@@ -2994,6 +3197,7 @@
           }
         },
         "required": [
+          "created_at",
           "email",
           "id",
           "is_active",
@@ -3535,6 +3739,80 @@
         "x-contract-detail": "route-inventory",
         "x-fiber-path": "/api/v1/account/export-requests/:id/download",
         "x-go-handler": "ride-backend/controllers.(*DataRequestController).DownloadExport"
+      }
+    },
+    "/api/v1/admin/analytics": {
+      "get": {
+        "description": "Daily passenger and driver registrations plus ride requests and completions. Date buckets are UTC and limited to 366 inclusive days. This endpoint reports completed fares neither as collected revenue nor payment settlement.",
+        "operationId": "get_api_v1_admin_analytics",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "description": "Inclusive UTC date YYYY-MM-DD; defaults to the last 30 days.",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "description": "Inclusive UTC date YYYY-MM-DD; defaults to today.",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAnalyticsResponse"
+                }
+              }
+            },
+            "description": "Daily passenger and driver registrations plus ride requests and completions. Date buckets are UTC and limited to 366 inclusive days. This endpoint reports completed fares neither as collected revenue nor payment settlement.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/analytics",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/analytics",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).Analytics"
       }
     },
     "/api/v1/admin/audit-logs": {
@@ -5425,6 +5703,95 @@
         "x-contract-detail": "route-inventory",
         "x-fiber-path": "/api/v1/admin/incidents/:id/:action",
         "x-go-handler": "ride-backend/controllers.(*OperationsController).IncidentAction"
+      }
+    },
+    "/api/v1/admin/notifications": {
+      "get": {
+        "description": "Privacy-safe notification outbox history and status counts. Phone numbers, user IDs and message links are omitted. sender_mode=logging_stub means records are processed by the development logger and are not evidence of external SMS/push delivery.",
+        "operationId": "get_api_v1_admin_notifications",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "processing",
+                "delivered",
+                "failed"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDeliveryPage"
+                }
+              }
+            },
+            "description": "Privacy-safe notification outbox history and status counts. Phone numbers, user IDs and message links are omitted. sender_mode=logging_stub means records are processed by the development logger and are not evidence of external SMS/push delivery.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/notifications",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/notifications",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).NotificationDeliveries"
       }
     },
     "/api/v1/admin/payment-settings": {
@@ -9630,6 +9997,26 @@
             "name": "q",
             "required": false,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive RFC3339 registration start time; results are ordered newest first.",
+            "in": "query",
+            "name": "created_from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive RFC3339 registration end time; must be later than created_from.",
+            "in": "query",
+            "name": "created_to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
               "type": "string"
             }
           }

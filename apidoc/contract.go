@@ -107,6 +107,17 @@ func describeCurrent(route Route, operation, schemas object) {
 		responses["409"] = jsonResponse("Caller already rated this ride or it is not completed.", ref("Error"))
 		return
 	}
+	if path == "/admin/analytics" && route.Method == "GET" {
+		params(query("from", object{"type": "string", "format": "date", "description": "Inclusive UTC date YYYY-MM-DD; defaults to the last 30 days."}), query("to", object{"type": "string", "format": "date", "description": "Inclusive UTC date YYYY-MM-DD; defaults to today."}))
+		set("200", "Daily passenger and driver registrations plus ride requests and completions. Date buckets are UTC and limited to 366 inclusive days. This endpoint reports completed fares neither as collected revenue nor payment settlement.", ref("AdminAnalyticsResponse"))
+		return
+	}
+	if path == "/admin/notifications" && route.Method == "GET" {
+		pagination()
+		params(query("status", object{"type": "string", "enum": []string{"pending", "processing", "delivered", "failed"}}))
+		set("200", "Privacy-safe notification outbox history and status counts. Phone numbers, user IDs and message links are omitted. sender_mode=logging_stub means records are processed by the development logger and are not evidence of external SMS/push delivery.", ref("NotificationDeliveryPage"))
+		return
+	}
 	if path == "/rides/quote" {
 		operation["x-required-role"] = "passenger"
 		set("200", "Return a server fare estimate in TZS from straight-line distance and configured speed. The road route shown by a map provider may differ; this request does not book a driver.", ref("RideQuote"))
@@ -456,6 +467,14 @@ func describeCurrent(route Route, operation, schemas object) {
 			set("200", "Current paged list; existing collection key is preserved alongside total, limit and offset.", response)
 			for _, filter := range detail.filters {
 				parameter := query(filter, scalar("string"))
+				if path == "/admin/users" && (filter == "created_from" || filter == "created_to") {
+					parameter["schema"] = object{"type": "string", "format": "date-time"}
+					if filter == "created_from" {
+						parameter["description"] = "Inclusive RFC3339 registration start time; results are ordered newest first."
+					} else {
+						parameter["description"] = "Inclusive RFC3339 registration end time; must be later than created_from."
+					}
+				}
 				if path == "/admin/data-requests" && filter == "type" {
 					parameter["required"] = true
 					parameter["schema"] = object{"type": "string", "enum": []string{"deletion", "export"}}
@@ -605,7 +624,7 @@ type listContract struct {
 }
 
 var listContracts = map[string]listContract{
-	"/admin/users":                     {"users", ref("UserResponse"), true, []string{"role", "status", "verification_status", "q"}},
+	"/admin/users":                     {"users", ref("UserResponse"), true, []string{"role", "status", "verification_status", "q", "created_from", "created_to"}},
 	"/admin/audit-logs":                {"logs", ref("StaffAuditLog"), false, []string{"q", "action", "actor", "actor_id", "from", "to"}},
 	"/admin/staff":                     {"staff", ref("StaffUserResponse"), true, []string{"q", "role", "status"}},
 	"/admin/verifications":             {"verifications", ref("DriverProfile"), true, []string{"status", "q", "expiring_soon"}},

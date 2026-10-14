@@ -67,6 +67,8 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 	admin.Post("/drivers/:id/documents/:documentId/reviews", supportAndAdmin, ac.ReviewDriverDocument)
 	admin.Patch("/drivers/:id/suspension", supportAndAdmin, ac.SuspendDriverVerification)
 	admin.Get("/stats", supportAndAdmin, ac.GetStats)
+	admin.Get("/analytics", supportAndAdmin, ac.Analytics)
+	admin.Get("/notifications", supportAndAdmin, ac.NotificationDeliveries)
 	admin.Get("/rides", supportAndAdmin, ac.ListRides)
 	admin.Get("/rides/:id", supportAndAdmin, operationIDs, ac.RideDetail)
 	admin.Post("/rides/:id/cancel", supportAndAdmin, operationIDs, ac.CancelRide)

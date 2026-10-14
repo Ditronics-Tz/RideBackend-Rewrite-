@@ -112,3 +112,57 @@ type NotificationDelivery struct {
 	ClaimedAt  *time.Time `json:"claimed_at"`
 	CreatedAt  time.Time  `json:"created_at"`
 }
+
+// NotificationDeliveryResponse excludes recipient identifiers, phone numbers,
+// links and retry internals from the staff delivery monitor.
+type NotificationDeliveryResponse struct {
+	ID        string    `json:"id"`
+	Template  string    `json:"template"`
+	Language  string    `json:"language"`
+	Status    string    `json:"status"`
+	Attempts  int       `json:"attempts"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type NotificationDeliveryCounts struct {
+	Pending    int64 `json:"pending"`
+	Processing int64 `json:"processing"`
+	Delivered  int64 `json:"delivered"`
+	Failed     int64 `json:"failed"`
+}
+
+type NotificationDeliveryPage struct {
+	Notifications []NotificationDeliveryResponse `json:"notifications"`
+	Total         int64                          `json:"total"`
+	Limit         int                            `json:"limit"`
+	Offset        int                            `json:"offset"`
+	ByStatus      NotificationDeliveryCounts     `json:"by_status"`
+	SenderMode    string                         `json:"sender_mode"`
+}
+
+type DailyRegistrationPoint struct {
+	Date       string `json:"date"`
+	Passengers int64  `json:"passengers"`
+	Drivers    int64  `json:"drivers"`
+}
+
+type DailyRidePoint struct {
+	Date      string `json:"date"`
+	Requested int64  `json:"requested"`
+	Completed int64  `json:"completed"`
+}
+
+type AdminAnalyticsTotals struct {
+	Passengers     int64 `json:"passengers"`
+	Drivers        int64 `json:"drivers"`
+	RideRequests   int64 `json:"ride_requests"`
+	CompletedRides int64 `json:"completed_rides"`
+}
+
+type AdminAnalyticsResponse struct {
+	From          string                   `json:"from"`
+	To            string                   `json:"to"`
+	Registrations []DailyRegistrationPoint `json:"registrations"`
+	Rides         []DailyRidePoint         `json:"rides"`
+	Totals        AdminAnalyticsTotals     `json:"totals"`
+}
