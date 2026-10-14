@@ -2,6 +2,7 @@ package routes
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"ride-backend/config"
@@ -25,8 +26,10 @@ func SetupRideRoutes(router fiber.Router, rc *controllers.RideController, cfg *c
 	driver := middleware.RequireAppRoles(models.RoleDriver)
 	participant := middleware.RequireAppRoles(models.RolePassenger, models.RoleDriver)
 	router.Post("/rides", protected, passenger, rideIdempotencyKey, rc.Create)
+	router.Post("/rides/quote", protected, passenger, rc.Quote)
 	router.Get("/rides", protected, participant, rc.List)
 	router.Get("/rides/:id", protected, participant, operationIDs, rc.Detail)
+	router.Get("/rides/:id/driver-location", protected, participant, operationIDs, middleware.WindowLimit(120, time.Minute, func(c *fiber.Ctx) string { uid, _ := middleware.CurrentUser(c); return uid }), rc.DriverLocation)
 	router.Post("/rides/:id/cancel", protected, participant, rideIdempotencyKey, operationIDs, rc.Cancel)
 	router.Get("/driver/offers", protected, driver, rc.Offers)
 	router.Post("/rides/:id/accept", protected, driver, rideIdempotencyKey, operationIDs, rc.Accept)

@@ -54,7 +54,7 @@ func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) 
 		t.Fatal(err)
 	}
 	defer sqlDB.Close()
-	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql", "00007_rides.sql", "00008_support.sql"} {
+	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql", "00007_rides.sql", "00008_support.sql", "00009_mobile_passenger.sql"} {
 		for _, statement := range schemaStatements(t, name) {
 			// SQLite metadata fixtures lack PostgreSQL's ADD COLUMN IF NOT EXISTS.
 			statement = strings.Replace(statement, " ADD COLUMN IF NOT EXISTS ", " ADD COLUMN ", 1)
@@ -74,7 +74,7 @@ func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) 
 			}
 		}
 	}
-	for _, table := range []string{"app_sessions", "app_security_events", "auth_rate_buckets", "oauth_states", "oauth_identities", "ride_events", "driver_locations", "ride_idempotency_keys", "support_tickets", "support_ticket_notes"} {
+	for _, table := range []string{"app_sessions", "app_security_events", "auth_rate_buckets", "oauth_states", "oauth_identities", "ride_events", "driver_locations", "ride_idempotency_keys", "support_tickets", "support_ticket_notes", "saved_places", "passenger_preferences", "scheduled_rides", "support_ticket_messages", "support_ticket_attachments"} {
 		if expected[table] == nil {
 			t.Errorf("latest manifest omits %s", table)
 		}

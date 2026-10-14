@@ -47,3 +47,12 @@ type RideResponse struct {
 	CancelledAt   *time.Time          `json:"cancelled_at,omitempty"`
 	Events        []RideEventResponse `json:"events"`
 }
+
+type RideQuote struct {
+	EstimatedFareTZS         int64  `json:"estimated_fare_tzs"`
+	EstimatedDistanceMeters  int64  `json:"estimated_distance_meters"`
+	EstimatedDurationSeconds int64  `json:"estimated_duration_seconds"`
+	DistanceBasis            string `json:"distance_basis"`
+	Currency                 string `json:"currency"`
+	PaymentMethod            string `json:"payment_method"`
+}

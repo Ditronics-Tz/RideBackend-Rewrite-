@@ -27,6 +27,32 @@ type SupportTicketNote struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// Messages are visible to the ticket owner and active support staff. Internal
+// SupportTicketNote records remain staff-only.
+type SupportTicketMessage struct {
+	ID          string    `json:"id" gorm:"primaryKey;type:uuid"`
+	TicketID    string    `json:"ticket_id" gorm:"type:uuid;not null;index;uniqueIndex:idx_support_message_request,priority:1"`
+	ActorID     string    `json:"actor_id" gorm:"type:uuid;not null;uniqueIndex:idx_support_message_request,priority:2"`
+	ActorType   string    `json:"actor_type" gorm:"size:16;not null"`
+	Body        string    `json:"body" gorm:"type:text;not null"`
+	RequestKey  string    `json:"-" gorm:"size:100;not null;uniqueIndex:idx_support_message_request,priority:3"`
+	RequestHash string    `json:"-" gorm:"size:64;not null"`
+	CreatedAt   time.Time `json:"created_at" gorm:"not null"`
+}
+
+type SupportTicketAttachment struct {
+	ID          string    `json:"id" gorm:"primaryKey;type:uuid"`
+	TicketID    string    `json:"ticket_id" gorm:"type:uuid;not null;index;uniqueIndex:idx_support_attachment_request,priority:1"`
+	UploaderID  string    `json:"-" gorm:"type:uuid;not null;uniqueIndex:idx_support_attachment_request,priority:2"`
+	ActorType   string    `json:"actor_type" gorm:"size:16;not null"`
+	ObjectKey   string    `json:"-" gorm:"type:text;not null"`
+	RequestKey  string    `json:"-" gorm:"size:100;not null;uniqueIndex:idx_support_attachment_request,priority:3"`
+	RequestHash string    `json:"-" gorm:"size:64;not null"`
+	ContentType string    `json:"content_type" gorm:"size:80;not null"`
+	Size        int64     `json:"size" gorm:"not null"`
+	CreatedAt   time.Time `json:"created_at" gorm:"not null"`
+}
+
 type CreateSupportTicketInput struct {
 	Subject     string `json:"subject"`
 	Description string `json:"description"`

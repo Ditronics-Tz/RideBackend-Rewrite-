@@ -3,7 +3,6 @@ package controllers
 import (
 	"encoding/json"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,40 +22,11 @@ func NewRideController(cfg *config.Config, s *store.Store) *RideController {
 }
 
 func (rc *RideController) fare(distanceMeters float64, duration time.Duration) (int64, error) {
-	cfg := rc.Cfg
-	if cfg.RideBaseFareTZS <= 0 || cfg.RidePerKmFareTZS <= 0 || cfg.RidePerMinuteFareTZS <= 0 || cfg.RideEstimatedSpeedKMPH <= 0 {
-		return 0, store.OpError(503, "Ride fares are not configured")
-	}
-	kilometers := math.Ceil(distanceMeters / 1000)
-	minutes := math.Ceil(duration.Minutes())
-	if minutes < 1 {
-		minutes = 1
-	}
-	if kilometers < 0 || minutes < 0 || kilometers > float64(store.MaxMoney) || minutes > float64(store.MaxMoney) {
-		return 0, store.FieldError("fare", "ride exceeds supported fare range")
-	}
-	kmFare, minuteFare := int64(kilometers), int64(minutes)
-	if cfg.RidePerKmFareTZS > 0 && kmFare > (store.MaxMoney-cfg.RideBaseFareTZS)/cfg.RidePerKmFareTZS {
-		return 0, store.FieldError("fare", "ride exceeds supported fare range")
-	}
-	total := cfg.RideBaseFareTZS + kmFare*cfg.RidePerKmFareTZS
-	if cfg.RidePerMinuteFareTZS > 0 && minuteFare > (store.MaxMoney-total)/cfg.RidePerMinuteFareTZS {
-		return 0, store.FieldError("fare", "ride exceeds supported fare range")
-	}
-	total += minuteFare * cfg.RidePerMinuteFareTZS
-	if total <= 0 || total > store.MaxMoney {
-		return 0, store.FieldError("fare", "ride exceeds supported fare range")
-	}
-	return total, nil
+	return store.RideFare(rc.Cfg, distanceMeters, duration)
 }
 
 func (rc *RideController) estimatedFare(distanceMeters float64) (int64, error) {
-	speed := rc.Cfg.RideEstimatedSpeedKMPH
-	if speed <= 0 {
-		return 0, store.OpError(503, "Ride fare estimation is not configured")
-	}
-	minutes := math.Ceil((distanceMeters / 1000) / float64(speed) * 60)
-	return rc.fare(distanceMeters, time.Duration(minutes)*time.Minute)
+	return store.EstimatedRideFare(rc.Cfg, distanceMeters)
 }
 
 func (rc *RideController) RideResponse(c *fiber.Ctx, ride *models.Ride) (*models.RideResponse, error) {
@@ -105,23 +75,11 @@ func (rc *RideController) Create(c *fiber.Ctx) error {
 	if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
 		return fiber.NewError(400, "Invalid ride request")
 	}
-	input.Pickup.Address = strings.TrimSpace(input.Pickup.Address)
-	input.Dropoff.Address = strings.TrimSpace(input.Dropoff.Address)
-	input.VehicleType = strings.TrimSpace(input.VehicleType)
-	if input.Pickup.Address == "" || len([]rune(input.Pickup.Address)) > 250 || input.Dropoff.Address == "" || len([]rune(input.Dropoff.Address)) > 250 {
-		return operationError(c, store.FieldError("address", "pickup and dropoff addresses must contain 1-250 characters"))
-	}
-	for name, point := range map[string]models.RidePoint{"pickup": input.Pickup, "dropoff": input.Dropoff} {
-		if point.Lat < -90 || point.Lat > 90 || point.Lng < -180 || point.Lng > 180 {
-			return operationError(c, store.FieldError(name, "latitude or longitude is outside the supported range"))
-		}
-	}
-	if len([]rune(input.VehicleType)) > 50 {
-		return operationError(c, store.FieldError("vehicle_type", "vehicle type must be at most 50 characters"))
-	}
-	distance := store.RideDistanceMeters(input.Pickup.Lat, input.Pickup.Lng, input.Dropoff.Lat, input.Dropoff.Lng)
-	if distance < 1 {
-		return operationError(c, store.FieldError("dropoff", "pickup and dropoff must be different locations"))
+	var distance float64
+	var err error
+	input, distance, err = store.ValidateRideInput(input)
+	if err != nil {
+		return operationError(c, err)
 	}
 	fare, err := rc.estimatedFare(distance)
 	if err != nil {
@@ -136,6 +94,40 @@ func (rc *RideController) Create(c *fiber.Ctx) error {
 		return operationError(c, err)
 	}
 	return c.Status(201).JSON(response)
+}
+
+func (rc *RideController) Quote(c *fiber.Ctx) error {
+	var input models.CreateRideInput
+	if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
+		return fiber.NewError(400, "Invalid ride quote request")
+	}
+	_, distance, err := store.ValidateRideInput(input)
+	if err != nil {
+		return operationError(c, err)
+	}
+	duration, err := store.EstimatedRideDuration(rc.Cfg, distance)
+	if err != nil {
+		return operationError(c, err)
+	}
+	fare, err := rc.fare(distance, duration)
+	if err != nil {
+		return operationError(c, err)
+	}
+	c.Set("Cache-Control", "no-store")
+	return c.JSON(models.RideQuote{EstimatedFareTZS: fare, EstimatedDistanceMeters: int64(math.Ceil(distance)), EstimatedDurationSeconds: int64(duration.Seconds()), DistanceBasis: "straight_line", Currency: "TZS", PaymentMethod: "cash"})
+}
+
+func (rc *RideController) DriverLocation(c *fiber.Ctx) error {
+	uid, _ := middleware.CurrentUser(c)
+	location, err := rc.Store.CurrentRideDriverLocation(c.UserContext(), c.Params("id"), uid)
+	if err != nil {
+		return operationError(c, err)
+	}
+	c.Set("Cache-Control", "no-store")
+	if location == nil {
+		return c.SendStatus(204)
+	}
+	return c.JSON(location)
 }
 
 func (rc *RideController) Cancel(c *fiber.Ctx) error {

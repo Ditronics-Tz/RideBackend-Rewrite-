@@ -11,3 +11,4 @@
 | B7 | done | ship/be-b7-rides | Server-authoritative ride lifecycle, dispatch worker, participant reads, driver availability/location, generated contracts and route guards; local tests/vet/build/vulnerability scan pass; opt-in PostgreSQL concurrency test added, service not configured locally |
 | B8 | done | ship/be-b8-support | Persisted support tickets, staff ticket workflow, support/admin ride operations and live counts, ride-bound ratings/admin moderation; local checks pass |
 | B9 | done | ship/be-b8-support | Generated OpenAPI and route inventory checks; PostgreSQL service enables opt-in integration suites in CI; hosted CI run remains pending |
+| Mobile passenger API | implemented locally | ship/be-b8-support | Saved places, preferences, schedules with dispatch, quotes, participant driver location, and support conversations/attachments; migration 9 and API contract added; PostgreSQL deployment validation remains pending |

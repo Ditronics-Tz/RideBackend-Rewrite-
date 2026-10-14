@@ -1,0 +1,71 @@
+{
+  "saved_places": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"user_id","type":"uuid","not_null":true},
+    {"name":"kind","type":"varchar(16)","not_null":true},
+    {"name":"label","type":"varchar(80)","not_null":true},
+    {"name":"address","type":"varchar(250)","not_null":true},
+    {"name":"lat","type":"numeric","not_null":true},
+    {"name":"lng","type":"numeric","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true},
+    {"name":"updated_at","type":"timestamptz","not_null":true}
+  ],
+  "passenger_preferences": [
+    {"name":"user_id","type":"uuid","primary":true,"not_null":true},
+    {"name":"quiet_ride","type":"boolean","not_null":true},
+    {"name":"extra_pickup_time","type":"boolean","not_null":true},
+    {"name":"share_trip_status","type":"boolean","not_null":true},
+    {"name":"precise_location","type":"boolean","not_null":true},
+    {"name":"ride_updates","type":"boolean","not_null":true},
+    {"name":"trip_messages","type":"boolean","not_null":true},
+    {"name":"promotions","type":"boolean","not_null":true},
+    {"name":"email_enabled","type":"boolean","not_null":true},
+    {"name":"sms_enabled","type":"boolean","not_null":true},
+    {"name":"push_enabled","type":"boolean","not_null":true},
+    {"name":"language","type":"varchar(8)","not_null":true},
+    {"name":"updated_at","type":"timestamptz","not_null":true}
+  ],
+  "scheduled_rides": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"passenger_id","type":"uuid","not_null":true},
+    {"name":"pickup_address","type":"varchar(250)","not_null":true},
+    {"name":"pickup_lat","type":"numeric","not_null":true},
+    {"name":"pickup_lng","type":"numeric","not_null":true},
+    {"name":"dropoff_address","type":"varchar(250)","not_null":true},
+    {"name":"dropoff_lat","type":"numeric","not_null":true},
+    {"name":"dropoff_lng","type":"numeric","not_null":true},
+    {"name":"vehicle_type","type":"varchar(50)","not_null":true},
+    {"name":"scheduled_for","type":"timestamptz","not_null":true},
+    {"name":"status","type":"varchar(24)","not_null":true},
+    {"name":"ride_id","type":"uuid"},
+    {"name":"failure_code","type":"varchar(40)","not_null":true},
+    {"name":"request_key","type":"varchar(100)","not_null":true},
+    {"name":"request_hash","type":"varchar(64)","not_null":true},
+    {"name":"claimed_until","type":"timestamptz"},
+    {"name":"attempt_count","type":"bigint","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true},
+    {"name":"updated_at","type":"timestamptz","not_null":true}
+  ],
+  "support_ticket_messages": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"ticket_id","type":"uuid","not_null":true},
+    {"name":"actor_id","type":"uuid","not_null":true},
+    {"name":"actor_type","type":"varchar(16)","not_null":true},
+    {"name":"body","type":"text","not_null":true},
+    {"name":"request_key","type":"varchar(100)","not_null":true},
+    {"name":"request_hash","type":"varchar(64)","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true}
+  ],
+  "support_ticket_attachments": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"ticket_id","type":"uuid","not_null":true},
+    {"name":"uploader_id","type":"uuid","not_null":true},
+    {"name":"actor_type","type":"varchar(16)","not_null":true},
+    {"name":"object_key","type":"text","not_null":true},
+    {"name":"request_key","type":"varchar(100)","not_null":true},
+    {"name":"request_hash","type":"varchar(64)","not_null":true},
+    {"name":"content_type","type":"varchar(80)","not_null":true},
+    {"name":"size","type":"bigint","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true}
+  ]
+}

@@ -23,6 +23,11 @@ func init() {
 			}
 			count += n
 		}
+		var attachments int64
+		if err := s.db.Model(&models.SupportTicketAttachment{}).Where("ticket_id IN (?)", s.db.Model(&models.SupportTicket{}).Select("id").Where("user_id = ?", id)).Where("object_key <> ''").Count(&attachments).Error; err != nil {
+			return nil, err
+		}
+		count += attachments
 		if count > 0 {
 			return []string{"object storage cleanup/export adapter requires operator review"}, nil
 		}

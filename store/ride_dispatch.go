@@ -592,6 +592,27 @@ func (s *Store) GetRideForParticipant(ctx context.Context, rideID, userID string
 	return &ride, nil
 }
 
+// CurrentRideDriverLocation is available only to the active ride's parties.
+// Old points and ended rides return no location, so a mobile pin cannot linger.
+func (s *Store) CurrentRideDriverLocation(ctx context.Context, rideID, userID string) (*models.DriverLocation, error) {
+	ride, err := s.GetRideForParticipant(ctx, rideID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if ride.DriverID == models.UnassignedRideDriverID || ride.Status != "assigned" && ride.Status != "driver_arrived" && ride.Status != "in_progress" {
+		return nil, nil
+	}
+	var point models.DriverLocation
+	err = s.db.WithContext(ctx).Where("driver_id = ? AND updated_at >= ?", ride.DriverID, s.now().Add(-2*time.Minute)).First(&point).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, OpError(503, "Driver location unavailable")
+	}
+	return &point, nil
+}
+
 func (s *Store) ListRidesForParticipant(ctx context.Context, userID, status string, from, to *time.Time, page Page) ([]models.Ride, int64, error) {
 	if page.Limit == 0 {
 		page.Limit = 50

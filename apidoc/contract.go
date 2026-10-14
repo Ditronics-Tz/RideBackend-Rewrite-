@@ -53,7 +53,7 @@ func Generate() ([]byte, error) {
 		describeCurrent(route, operation, component["schemas"].(object))
 		path[strings.ToLower(route.Method)] = operation
 	}
-	document := object{"openapi": "3.0.3", "info": object{"title": "Rida Backend API", "version": "1.0.0", "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3-B8 storage, runtime, auth, rides and persisted support contracts are expanded; remaining modules have route inventory entries. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0."}, "servers": []any{object{"url": "/"}}, "paths": paths, "components": component, "x-inventory-exclusions": []string{"Fiber Use middleware registrations (GetRoutes(true))", "Implicit framework HEAD mirrors", "Framework OPTIONS/CORS preflight registrations"}}
+	document := object{"openapi": "3.0.3", "info": object{"title": "Rida Backend API", "version": "1.0.0", "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0. Mobile passenger contracts include saved places, preferences, schedules, cash fare quotes, driver location and support conversations."}, "servers": []any{object{"url": "/"}}, "paths": paths, "components": component, "x-inventory-exclusions": []string{"Fiber Use middleware registrations (GetRoutes(true))", "Implicit framework HEAD mirrors", "Framework OPTIONS/CORS preflight registrations"}}
 	encoded, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return nil, err
@@ -105,6 +105,20 @@ func describeCurrent(route Route, operation, schemas object) {
 		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("RateRideInput")}}}
 		responses["403"] = jsonResponse("Caller is not a participant in this completed ride.", ref("Error"))
 		responses["409"] = jsonResponse("Caller already rated this ride or it is not completed.", ref("Error"))
+		return
+	}
+	if path == "/rides/quote" {
+		operation["x-required-role"] = "passenger"
+		set("200", "Return a server fare estimate in TZS from straight-line distance and configured speed. The road route shown by a map provider may differ; this request does not book a driver.", ref("RideQuote"))
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("CreateRideInput")}}}
+		responses["503"] = jsonResponse("Fare rates are not configured.", ref("Error"))
+		return
+	}
+	if path == "/rides/:id/driver-location" {
+		operation["x-required-role"] = "active ride participant"
+		set("200", "Return the assigned driver's location only while the ride is active and the point is at most two minutes old.", ref("DriverLocation"))
+		responses["204"] = object{"description": "No current assigned driver location; clear the mobile map pin."}
+		responses["404"] = jsonResponse("Ride is not visible to this participant.", ref("Error"))
 		return
 	}
 	if (strings.HasPrefix(path, "/rides") && !strings.Contains(path, ":rideId") && path != "/rides/:id/rating") || path == "/driver/offers" || path == "/driver/availability" || path == "/driver/location" {
@@ -256,6 +270,78 @@ func describeCurrent(route Route, operation, schemas object) {
 	if path == "/support/tickets" && route.Method == "GET" {
 		pagination()
 		set("200", "List only support tickets created by the authenticated user.", ref("SupportTicketPage"))
+		return
+	}
+	if path == "/passenger/saved-places" {
+		operation["x-required-role"] = "passenger"
+		if route.Method == "GET" {
+			set("200", "Return only this passenger's saved Home, Work and custom coordinate places (maximum 20).", ref("SavedPlaces"))
+		} else {
+			set("201", "Create a saved coordinate place. Home and Work each allow one entry.", ref("SavedPlace"))
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("SavedPlaceInput")}}}
+		}
+		return
+	}
+	if path == "/passenger/saved-places/:id" {
+		operation["x-required-role"] = "owning passenger"
+		if route.Method == "PUT" {
+			set("200", "Replace this passenger's saved place.", ref("SavedPlace"))
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("SavedPlaceInput")}}}
+		} else {
+			delete(responses, "2XX")
+			responses["204"] = object{"description": "Saved place removed."}
+			operation["x-contract-detail"] = "expanded"
+		}
+		return
+	}
+	if path == "/passenger/preferences" {
+		operation["x-required-role"] = "passenger"
+		set("200", "Return or update this passenger's ride, communication and language preferences. These values persist, but external push and email delivery still need provider integration.", ref("PassengerPreferences"))
+		if route.Method == "PATCH" {
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("PreferencesPatch")}}}
+		}
+		return
+	}
+	if path == "/scheduled-rides" {
+		operation["x-required-role"] = "passenger"
+		if route.Method == "POST" {
+			params(object{"name": "Idempotency-Key", "in": "header", "required": true, "schema": object{"type": "string", "minLength": 8, "maxLength": 100}})
+			set("201", "Reserve a ride for 5 minutes to 30 days ahead. The server attempts ordinary dispatch at the scheduled time.", ref("ScheduledRideResponse"))
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("ScheduledRideInput")}}}
+		} else {
+			pagination()
+			params(query("status", object{"type": "string", "enum": []string{"upcoming", "scheduled", "dispatching", "dispatched", "failed", "cancelled"}}))
+			set("200", "List this passenger's persisted schedules and dispatch outcomes.", ref("ScheduledRidePage"))
+		}
+		return
+	}
+	if path == "/scheduled-rides/:id" || path == "/scheduled-rides/:id/cancel" {
+		operation["x-required-role"] = "owning passenger"
+		set("200", "Return the passenger's scheduled ride; cancellation succeeds only before dispatch begins.", ref("ScheduledRideResponse"))
+		responses["409"] = jsonResponse("Schedule dispatch has already started.", ref("Error"))
+		return
+	}
+	if path == "/support/tickets/:id" || strings.HasSuffix(path, "/tickets/:id/messages") {
+		if route.Method == "POST" {
+			params(object{"name": "Idempotency-Key", "in": "header", "required": true, "schema": object{"type": "string", "minLength": 8, "maxLength": 100}})
+			set("201", "Append a public ticket reply. App user replies reopen resolved tickets; staff replies are audit logged. Internal staff notes are never included.", ref("SupportTicketMessage"))
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": ref("TicketMessageInput")}}}
+		} else {
+			pagination()
+			set("200", "Return the owner or staff ticket conversation, paged messages and private attachment metadata. Internal staff notes are excluded.", ref("TicketConversation"))
+		}
+		return
+	}
+	if strings.Contains(path, "/tickets/:id/attachments") {
+		if route.Method == "POST" {
+			params(object{"name": "Idempotency-Key", "in": "header", "required": true, "schema": object{"type": "string", "minLength": 8, "maxLength": 100}})
+			set("201", "Upload an owner or staff scoped private JPEG, PNG or PDF attachment, at most 5 MiB and 10 per ticket.", ref("SupportTicketAttachment"))
+			operation["requestBody"] = multipart(properties(object{"file": object{"type": "string", "format": "binary"}}, "file"))
+		} else {
+			delete(responses, "2XX")
+			responses["200"] = object{"description": "Private attachment bytes; owner or active staff only.", "content": object{"application/octet-stream": object{"schema": object{"type": "string", "format": "binary"}}}}
+			operation["x-contract-detail"] = "expanded"
+		}
 		return
 	}
 	if path == "/admin/rides" && route.Method == "GET" {

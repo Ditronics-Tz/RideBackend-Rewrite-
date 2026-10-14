@@ -69,6 +69,8 @@ func AutoMigrateModels() []interface{} {
 		&models.AccountDeletionRequest{}, &models.DataExportRequest{},
 		&models.Ride{}, &models.UserBlock{}, &models.Report{}, &models.ReportNote{}, &models.AccountFlag{}, &models.NotificationDelivery{},
 		&models.SupportTicket{}, &models.SupportTicketNote{},
+		&models.SupportTicketMessage{}, &models.SupportTicketAttachment{},
+		&models.SavedPlace{}, &models.PassengerPreferences{}, &models.ScheduledRide{},
 		&models.RideEvent{}, &models.DriverLocation{}, &models.RideIdempotencyKey{},
 		&models.UserDevice{}, &models.RideLocationPoint{}, &models.FraudFlag{}, &models.FraudRule{}, &models.FraudAction{}, &models.FraudNote{}, &models.FraudMitigation{}, &models.FraudEvent{},
 		&models.Wallet{}, &models.LedgerEntry{}, &models.PaymentTransaction{}, &models.CommissionRule{}, &models.PaymentSettings{}, &models.DriverPayout{}, &models.Refund{}, &models.WebhookEvent{}, &models.ReconciliationRun{}, &models.ReconciliationException{},

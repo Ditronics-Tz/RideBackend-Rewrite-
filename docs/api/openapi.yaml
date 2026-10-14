@@ -511,6 +511,38 @@
         ],
         "type": "object"
       },
+      "DriverLocation": {
+        "properties": {
+          "accuracy": {
+            "format": "double",
+            "type": "number"
+          },
+          "driver_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lat": {
+            "format": "double",
+            "type": "number"
+          },
+          "lng": {
+            "format": "double",
+            "type": "number"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accuracy",
+          "driver_id",
+          "lat",
+          "lng",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "DriverLocationInput": {
         "properties": {
           "accuracy": {
@@ -967,6 +999,62 @@
         ],
         "type": "object"
       },
+      "PassengerPreferences": {
+        "properties": {
+          "email_enabled": {
+            "type": "boolean"
+          },
+          "extra_pickup_time": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": "string"
+          },
+          "precise_location": {
+            "type": "boolean"
+          },
+          "promotions": {
+            "type": "boolean"
+          },
+          "push_enabled": {
+            "type": "boolean"
+          },
+          "quiet_ride": {
+            "type": "boolean"
+          },
+          "ride_updates": {
+            "type": "boolean"
+          },
+          "share_trip_status": {
+            "type": "boolean"
+          },
+          "sms_enabled": {
+            "type": "boolean"
+          },
+          "trip_messages": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email_enabled",
+          "extra_pickup_time",
+          "language",
+          "precise_location",
+          "promotions",
+          "push_enabled",
+          "quiet_ride",
+          "ride_updates",
+          "share_trip_status",
+          "sms_enabled",
+          "trip_messages",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "PassengerProfile": {
         "properties": {
           "average_rating": {
@@ -1104,6 +1192,48 @@
           "status",
           "updated_at"
         ],
+        "type": "object"
+      },
+      "PreferencesPatch": {
+        "properties": {
+          "email_enabled": {
+            "type": "boolean"
+          },
+          "extra_pickup_time": {
+            "type": "boolean"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "sw"
+            ],
+            "type": "string"
+          },
+          "precise_location": {
+            "type": "boolean"
+          },
+          "promotions": {
+            "type": "boolean"
+          },
+          "push_enabled": {
+            "type": "boolean"
+          },
+          "quiet_ride": {
+            "type": "boolean"
+          },
+          "ride_updates": {
+            "type": "boolean"
+          },
+          "share_trip_status": {
+            "type": "boolean"
+          },
+          "sms_enabled": {
+            "type": "boolean"
+          },
+          "trip_messages": {
+            "type": "boolean"
+          }
+        },
         "type": "object"
       },
       "PresignDocumentInput": {
@@ -1950,6 +2080,40 @@
         ],
         "type": "object"
       },
+      "RideQuote": {
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "distance_basis": {
+            "type": "string"
+          },
+          "estimated_distance_meters": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "estimated_duration_seconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "estimated_fare_tzs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "payment_method": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "distance_basis",
+          "estimated_distance_meters",
+          "estimated_duration_seconds",
+          "estimated_fare_tzs",
+          "payment_method"
+        ],
+        "type": "object"
+      },
       "RideResponse": {
         "properties": {
           "accepted_at": {
@@ -2030,6 +2194,192 @@
           "id",
           "passenger",
           "pickup",
+          "status",
+          "vehicle_type"
+        ],
+        "type": "object"
+      },
+      "SavedPlace": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "lat": {
+            "format": "double",
+            "type": "number"
+          },
+          "lng": {
+            "format": "double",
+            "type": "number"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "created_at",
+          "id",
+          "kind",
+          "label",
+          "lat",
+          "lng",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "SavedPlaceInput": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "lat": {
+            "format": "double",
+            "type": "number"
+          },
+          "lng": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "address",
+          "kind",
+          "label",
+          "lat",
+          "lng"
+        ],
+        "type": "object"
+      },
+      "SavedPlaces": {
+        "properties": {
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/SavedPlace"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "places"
+        ],
+        "type": "object"
+      },
+      "ScheduledRideInput": {
+        "properties": {
+          "dropoff": {
+            "$ref": "#/components/schemas/RidePoint"
+          },
+          "pickup": {
+            "$ref": "#/components/schemas/RidePoint"
+          },
+          "scheduled_for": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "vehicle_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dropoff",
+          "pickup",
+          "scheduled_for",
+          "vehicle_type"
+        ],
+        "type": "object"
+      },
+      "ScheduledRidePage": {
+        "properties": {
+          "limit": {
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "scheduled_rides": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduledRideResponse"
+            },
+            "type": "array"
+          },
+          "total": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "offset",
+          "scheduled_rides",
+          "total"
+        ],
+        "type": "object"
+      },
+      "ScheduledRideResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dropoff": {
+            "$ref": "#/components/schemas/RidePoint"
+          },
+          "failure_code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "pickup": {
+            "$ref": "#/components/schemas/RidePoint"
+          },
+          "ride_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "scheduled_for": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "vehicle_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "dropoff",
+          "id",
+          "pickup",
+          "scheduled_for",
           "status",
           "vehicle_type"
         ],
@@ -2297,6 +2647,41 @@
         ],
         "type": "object"
       },
+      "SupportTicketAttachment": {
+        "properties": {
+          "actor_type": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ticket_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor_type",
+          "content_type",
+          "created_at",
+          "id",
+          "size",
+          "ticket_id"
+        ],
+        "type": "object"
+      },
       "SupportTicketDetail": {
         "properties": {
           "notes": {
@@ -2317,6 +2702,41 @@
           "notes",
           "notes_total",
           "ticket"
+        ],
+        "type": "object"
+      },
+      "SupportTicketMessage": {
+        "properties": {
+          "actor_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "actor_type": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "ticket_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor_id",
+          "actor_type",
+          "body",
+          "created_at",
+          "id",
+          "ticket_id"
         ],
         "type": "object"
       },
@@ -2375,6 +2795,56 @@
           "offset",
           "tickets",
           "total"
+        ],
+        "type": "object"
+      },
+      "TicketConversation": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/SupportTicketAttachment"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/SupportTicketMessage"
+            },
+            "type": "array"
+          },
+          "messages_total": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "ticket": {
+            "$ref": "#/components/schemas/SupportTicket"
+          }
+        },
+        "required": [
+          "attachments",
+          "limit",
+          "messages",
+          "messages_total",
+          "offset",
+          "ticket"
+        ],
+        "type": "object"
+      },
+      "TicketMessageInput": {
+        "properties": {
+          "body": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
         ],
         "type": "object"
       },
@@ -2655,7 +3125,7 @@
     "securitySchemes": {
       "AppBearer": {
         "bearerFormat": "JWT",
-        "description": "App realm access token for passenger or driver. Staff tokens are rejected. Current B4 app login returns token; app refresh/session endpoints are not yet implemented.",
+        "description": "App realm access token for passenger or driver. Staff tokens are rejected. Refresh and session revocation endpoints are available.",
         "scheme": "bearer",
         "type": "http"
       },
@@ -2674,7 +3144,7 @@
     }
   },
   "info": {
-    "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. B3-B8 storage, runtime, auth, rides and persisted support contracts are expanded; remaining modules have route inventory entries. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0.",
+    "description": "Current Fiber routes. Generated offline with go run ./cmd/generate-openapi. Authentication uses separate app and staff bearer realms. Error JSON includes a request_id and optional fields. Paged endpoints use limit default 50, maximum 200, offset default 0. Mobile passenger contracts include saved places, preferences, schedules, cash fare quotes, driver location and support conversations.",
     "title": "Rida Backend API",
     "version": "1.0.0"
   },
@@ -8682,6 +9152,329 @@
         "x-go-handler": "ride-backend/controllers.(*AdminController).UpdateTicket"
       }
     },
+    "/api/v1/admin/tickets/{id}/attachments": {
+      "post": {
+        "description": "Upload an owner or staff scoped private JPEG, PNG or PDF attachment, at most 5 MiB and 10 per ticket.",
+        "operationId": "post_api_v1_admin_tickets_id_attachments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 8,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicketAttachment"
+                }
+              }
+            },
+            "description": "Upload an owner or staff scoped private JPEG, PNG or PDF attachment, at most 5 MiB and 10 per ticket.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/tickets/{id}/attachments",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/tickets/:id/attachments",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketAttachment"
+      }
+    },
+    "/api/v1/admin/tickets/{id}/attachments/{attachmentId}": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_admin_tickets_id_attachments_attachmentid",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachmentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Private attachment bytes; owner or active staff only."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/tickets/{id}/attachments/{attachmentId}",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/tickets/:id/attachments/:attachmentId",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketAttachment"
+      }
+    },
+    "/api/v1/admin/tickets/{id}/messages": {
+      "get": {
+        "description": "Return the owner or staff ticket conversation, paged messages and private attachment metadata. Internal staff notes are excluded.",
+        "operationId": "get_api_v1_admin_tickets_id_messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketConversation"
+                }
+              }
+            },
+            "description": "Return the owner or staff ticket conversation, paged messages and private attachment metadata. Internal staff notes are excluded.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/tickets/{id}/messages",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/tickets/:id/messages",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketConversation"
+      },
+      "post": {
+        "description": "Append a public ticket reply. App user replies reopen resolved tickets; staff replies are audit logged. Internal staff notes are never included.",
+        "operationId": "post_api_v1_admin_tickets_id_messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 8,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketMessageInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicketMessage"
+                }
+              }
+            },
+            "description": "Append a public ticket reply. App user replies reopen resolved tickets; staff replies are audit logged. Internal staff notes are never included.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/tickets/{id}/messages",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/tickets/:id/messages",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketMessage"
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "description": "Current paged list; existing collection key is preserved alongside total, limit and offset.",
@@ -13151,6 +13944,116 @@
         "x-go-handler": "ride-backend/controllers.(*OperationsController).IncidentAttachment"
       }
     },
+    "/api/v1/passenger/preferences": {
+      "get": {
+        "description": "Return or update this passenger's ride, communication and language preferences. These values persist, but external push and email delivery still need provider integration.",
+        "operationId": "get_api_v1_passenger_preferences",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassengerPreferences"
+                }
+              }
+            },
+            "description": "Return or update this passenger's ride, communication and language preferences. These values persist, but external push and email delivery still need provider integration.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/passenger/preferences",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/passenger/preferences",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).Preferences",
+        "x-required-role": "passenger"
+      },
+      "patch": {
+        "description": "Return or update this passenger's ride, communication and language preferences. These values persist, but external push and email delivery still need provider integration.",
+        "operationId": "patch_api_v1_passenger_preferences",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassengerPreferences"
+                }
+              }
+            },
+            "description": "Return or update this passenger's ride, communication and language preferences. These values persist, but external push and email delivery still need provider integration.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "PATCH /api/v1/passenger/preferences",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/passenger/preferences",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).Preferences",
+        "x-required-role": "passenger"
+      }
+    },
     "/api/v1/passenger/profile/me": {
       "get": {
         "description": "Current profile response.",
@@ -13376,6 +14279,230 @@
         "x-fiber-path": "/api/v1/passenger/profile/:userId",
         "x-go-handler": "ride-backend/controllers.(*ProfileController).GetPassengerProfileByID",
         "x-privacy-contract": "public DTO for other users; full profile for owner"
+      }
+    },
+    "/api/v1/passenger/saved-places": {
+      "get": {
+        "description": "Return only this passenger's saved Home, Work and custom coordinate places (maximum 20).",
+        "operationId": "get_api_v1_passenger_saved_places",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedPlaces"
+                }
+              }
+            },
+            "description": "Return only this passenger's saved Home, Work and custom coordinate places (maximum 20).",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/passenger/saved-places",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/passenger/saved-places",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).SavedPlaces",
+        "x-required-role": "passenger"
+      },
+      "post": {
+        "description": "Create a saved coordinate place. Home and Work each allow one entry.",
+        "operationId": "post_api_v1_passenger_saved_places",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedPlaceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedPlace"
+                }
+              }
+            },
+            "description": "Create a saved coordinate place. Home and Work each allow one entry.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/passenger/saved-places",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/passenger/saved-places",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).SavedPlaces",
+        "x-required-role": "passenger"
+      }
+    },
+    "/api/v1/passenger/saved-places/{id}": {
+      "delete": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "delete_api_v1_passenger_saved_places_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved place removed."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "DELETE /api/v1/passenger/saved-places/{id}",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/passenger/saved-places/:id",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).DeleteSavedPlace",
+        "x-required-role": "owning passenger"
+      },
+      "put": {
+        "description": "Replace this passenger's saved place.",
+        "operationId": "put_api_v1_passenger_saved_places_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedPlaceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedPlace"
+                }
+              }
+            },
+            "description": "Replace this passenger's saved place.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "PUT /api/v1/passenger/saved-places/{id}",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/passenger/saved-places/:id",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).SavedPlaces",
+        "x-required-role": "owning passenger"
       }
     },
     "/api/v1/payments": {
@@ -14339,6 +15466,84 @@
         "x-required-role": "passenger"
       }
     },
+    "/api/v1/rides/quote": {
+      "post": {
+        "description": "Return a server fare estimate in TZS from straight-line distance and configured speed. The road route shown by a map provider may differ; this request does not book a driver.",
+        "operationId": "post_api_v1_rides_quote",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRideInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideQuote"
+                }
+              }
+            },
+            "description": "Return a server fare estimate in TZS from straight-line distance and configured speed. The road route shown by a map provider may differ; this request does not book a driver.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Fare rates are not configured.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/rides/quote",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/rides/quote",
+        "x-go-handler": "ride-backend/controllers.(*RideController).Quote",
+        "x-required-role": "passenger"
+      }
+    },
     "/api/v1/rides/{id}": {
       "get": {
         "description": "Return the ride and event timeline only to its passenger or assigned driver.",
@@ -14861,6 +16066,86 @@
         "x-required-role": "driver"
       }
     },
+    "/api/v1/rides/{id}/driver-location": {
+      "get": {
+        "description": "Return the assigned driver's location only while the ride is active and the point is at most two minutes old.",
+        "operationId": "get_api_v1_rides_id_driver_location",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverLocation"
+                }
+              }
+            },
+            "description": "Return the assigned driver's location only while the ride is active and the point is at most two minutes old.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No current assigned driver location; clear the mobile map pin."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Ride is not visible to this participant.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/rides/{id}/driver-location",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/rides/:id/driver-location",
+        "x-go-handler": "ride-backend/controllers.(*RideController).DriverLocation",
+        "x-required-role": "active ride participant"
+      }
+    },
     "/api/v1/rides/{id}/rating": {
       "post": {
         "description": "A passenger or driver who participated in this completed ride may rate the other participant once.",
@@ -15279,6 +16564,317 @@
         "x-contract-detail": "route-inventory",
         "x-fiber-path": "/api/v1/rides/:rideId/sos",
         "x-go-handler": "ride-backend/controllers.(*OperationsController).AppSOS"
+      }
+    },
+    "/api/v1/scheduled-rides": {
+      "get": {
+        "description": "List this passenger's persisted schedules and dispatch outcomes.",
+        "operationId": "get_api_v1_scheduled_rides",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "upcoming",
+                "scheduled",
+                "dispatching",
+                "dispatched",
+                "failed",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledRidePage"
+                }
+              }
+            },
+            "description": "List this passenger's persisted schedules and dispatch outcomes.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/scheduled-rides",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/scheduled-rides",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).ScheduledRides",
+        "x-required-role": "passenger"
+      },
+      "post": {
+        "description": "Reserve a ride for 5 minutes to 30 days ahead. The server attempts ordinary dispatch at the scheduled time.",
+        "operationId": "post_api_v1_scheduled_rides",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 8,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledRideInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledRideResponse"
+                }
+              }
+            },
+            "description": "Reserve a ride for 5 minutes to 30 days ahead. The server attempts ordinary dispatch at the scheduled time.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/scheduled-rides",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/scheduled-rides",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).ScheduledRides",
+        "x-required-role": "passenger"
+      }
+    },
+    "/api/v1/scheduled-rides/{id}": {
+      "get": {
+        "description": "Return the passenger's scheduled ride; cancellation succeeds only before dispatch begins.",
+        "operationId": "get_api_v1_scheduled_rides_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledRideResponse"
+                }
+              }
+            },
+            "description": "Return the passenger's scheduled ride; cancellation succeeds only before dispatch begins.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Schedule dispatch has already started.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/scheduled-rides/{id}",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/scheduled-rides/:id",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).ScheduledRide",
+        "x-required-role": "owning passenger"
+      }
+    },
+    "/api/v1/scheduled-rides/{id}/cancel": {
+      "post": {
+        "description": "Return the passenger's scheduled ride; cancellation succeeds only before dispatch begins.",
+        "operationId": "post_api_v1_scheduled_rides_id_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledRideResponse"
+                }
+              }
+            },
+            "description": "Return the passenger's scheduled ride; cancellation succeeds only before dispatch begins.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Schedule dispatch has already started.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/scheduled-rides/{id}/cancel",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/scheduled-rides/:id/cancel",
+        "x-go-handler": "ride-backend/controllers.(*PassengerController).ScheduledRide",
+        "x-required-role": "owning passenger"
       }
     },
     "/api/v1/share/{token}": {
@@ -15896,6 +17492,393 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/support/tickets",
         "x-go-handler": "ride-backend/controllers.(*OperationsController).SupportTickets"
+      }
+    },
+    "/api/v1/support/tickets/{id}": {
+      "get": {
+        "description": "Return the owner or staff ticket conversation, paged messages and private attachment metadata. Internal staff notes are excluded.",
+        "operationId": "get_api_v1_support_tickets_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketConversation"
+                }
+              }
+            },
+            "description": "Return the owner or staff ticket conversation, paged messages and private attachment metadata. Internal staff notes are excluded.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/support/tickets/{id}",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/support/tickets/:id",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketConversation"
+      }
+    },
+    "/api/v1/support/tickets/{id}/attachments": {
+      "post": {
+        "description": "Upload an owner or staff scoped private JPEG, PNG or PDF attachment, at most 5 MiB and 10 per ticket.",
+        "operationId": "post_api_v1_support_tickets_id_attachments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 8,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicketAttachment"
+                }
+              }
+            },
+            "description": "Upload an owner or staff scoped private JPEG, PNG or PDF attachment, at most 5 MiB and 10 per ticket.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/support/tickets/{id}/attachments",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/support/tickets/:id/attachments",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketAttachment"
+      }
+    },
+    "/api/v1/support/tickets/{id}/attachments/{attachmentId}": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_support_tickets_id_attachments_attachmentid",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachmentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Private attachment bytes; owner or active staff only."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/support/tickets/{id}/attachments/{attachmentId}",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/support/tickets/:id/attachments/:attachmentId",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketAttachment"
+      }
+    },
+    "/api/v1/support/tickets/{id}/messages": {
+      "get": {
+        "description": "Return the owner or staff ticket conversation, paged messages and private attachment metadata. Internal staff notes are excluded.",
+        "operationId": "get_api_v1_support_tickets_id_messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketConversation"
+                }
+              }
+            },
+            "description": "Return the owner or staff ticket conversation, paged messages and private attachment metadata. Internal staff notes are excluded.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/support/tickets/{id}/messages",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/support/tickets/:id/messages",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketConversation"
+      },
+      "post": {
+        "description": "Append a public ticket reply. App user replies reopen resolved tickets; staff replies are audit logged. Internal staff notes are never included.",
+        "operationId": "post_api_v1_support_tickets_id_messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 8,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketMessageInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicketMessage"
+                }
+              }
+            },
+            "description": "Append a public ticket reply. App user replies reopen resolved tickets; staff replies are audit logged. Internal staff notes are never included.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/support/tickets/{id}/messages",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/support/tickets/:id/messages",
+        "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketMessage"
       }
     },
     "/api/v1/wallet": {

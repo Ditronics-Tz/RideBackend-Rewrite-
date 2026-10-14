@@ -14,6 +14,10 @@ The API checks database readiness at `/ready` and exits if the schema is not at
 the embedded Goose migration version. Migrations are a separate, explicit step;
 the API never changes the schema during startup. The migration command takes an
 advisory lock and validates existing schema before applying the next migration.
+The current schema version is 9. The ride dispatch worker also activates due
+scheduled rides; it runs with the API even when optional `RUN_BACKGROUND_JOBS`
+is false. Private support attachments are stored in `uploads_data` with local
+storage and must be included in upload backups.
 
 ## Prerequisites
 

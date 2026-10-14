@@ -189,3 +189,30 @@ with incomplete or expired approval documents or an active ride.
 
 Affected: passenger/driver support, admin ride and ticket workflows, rating
 clients and admin moderation screens. See the generated OpenAPI contract.
+
+## 2026-10-14 - Passenger mobile integration
+
+Migration version 9 adds saved places, passenger preferences, scheduled ride
+dispatch records, public support messages, and private support attachments.
+The server still requires explicit `cmd/migrate up` before startup.
+
+New passenger routes: `GET/POST /passenger/saved-places`,
+`PUT/DELETE /passenger/saved-places/:id`, `GET/PATCH /passenger/preferences`,
+`POST /rides/quote`, `GET /rides/:id/driver-location`,
+`GET/POST /scheduled-rides`, `GET /scheduled-rides/:id`, and
+`POST /scheduled-rides/:id/cancel`. All paths above have the `/api/v1` prefix.
+Schedule creation requires an 8-100 character `Idempotency-Key`. The server
+attempts dispatch when due and records a terminal outcome; `failed` with
+`failure_code: no_driver_found` includes the created ride ID.
+
+New owner-scoped support routes: `GET /support/tickets/:id`,
+`GET/POST /support/tickets/:id/messages`,
+`POST /support/tickets/:id/attachments`, and authenticated
+`GET /support/tickets/:id/attachments/:attachmentId`. Staff have corresponding
+`/admin/tickets/:id/messages` and `/admin/tickets/:id/attachments` routes.
+Message and attachment writes require `Idempotency-Key`; attachments are private,
+limited to 10 per ticket and 5 MiB each. Internal staff notes remain separate.
+
+Existing ride create, payment, authentication, and profile payloads remain
+compatible. Cash is the only accepted ride payment method; quotes report this
+explicitly. See `docs/api/openapi.yaml` for response schemas and access rules.

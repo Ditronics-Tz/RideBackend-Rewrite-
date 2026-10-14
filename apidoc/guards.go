@@ -14,7 +14,7 @@ func GenerateRouteGuards() ([]byte, error) {
 	}
 	var result strings.Builder
 	result.WriteString("# Route guards\n\nGenerated with `go run ./cmd/generate-openapi`. Each row records a concrete registered route containing a path parameter. Fiber middleware, HEAD mirrors and OPTIONS handlers are excluded. The OpenAPI artifact records all concrete routes.\n\n")
-	result.WriteString("The two profile lookup routes return sensitive fields to other authenticated app users. B6 must introduce public DTOs and negative privacy tests. Legacy private file handlers use controller authentication, current app/staff session validation, and lexical local path checks; filesystem handling remains part of B6. Incident attachment reads have owner/staff checks but retain the existing local SendFile path handling; that existing module is outside this ship run.\n\n")
+	result.WriteString("Cross-user profile lookups return public DTOs; owners and audited staff have separate full-detail routes. Legacy private file handlers validate current app/staff sessions and local paths. Incident attachment reads retain their existing local SendFile implementation. New support ticket attachments use private storage and owner/staff-scoped reads.\n\n")
 	result.WriteString("Admin ride, ticket, complaint, report and rating operations are persisted and staff-audited. Dashboard operational counts use live SQL counts. Staff scope is intentionally broader than object ownership, with route roles and controller action policy enforced.\n\n")
 	result.WriteString("| Route | Access realm / role | Resource guard observed | Status | Handler |\n| --- | --- | --- | --- | --- |\n")
 	for _, route := range inventory {
@@ -83,6 +83,16 @@ func guardFor(route Route) (access, guard, status string) {
 		guard, status = "RideForUser plus assigned driver_id and in_progress status; valid coordinates and per-ride rate limit.", "assigned driver scoped"
 	case path == "/rides/:id/rating":
 		guard, status = "Caller must be a participant in a completed ride; unique ride_id and rater constraint allows one rating per ride participant.", "completed ride participant scoped"
+	case path == "/rides/:id/driver-location":
+		guard, status = "Participant-scoped ride lookup; only assigned active rides expose a driver point newer than two minutes.", "active ride participant scoped"
+	case path == "/passenger/saved-places/:id":
+		guard, status = "Passenger role; update and delete queries require both place id and authenticated user_id.", "owner scoped"
+	case path == "/scheduled-rides/:id" || path == "/scheduled-rides/:id/cancel":
+		guard, status = "Passenger role; schedule lookup requires passenger_id, and cancel checks state under a row lock.", "owner scoped"
+	case path == "/support/tickets/:id" || path == "/support/tickets/:id/messages" || strings.HasPrefix(path, "/support/tickets/:id/attachments"):
+		guard, status = "App session and ticket user_id guard every conversation and private attachment read/write; retry keys scope message and attachment mutations.", "ticket owner scoped"
+	case path == "/admin/tickets/:id/messages" || strings.HasPrefix(path, "/admin/tickets/:id/attachments"):
+		guard, status = "Active support/admin staff only; access and staff writes are audited, private objects are served through authenticated reads.", "staff scoped and audited"
 	case path == "/rides" && route.Method == "POST":
 		guard, status = "Passenger role; idempotency key; server-calculated fare; serialized active ride check and transactional event creation.", "passenger scoped and idempotent"
 	case path == "/rides" && route.Method == "GET", path == "/rides/:id":

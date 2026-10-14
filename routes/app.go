@@ -99,6 +99,7 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	SetupAuthRoutes(v1, authController, cfg)
 	SetupProfileRoutes(v1, profileController, cfg)
 	SetupRideRoutes(v1, controllers.NewRideController(cfg, appStore), cfg, appStore)
+	SetupPassengerRoutes(v1, cfg, appStore)
 	SetupRatingRoutes(v1, ratingController, cfg)
 	SetupStaffAuthRoutes(v1, staffAuthController, cfg, appStore)
 	SetupAdminRoutes(v1, adminController, cfg, appStore)

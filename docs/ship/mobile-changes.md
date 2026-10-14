@@ -1,6 +1,6 @@
 # Mobile app changes
 
-## Implemented backend contracts (B3/B4/B5/B6/B7/B8)
+## Implemented backend contracts (B3/B4/B5/B6/B7/B8/mobile passenger)
 
 - Driver: when R2 is enabled, request document presign with type/content_type/size/
   expires_at, PUT bytes to the returned URL with its headers, then confirm by ID.
@@ -42,10 +42,49 @@
   may rate the other once at `POST /api/v1/rides/:id/rating`. Existing public
   rating lists omit ratings hidden by an admin.
 
-## Future contracts (not implemented in this milestone)
+## Passenger integration additions (migration version 9)
 
-- No additional mobile contract remains from B8. Admin ticket/ride workflows
-  and rating moderation are staff-only and are documented in OpenAPI.
+- Apply migration 9 before starting this backend build. The API refuses to start
+  against an older schema. `GET/POST /api/v1/passenger/saved-places` and
+  `PUT/DELETE /api/v1/passenger/saved-places/:id` persist up to 20 geocoded
+  places per passenger. Home and Work each allow one entry; custom entries may
+  repeat. Send `kind`, `label`, `address`, `lat`, and `lng`. The Android app must
+  resolve coordinates before saving a place.
+- `GET/PATCH /api/v1/passenger/preferences` persists ride, communication, and
+  language toggles. PATCH accepts the changed fields, including explicit
+  `false`. `language` is `en` or `sw`. These are stored preferences; external
+  email/SMS/push delivery and application locale switching still need mobile
+  and provider integration.
+- `POST /api/v1/rides/quote` accepts the same pickup/dropoff/vehicle payload as
+  ride creation and returns `estimated_fare_tzs`, `currency: TZS`, straight-line
+  distance, estimated duration, and `payment_method: cash`. Show the server fare
+  in the booking UI. The app's OSRM road distance/ETA may differ from the
+  server's straight-line estimate. A quote does not hold a driver or fare.
+- `GET /api/v1/rides/:id/driver-location` returns the assigned driver's latest
+  point only for an active ride participant. Poll while the ride is active;
+  `204` means clear the driver pin. Points older than two minutes and ended
+  rides return `204`; another user receives `404`.
+- `POST /api/v1/scheduled-rides` requires an `Idempotency-Key` and the same
+  pickup/dropoff/vehicle fields plus RFC3339 `scheduled_for` (5 minutes to 30
+  days ahead). `GET /scheduled-rides?status=upcoming` and
+  `GET /scheduled-rides/:id` expose the
+  persisted status; `POST /scheduled-rides/:id/cancel` works before dispatch.
+  Fare rates must be configured before scheduling. The backend worker attempts
+  normal dispatch when due. `dispatched` includes a
+  `ride_id`; `failed` can include `no_driver_found` and a ride ID for the
+  ordinary ride detail. A schedule is a dispatch attempt, not a driver guarantee.
+- `GET /api/v1/support/tickets/:id` returns ticket, paged public messages, and
+  attachment metadata. `POST /support/tickets/:id/messages` accepts `{body}`;
+  retries require the same `Idempotency-Key`. `POST /attachments` accepts a
+  multipart `file` (JPEG, PNG, or PDF, at most 5 MiB), also with an idempotency
+  key. Download through the authenticated
+  `GET /support/tickets/:id/attachments/:attachmentId`. Staff have equivalent
+  `/admin/tickets/:id/messages` and `/admin/tickets/:id/attachments` routes.
+  Internal staff notes never appear in the app conversation.
 
-No mobile source code was changed in this run. Consult api-changes.md and the
-current OpenAPI inventory before integrating a deployed backend.
+Cash remains the only ride payment method. Wallet top-ups and provider methods
+still reject requests until a local payment provider is integrated. Static help
+and legal copy can stay in the app; parcel deliveries require a separate product
+contract before they can be represented as real courier orders. No mobile source
+code was changed in this backend run. Use the generated OpenAPI contract while
+integrating the passenger and driver apps.
