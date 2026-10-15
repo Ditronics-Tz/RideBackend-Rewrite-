@@ -1,5 +1,7 @@
 # Passenger Android authentication
 
+For the complete Android Credential Manager flow, Google Cloud setup, backend account persistence, and displaying the saved full name and email in Profile, see [Google sign-in and Profile integration](passenger-google-sign-in-android.md).
+
 All paths use the existing `/api/v1` prefix. Requests and responses are JSON over HTTPS. The Android application ID is `com.example.ridepassenger2`; configure its signing certificate in Google Cloud and request an ID token for the **Web** OAuth client ID. Set that ID in `GOOGLE_WEB_CLIENT_ID` on the backend. The Android app must not contain a Google client secret.
 
 Run `go run ./cmd/migrate up` before starting the updated API. Migration 12 makes `users.name` nullable without changing existing values. Migration 10 added a durable, one-use Google challenge table and an absolute deadline to existing app sessions. Existing refresh sessions retain their previous inactivity expiry; the new 90-day policy applies to newly issued sessions and later refreshes, bounded by the 365-day deadline. Browser redirect OAuth (`GET /api/v1/auth/google`) remains separate and uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and the existing redirect allowlist.
