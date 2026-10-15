@@ -1,6 +1,8 @@
 package routes_test
 
 import (
+	"strings"
+
 	"golang.org/x/crypto/bcrypt"
 	"ride-backend/controllers"
 	"ride-backend/models"
@@ -24,33 +26,79 @@ func TestStaffPendingAuthenticatorProofActivationAndRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	clock := time.Now().UTC().Truncate(time.Second)
+	s.Clock = func() time.Time { return clock }
 	app := routes.BuildApp(cfg, s)
-	login := func(code string) (string, string) {
-		status, body, _ := authRequest(t, app, "POST", "/staff/auth/login", "", map[string]string{"email": u.Email, "password": password, "totp_code": code})
-		expectAuthStatus(t, status, 200, body)
-		return body["access_token"].(string), body["refresh_token"].(string)
-	}
-	current, currentRefresh := login("")
-	other, otherRefresh := login("")
-	status, body, _ := authRequest(t, app, "POST", "/staff/auth/2fa/setup", current, map[string]string{})
-	expectAuthStatus(t, status, 400, body)
-	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/setup", current, map[string]string{"password": password})
+	status, body, _ := authRequest(t, app, "POST", "/staff/auth/login", "", map[string]string{"email": u.Email, "password": password})
 	expectAuthStatus(t, status, 200, body)
+	if body["mfa_required"] != true || body["enrollment_required"] != true || body["access_token"] != nil {
+		t.Fatalf("unenrolled staff received a session: %v", body)
+	}
+	challenge := body["challenge_token"].(string)
+	status, body, header := authRequest(t, app, "POST", "/staff/auth/mfa/enroll", "", map[string]string{"challenge_token": challenge})
+	expectAuthStatus(t, status, 200, body)
+	if header.Get("Cache-Control") != "no-store" || !strings.Contains(body["qr_code_url"].(string), "otpauth://totp/Rida:") {
+		t.Fatalf("enrollment material was not protected: %v", body["qr_code_url"])
+	}
 	secret := body["secret"].(string)
-	if body["pending_expires_at"] == nil {
-		t.Fatal("pending expiry missing")
-	}
-	fresh, ok := s.GetStaffUserByID(u.ID)
-	if !ok || fresh.TOTPEnabled || fresh.TOTPSecretEnc != nil || fresh.PendingTOTPSecretEnc == nil {
-		t.Fatal("setup changed active credentials")
-	}
-	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/verify", current, map[string]string{"code": "not-valid"})
-	expectAuthStatus(t, status, 400, body)
-	code, err := utils.GenerateTOTPCode(secret, time.Now())
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/mfa/enroll/confirm", "", map[string]string{"challenge_token": challenge, "code": "000000"})
+	expectAuthStatus(t, status, 401, body)
+	code, err := utils.GenerateTOTPCode(secret, clock)
 	if err != nil {
 		t.Fatal(err)
 	}
-	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/verify", current, map[string]string{"code": code})
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/mfa/enroll/confirm", "", map[string]string{"challenge_token": challenge, "code": code})
+	expectAuthStatus(t, status, 200, body)
+	current := body["access_token"].(string)
+	currentRefresh := body["refresh_token"].(string)
+	if body["totp_enabled"] != nil {
+		t.Fatal("enrollment confirm should return the normal session user, not a bare flag")
+	}
+	codes, _ := body["recovery_codes"].([]any)
+	if len(codes) != 8 {
+		t.Fatalf("recovery codes: %v", body["recovery_codes"])
+	}
+	clock = clock.Add(30 * time.Second)
+	loginCode, err := utils.GenerateTOTPCode(secret, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/login", "", map[string]string{"email": u.Email, "password": password, "totp_code": loginCode})
+	expectAuthStatus(t, status, 200, body)
+	if body["access_token"] != nil || body["enrollment_required"] != false {
+		t.Fatalf("enrolled login must stop at the challenge: %v", body)
+	}
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/mfa/verify", "", map[string]string{"challenge_token": body["challenge_token"].(string), "code": loginCode})
+	expectAuthStatus(t, status, 200, body)
+	other := body["access_token"].(string)
+	otherRefresh := body["refresh_token"].(string)
+	clock = clock.Add(30 * time.Second)
+	proof, err := utils.GenerateTOTPCode(secret, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/setup", current, map[string]string{})
+	expectAuthStatus(t, status, 400, body)
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/setup", current, map[string]string{"password": password})
+	expectAuthStatus(t, status, 400, body)
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/disable", current, map[string]string{"password": password, "code": proof})
+	expectAuthStatus(t, status, 403, body)
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/setup", current, map[string]string{"password": password, "code": proof})
+	expectAuthStatus(t, status, 200, body)
+	replacement := body["secret"].(string)
+	fresh, ok := s.GetStaffUserByID(u.ID)
+	active, decErr := utils.DecryptAESGCM(*fresh.TOTPSecretEnc, cfg.StaffTOTPKey)
+	if !ok || decErr != nil || active != secret || !fresh.TOTPEnabled || fresh.PendingTOTPSecretEnc == nil {
+		t.Fatal("replacement setup erased active authenticator")
+	}
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/verify", current, map[string]string{"code": "not-valid"})
+	expectAuthStatus(t, status, 400, body)
+	clock = clock.Add(30 * time.Second)
+	replacementCode, err := utils.GenerateTOTPCode(replacement, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/verify", current, map[string]string{"code": replacementCode})
 	expectAuthStatus(t, status, 200, body)
 	newAccess := body["access_token"].(string)
 	if body["totp_enabled"] != true {
@@ -64,23 +112,6 @@ func TestStaffPendingAuthenticatorProofActivationAndRevocation(t *testing.T) {
 	expectAuthStatus(t, status, 200, body)
 	status, body, _ = authRequest(t, app, "POST", "/staff/auth/refresh", "", map[string]string{"refresh_token": otherRefresh})
 	expectAuthStatus(t, status, 401, body)
-	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/setup", newAccess, map[string]string{"password": password})
-	expectAuthStatus(t, status, 400, body)
-	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/setup", newAccess, map[string]string{"password": password, "code": code})
-	expectAuthStatus(t, status, 200, body)
-	replacement := body["secret"].(string)
-	fresh, _ = s.GetStaffUserByID(u.ID)
-	active, err := utils.DecryptAESGCM(*fresh.TOTPSecretEnc, cfg.StaffTOTPKey)
-	if err != nil || active != secret || !fresh.TOTPEnabled {
-		t.Fatal("replacement setup erased active authenticator")
-	}
-	replacementCode, err := utils.GenerateTOTPCode(replacement, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	status, body, _ = authRequest(t, app, "POST", "/staff/auth/2fa/verify", newAccess, map[string]string{"code": replacementCode})
-	expectAuthStatus(t, status, 200, body)
-	newAccess = body["access_token"].(string)
 	status, body, _ = authRequest(t, app, "POST", "/staff/auth/refresh", "", map[string]string{"refresh_token": currentRefresh})
 	expectAuthStatus(t, status, 200, body)
 	currentRefresh = body["refresh_token"].(string)

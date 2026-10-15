@@ -11,10 +11,11 @@ import (
 )
 
 const (
-	JWTIssuer     = "ride-backend"
-	AudienceApp   = "app"
-	AudienceStaff = "staff"
-	DefaultAppTTL = 15 * time.Minute
+	JWTIssuer        = "ride-backend"
+	AudienceApp      = "app"
+	AudienceStaff    = "staff"
+	AudienceStaffMFA = "staff-mfa"
+	DefaultAppTTL    = 15 * time.Minute
 )
 
 // GenerateAppToken creates a JWT for the "app" realm (passengers, drivers).
@@ -115,6 +116,50 @@ func GenerateStaffSessionToken(staffID string, role models.StaffRole, sid string
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
+}
+
+// GenerateStaffMFAChallengeToken signs a restricted login challenge.
+// The staff audience rejects this token, so it cannot call protected APIs.
+func GenerateStaffMFAChallengeToken(staffID, purpose, challengeID string, version int, secret string, ttl time.Duration) (string, error) {
+	if ttl <= 0 {
+		ttl = 5 * time.Minute
+	}
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"iss": JWTIssuer,
+		"aud": AudienceStaffMFA,
+		"sub": staffID,
+		"pur": purpose,
+		"ver": version,
+		"iat": now.Unix(),
+		"exp": now.Add(ttl).Unix(),
+		"jti": challengeID,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+// ParseStaffMFAChallengeToken validates a restricted MFA challenge.
+func ParseStaffMFAChallengeToken(tokenString, secret string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return []byte(secret), nil
+	},
+		jwt.WithValidMethods([]string{"HS256"}),
+		jwt.WithIssuer(JWTIssuer),
+		jwt.WithAudience(AudienceStaffMFA),
+		jwt.WithExpirationRequired(),
+	)
+	if err != nil || !token.Valid {
+		return nil, errors.New("invalid mfa challenge")
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid mfa challenge")
+	}
+	return claims, nil
 }
 
 // ParseStaffToken validates a "staff" realm JWT strictly.

@@ -56,7 +56,7 @@ func (s *Store) SetPendingStaffTOTP(ctx context.Context, id string, version int,
 // ChangeStaffTOTP activates only the exact, unexpired pending secret verified
 // by the caller, or disables current TOTP after credential proof. Other refresh
 // sessions are revoked and the version invalidates all old bearer tokens.
-func (s *Store) ChangeStaffTOTP(ctx context.Context, expected *models.StaffUser, currentSID, ip string, enable bool) (*models.StaffUser, error) {
+func (s *Store) ChangeStaffTOTP(ctx context.Context, expected *models.StaffUser, currentSID, ip string, enable bool, acceptedStep int64) (*models.StaffUser, error) {
 	var updated models.StaffUser
 	err := s.WithContext(ctx).Transaction(func(tx *Store) error {
 		if err := tx.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&updated, "id = ?", expected.ID).Error; err != nil {
@@ -70,8 +70,14 @@ func (s *Store) ChangeStaffTOTP(ctx context.Context, expected *models.StaffUser,
 				return ErrStaffSessionInvalid
 			}
 			updated.TOTPSecretEnc = updated.PendingTOTPSecretEnc
+			step := acceptedStep
+			verified := s.now()
+			updated.LastAcceptedTOTPStep = &step
+			updated.TOTPVerifiedAt = &verified
 		} else {
 			updated.TOTPSecretEnc = nil
+			updated.LastAcceptedTOTPStep = nil
+			updated.TOTPVerifiedAt = nil
 		}
 		updated.TOTPEnabled = enable
 		updated.PendingTOTPSecretEnc = nil

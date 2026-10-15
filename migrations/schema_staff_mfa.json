@@ -1,0 +1,22 @@
+{
+  "staff_users": [
+    {"name": "last_accepted_totp_step", "type": "bigint"},
+    {"name": "totp_verified_at", "type": "timestamptz"}
+  ],
+  "staff_mfa_challenges": [
+    {"name": "id", "type": "uuid", "primary": true, "not_null": true},
+    {"name": "staff_id", "type": "uuid", "not_null": true},
+    {"name": "purpose", "type": "varchar(16)", "not_null": true},
+    {"name": "expires_at", "type": "timestamptz", "not_null": true},
+    {"name": "consumed_at", "type": "timestamptz"},
+    {"name": "failed_attempts", "type": "bigint", "not_null": true},
+    {"name": "created_at", "type": "timestamptz", "not_null": true}
+  ],
+  "staff_mfa_recovery_codes": [
+    {"name": "id", "type": "uuid", "primary": true, "not_null": true},
+    {"name": "staff_id", "type": "uuid", "not_null": true},
+    {"name": "code_hash", "type": "varchar(64)", "not_null": true},
+    {"name": "used_at", "type": "timestamptz"},
+    {"name": "created_at", "type": "timestamptz", "not_null": true}
+  ]
+}

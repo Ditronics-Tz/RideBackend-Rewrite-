@@ -91,6 +91,10 @@ func GenerateTOTPSecret() (string, error) {
 
 // GenerateTOTPCode generates a 6-digit TOTP code for a secret at time t.
 func GenerateTOTPCode(secretBase32 string, t time.Time) (string, error) {
+	return generateTOTPAtStep(secretBase32, t.Unix()/30)
+}
+
+func generateTOTPAtStep(secretBase32 string, counter int64) (string, error) {
 	secret, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.ToUpper(strings.TrimSpace(secretBase32)))
 	if err != nil {
 		secret, err = base32.StdEncoding.DecodeString(strings.ToUpper(strings.TrimSpace(secretBase32)))
@@ -98,10 +102,12 @@ func GenerateTOTPCode(secretBase32 string, t time.Time) (string, error) {
 			return "", fmt.Errorf("invalid base32 secret: %w", err)
 		}
 	}
+	if len(secret) < 20 {
+		return "", errors.New("totp secret must be at least 160 bits")
+	}
 
-	counter := uint64(t.Unix() / 30)
 	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, counter)
+	binary.BigEndian.PutUint64(buf, uint64(counter))
 
 	mac := hmac.New(sha1.New, secret)
 	mac.Write(buf)
@@ -117,27 +123,40 @@ func GenerateTOTPCode(secretBase32 string, t time.Time) (string, error) {
 	return fmt.Sprintf("%06d", otp), nil
 }
 
-// ValidateTOTPCode checks if a 6-digit code matches the secret with a +/-1 time window (30s).
-func ValidateTOTPCode(secretBase32, code string) bool {
+// MatchTOTPStep accepts the current 30-second step and one step on either side.
+// The matched step is recorded so the same step cannot be reused.
+func MatchTOTPStep(secretBase32, code string, now time.Time) (int64, bool) {
 	code = strings.TrimSpace(code)
 	if len(code) != 6 {
-		return false
+		return 0, false
 	}
-
-	now := time.Now()
-	intervals := []time.Time{
-		now,
-		now.Add(-30 * time.Second),
-		now.Add(30 * time.Second),
-	}
-
-	for _, t := range intervals {
-		expected, err := GenerateTOTPCode(secretBase32, t)
-		if err == nil && subtle.ConstantTimeCompare([]byte(expected), []byte(code)) == 1 {
-			return true
+	for _, r := range code {
+		if r < '0' || r > '9' {
+			return 0, false
 		}
 	}
-	return false
+	base := now.Unix() / 30
+	var matched int64
+	ok := 0
+	for _, delta := range []int64{0, -1, 1} {
+		step := base + delta
+		expected, err := generateTOTPAtStep(secretBase32, step)
+		match := 0
+		if err == nil && len(expected) == len(code) {
+			match = subtle.ConstantTimeCompare([]byte(expected), []byte(code))
+		}
+		if match == 1 && ok == 0 {
+			matched = step
+		}
+		ok |= match
+	}
+	return matched, ok == 1
+}
+
+// ValidateTOTPCode checks if a 6-digit code matches the secret with a +/-1 time window (30s).
+func ValidateTOTPCode(secretBase32, code string) bool {
+	_, ok := MatchTOTPStep(secretBase32, code, time.Now())
+	return ok
 }
 
 // TOTPAuthURL returns an otpauth:// URI for QR code generation.

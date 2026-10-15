@@ -133,7 +133,6 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 	})
 
 	t.Run("Staff Login: TOTP required when enabled", func(t *testing.T) {
-		// Missing TOTP code fails
 		body, _ := json.Marshal(map[string]string{
 			"email":    "admin@ride.tz",
 			"password": adminPwd,
@@ -141,24 +140,29 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		resp, _ := controllerTestRequest(t, app, req)
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("Expected 401 for missing TOTP, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected 200 challenge, got %d", resp.StatusCode)
 		}
-
-		// Valid TOTP code succeeds
+		var challenge map[string]interface{}
+		_ = json.NewDecoder(resp.Body).Decode(&challenge)
+		if challenge["mfa_required"] != true || challenge["access_token"] != nil || challenge["challenge_token"] == nil {
+			t.Fatalf("password login issued a session: %v", challenge)
+		}
+		bad, _ := json.Marshal(map[string]string{"challenge_token": challenge["challenge_token"].(string), "code": "000000"})
+		badReq := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/mfa/verify", bytes.NewReader(bad))
+		badReq.Header.Set("Content-Type", "application/json")
+		badResp, _ := controllerTestRequest(t, app, badReq)
+		if badResp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Expected 401 for invalid TOTP, got %d", badResp.StatusCode)
+		}
 		code, _ := utils.GenerateTOTPCode(adminSecret, time.Now())
-		body2, _ := json.Marshal(map[string]string{
-			"email":     "admin@ride.tz",
-			"password":  adminPwd,
-			"totp_code": code,
-		})
-		req2 := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(body2))
+		body2, _ := json.Marshal(map[string]string{"challenge_token": challenge["challenge_token"].(string), "code": code})
+		req2 := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/mfa/verify", bytes.NewReader(body2))
 		req2.Header.Set("Content-Type", "application/json")
 		resp2, err := controllerTestRequest(t, app, req2)
 		if err != nil || resp2.StatusCode != http.StatusOK {
-			t.Fatalf("Expected 200 for valid login + TOTP, got %d", resp2.StatusCode)
+			t.Fatalf("Expected 200 for valid TOTP, got %d", resp2.StatusCode)
 		}
-
 		var res map[string]interface{}
 		_ = json.NewDecoder(resp2.Body).Decode(&res)
 		if res["access_token"] == nil || res["refresh_token"] == nil {
@@ -193,7 +197,6 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 
 	t.Run("Refresh token rotation and reuse detection", func(t *testing.T) {
 		controllers.ResetLoginRateLimiters()
-		// Login support user to obtain refresh token
 		loginBody, _ := json.Marshal(map[string]string{
 			"email":    "support@ride.tz",
 			"password": supportPwd,
@@ -201,6 +204,19 @@ func TestStaffAuthAndAdminEndpoints(t *testing.T) {
 		loginReq := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/login", bytes.NewReader(loginBody))
 		loginReq.Header.Set("Content-Type", "application/json")
 		loginResp, _ := controllerTestRequest(t, app, loginReq)
+		var enrolled map[string]interface{}
+		_ = json.NewDecoder(loginResp.Body).Decode(&enrolled)
+		enrollBody, _ := json.Marshal(map[string]string{"challenge_token": enrolled["challenge_token"].(string)})
+		enrollReq := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/mfa/enroll", bytes.NewReader(enrollBody))
+		enrollReq.Header.Set("Content-Type", "application/json")
+		enrollResp, _ := controllerTestRequest(t, app, enrollReq)
+		var pending map[string]interface{}
+		_ = json.NewDecoder(enrollResp.Body).Decode(&pending)
+		supportCode, _ := utils.GenerateTOTPCode(pending["secret"].(string), time.Now())
+		confirmBody, _ := json.Marshal(map[string]string{"challenge_token": enrolled["challenge_token"].(string), "code": supportCode})
+		confirmReq := httptest.NewRequest(http.MethodPost, "/api/v1/staff/auth/mfa/enroll/confirm", bytes.NewReader(confirmBody))
+		confirmReq.Header.Set("Content-Type", "application/json")
+		loginResp, _ = controllerTestRequest(t, app, confirmReq)
 
 		var loginData map[string]interface{}
 		_ = json.NewDecoder(loginResp.Body).Decode(&loginData)

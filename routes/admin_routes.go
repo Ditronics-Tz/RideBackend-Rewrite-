@@ -99,5 +99,6 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 	admin.Patch("/staff/:id", adminOnly, ac.UpdateStaff)
 	admin.Patch("/staff/:id/role", adminOnly, ac.UpdateStaffRole)
 	admin.Post("/staff/:id/reset-password", adminOnly, ac.ResetStaffPassword)
+	admin.Post("/staff/:id/reset-mfa", adminOnly, ac.ResetStaffMFA)
 	admin.Post("/staff/:id/revoke-sessions", adminOnly, ac.RevokeStaffSessions)
 }

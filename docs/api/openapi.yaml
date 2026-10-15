@@ -9099,6 +9099,54 @@
         "x-go-handler": "ride-backend/controllers.(*AdminController).UpdateStaff"
       }
     },
+    "/api/v1/admin/staff/{id}/reset-mfa": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_admin_staff_id_reset_mfa",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/staff/{id}/reset-mfa",
+        "x-allowed-roles": [
+          "admin"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/admin/staff/:id/reset-mfa",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).ResetStaffMFA"
+      }
+    },
     "/api/v1/admin/staff/{id}/reset-password": {
       "post": {
         "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
@@ -18173,6 +18221,355 @@
         "x-contract-detail": "route-inventory",
         "x-fiber-path": "/api/v1/staff/auth/me",
         "x-go-handler": "ride-backend/controllers.(*StaffAuthController).Me"
+      }
+    },
+    "/api/v1/staff/auth/mfa/activity": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_staff_auth_mfa_activity",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/staff/auth/mfa/activity",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/activity",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).MFAActivity"
+      }
+    },
+    "/api/v1/staff/auth/mfa/authenticator/replace": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_staff_auth_mfa_authenticator_replace",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/staff/auth/mfa/authenticator/replace",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/authenticator/replace",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).ReplaceAuthenticator"
+      }
+    },
+    "/api/v1/staff/auth/mfa/authenticator/replace/confirm": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_staff_auth_mfa_authenticator_replace_confirm",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/staff/auth/mfa/authenticator/replace/confirm",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/authenticator/replace/confirm",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).ConfirmReplaceAuthenticator"
+      }
+    },
+    "/api/v1/staff/auth/mfa/enroll": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_staff_auth_mfa_enroll",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "summary": "POST /api/v1/staff/auth/mfa/enroll",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/enroll",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).EnrollMFA"
+      }
+    },
+    "/api/v1/staff/auth/mfa/enroll/confirm": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_staff_auth_mfa_enroll_confirm",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "summary": "POST /api/v1/staff/auth/mfa/enroll/confirm",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/enroll/confirm",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).ConfirmMFAEnrollment"
+      }
+    },
+    "/api/v1/staff/auth/mfa/recovery/regenerate": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_staff_auth_mfa_recovery_regenerate",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/staff/auth/mfa/recovery/regenerate",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/recovery/regenerate",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).RegenerateRecoveryCodes"
+      }
+    },
+    "/api/v1/staff/auth/mfa/recovery/verify": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_staff_auth_mfa_recovery_verify",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "summary": "POST /api/v1/staff/auth/mfa/recovery/verify",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/recovery/verify",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).VerifyRecoveryCode"
+      }
+    },
+    "/api/v1/staff/auth/mfa/status": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_staff_auth_mfa_status",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/staff/auth/mfa/status",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/status",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).MFAStatus"
+      }
+    },
+    "/api/v1/staff/auth/mfa/verify": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_staff_auth_mfa_verify",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "summary": "POST /api/v1/staff/auth/mfa/verify",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/staff/auth/mfa/verify",
+        "x-go-handler": "ride-backend/controllers.(*StaffAuthController).VerifyMFA"
       }
     },
     "/api/v1/staff/auth/refresh": {

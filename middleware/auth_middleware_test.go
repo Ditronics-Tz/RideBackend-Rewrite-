@@ -110,6 +110,7 @@ func TestStaffProtectedMiddleware(t *testing.T) {
 				Role:               models.StaffRoleSupport,
 				IsActive:           true,
 				MustChangePassword: true,
+				TOTPEnabled:        true,
 			},
 		},
 	}
@@ -214,9 +215,16 @@ func TestRoleGuardsAnd2FA(t *testing.T) {
 				TOTPEnabled: false,
 			},
 			"support-staff": {
-				ID:       "support-staff",
-				Role:     models.StaffRoleSupport,
-				IsActive: true,
+				ID:          "support-staff",
+				Role:        models.StaffRoleSupport,
+				IsActive:    true,
+				TOTPEnabled: true,
+			},
+			"support-no-2fa": {
+				ID:          "support-no-2fa",
+				Role:        models.StaffRoleSupport,
+				IsActive:    true,
+				TOTPEnabled: false,
 			},
 		},
 	}
@@ -265,6 +273,16 @@ func TestRoleGuardsAnd2FA(t *testing.T) {
 		resp, err := app.Test(req)
 		if err != nil || resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("Expected 403 (2FA required), got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("Support without 2FA blocked when MFA is required", func(t *testing.T) {
+		token, _ := utils.GenerateStaffToken("support-no-2fa", models.StaffRoleSupport, cfg.StaffJWTSecret, 1*time.Hour)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/support/work", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := app.Test(req)
+		if err != nil || resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("Expected 403, got %d", resp.StatusCode)
 		}
 	})
 

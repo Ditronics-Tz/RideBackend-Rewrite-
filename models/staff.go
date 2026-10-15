@@ -54,6 +54,8 @@ type StaffUser struct {
 	LastLoginAt          *time.Time `json:"last_login_at,omitempty"`
 	TOTPSecretEnc        *string    `json:"-" gorm:"column:totp_secret_enc"`
 	TOTPEnabled          bool       `json:"totp_enabled" gorm:"not null;default:false"`
+	LastAcceptedTOTPStep *int64     `json:"-" gorm:"column:last_accepted_totp_step"`
+	TOTPVerifiedAt       *time.Time `json:"-" gorm:"column:totp_verified_at"`
 	CreatedBy            *string    `json:"created_by,omitempty" gorm:"type:uuid"`
 	CreatedAt            time.Time  `json:"created_at"`
 	UpdatedAt            time.Time  `json:"updated_at"`
@@ -150,6 +152,16 @@ type Staff2FAVerifyInput struct {
 type Staff2FADisableInput struct {
 	Password string `json:"password"`
 	Code     string `json:"code"`
+}
+
+type StaffMFAChallengeInput struct {
+	ChallengeToken string `json:"challenge_token"`
+	Code           string `json:"code"`
+}
+
+type StaffMFARecoveryInput struct {
+	ChallengeToken string `json:"challenge_token"`
+	RecoveryCode   string `json:"recovery_code"`
 }
 
 type CreateStaffInput struct {

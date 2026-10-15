@@ -12,9 +12,13 @@ import (
 func SetupStaffAuthRoutes(router fiber.Router, sc *controllers.StaffAuthController, cfg *config.Config, s *store.Store) {
 	staffAuth := router.Group("/staff/auth")
 
-	// Public routes
+	// Public routes. MFA challenge tokens are not staff sessions.
 	staffAuth.Post("/login", sc.Login)
 	staffAuth.Post("/refresh", sc.Refresh)
+	staffAuth.Post("/mfa/verify", sc.VerifyMFA)
+	staffAuth.Post("/mfa/enroll", sc.EnrollMFA)
+	staffAuth.Post("/mfa/enroll/confirm", sc.ConfirmMFAEnrollment)
+	staffAuth.Post("/mfa/recovery/verify", sc.VerifyRecoveryCode)
 
 	// Protected routes
 	protected := middleware.StaffProtected(cfg, s)
@@ -25,4 +29,9 @@ func SetupStaffAuthRoutes(router fiber.Router, sc *controllers.StaffAuthControll
 	staffAuth.Post("/2fa/setup", protected, sc.Setup2FA)
 	staffAuth.Post("/2fa/verify", protected, sc.Verify2FA)
 	staffAuth.Post("/2fa/disable", protected, sc.Disable2FA)
+	staffAuth.Get("/mfa/status", protected, sc.MFAStatus)
+	staffAuth.Get("/mfa/activity", protected, sc.MFAActivity)
+	staffAuth.Post("/mfa/recovery/regenerate", protected, sc.RegenerateRecoveryCodes)
+	staffAuth.Post("/mfa/authenticator/replace", protected, sc.ReplaceAuthenticator)
+	staffAuth.Post("/mfa/authenticator/replace/confirm", protected, sc.ConfirmReplaceAuthenticator)
 }

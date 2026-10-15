@@ -57,7 +57,7 @@ func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) 
 		t.Fatal(err)
 	}
 	defer sqlDB.Close()
-	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql", "00007_rides.sql", "00008_support.sql", "00009_mobile_passenger.sql", "00010_mobile_auth.sql"} {
+	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql", "00007_rides.sql", "00008_support.sql", "00009_mobile_passenger.sql", "00010_mobile_auth.sql", "00011_staff_mfa.sql"} {
 		for _, statement := range schemaStatements(t, name) {
 			if name == "00010_mobile_auth.sql" && (strings.Contains(statement, "interval '365 days'") || strings.Contains(statement, "ALTER COLUMN absolute_expires_at SET NOT NULL")) {
 				continue

@@ -221,6 +221,13 @@ func StaffProtected(cfg *config.Config, s StaffGetter) fiber.Handler {
 			c.Locals("staff_session_id", sid)
 		}
 
+		if staffMFAEnrollmentRequired(cfg, staff) && !staffMFAPathAllowed(c.Path()) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error":       "Two-factor authentication is required",
+				"require_2fa": true,
+			})
+		}
+
 		// Enforce must_change_password gate:
 		// Until must_change_password is cleared, only /change-password and /me may be called.
 		if staff.MustChangePassword {
@@ -283,9 +290,27 @@ func RequireRoles(allowed ...models.Role) fiber.Handler {
 // An app role can never satisfy this check.
 // If an admin-only endpoint is targeted and 2FA is required by config,
 // requires TOTP to be enabled on the admin account.
+func staffMFAEnrollmentRequired(cfg *config.Config, staff *models.StaffUser) bool {
+	if staff == nil || staff.TOTPEnabled {
+		return false
+	}
+	if cfg != nil && !cfg.StaffRequire2FAForAdmin {
+		return false
+	}
+	return staff.Role == models.StaffRoleAdmin || staff.Role == models.StaffRoleSupport
+}
+
+func staffMFAPathAllowed(path string) bool {
+	switch path {
+	case "/api/v1/staff/auth/logout", "/api/v1/staff/auth/logout-all":
+		return true
+	default:
+		return false
+	}
+}
+
 func RequireStaffRoles(cfg *config.Config, allowed ...models.StaffRole) fiber.Handler {
 	set := make(map[models.StaffRole]struct{}, len(allowed))
-	isAdminOnly := len(allowed) == 1 && allowed[0] == models.StaffRoleAdmin
 	for _, r := range allowed {
 		set[r] = struct{}{}
 	}
@@ -308,15 +333,13 @@ func RequireStaffRoles(cfg *config.Config, allowed ...models.StaffRole) fiber.Ha
 			})
 		}
 
-		// Enforce 2FA for admin if required
-		if isAdminOnly && cfg != nil && cfg.StaffRequire2FAForAdmin {
-			staff, _ := c.Locals("staff_user").(*models.StaffUser)
-			if staff != nil && !staff.TOTPEnabled {
-				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-					"error":       "2FA must be enabled for admin accounts before accessing this endpoint",
-					"require_2fa": true,
-				})
-			}
+		// Admin and support routes require an enrolled authenticator when the
+		// staff MFA policy is on. The login challenge is what proves the code.
+		if staffMFAEnrollmentRequired(cfg, CurrentStaff(c)) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error":       "Two-factor authentication is required",
+				"require_2fa": true,
+			})
 		}
 
 		return c.Next()

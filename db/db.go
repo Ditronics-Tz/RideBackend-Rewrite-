@@ -58,6 +58,8 @@ func AutoMigrateModels() []interface{} {
 		&models.StaffUser{},
 		&models.StaffSession{},
 		&models.StaffAuditLog{},
+		&models.StaffMFAChallenge{},
+		&models.StaffMFARecoveryCode{},
 		&models.DriverDocument{},
 		&models.VerificationReview{},
 		&models.DriverDuplicateFlag{},

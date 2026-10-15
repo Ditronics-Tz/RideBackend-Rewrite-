@@ -63,7 +63,7 @@ func Generate() ([]byte, error) {
 
 func realm(route Route) ([]any, []string) {
 	path := strings.TrimPrefix(route.Path, "/api/v1")
-	if path == "/health" || path == "/ready" || strings.HasPrefix(path, "/uploads") || strings.HasPrefix(path, "/profile-images/") || strings.HasPrefix(path, "/share/") || path == "/auth/register" || path == "/auth/login" || strings.HasPrefix(path, "/auth/google") || path == "/staff/auth/login" || path == "/staff/auth/refresh" {
+	if path == "/health" || path == "/ready" || strings.HasPrefix(path, "/uploads") || strings.HasPrefix(path, "/profile-images/") || strings.HasPrefix(path, "/share/") || path == "/auth/register" || path == "/auth/login" || strings.HasPrefix(path, "/auth/google") || path == "/staff/auth/login" || path == "/staff/auth/refresh" || path == "/staff/auth/mfa/verify" || path == "/staff/auth/mfa/enroll" || path == "/staff/auth/mfa/enroll/confirm" || path == "/staff/auth/mfa/recovery/verify" {
 		return []any{}, nil
 	}
 	if strings.HasPrefix(path, "/webhooks/payments/") {
@@ -603,7 +603,7 @@ func describeCurrent(route Route, operation, schemas object) {
 
 func mayRateLimit(route Route) bool {
 	path := strings.TrimPrefix(route.Path, "/api/v1")
-	return strings.HasPrefix(path, "/share/") || path == "/rides/:rideId/location" || route.Method == "POST" && (path == "/wallet/topups" || path == "/rides/:rideId/pay" || path == "/driver/payouts" || path == "/promos/validate" || path == "/account/deletion-request" || path == "/account/export-request" || path == "/auth/phone/request-otp" || path == "/staff/auth/login")
+	return strings.HasPrefix(path, "/share/") || path == "/rides/:rideId/location" || route.Method == "POST" && (path == "/wallet/topups" || path == "/rides/:rideId/pay" || path == "/driver/payouts" || path == "/promos/validate" || path == "/account/deletion-request" || path == "/account/export-request" || path == "/auth/phone/request-otp" || path == "/staff/auth/login" || strings.HasPrefix(path, "/staff/auth/mfa/"))
 }
 
 func query(name string, schema object) object {

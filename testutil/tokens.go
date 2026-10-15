@@ -23,7 +23,20 @@ func StaffToken(s *store.Store, userID string, role models.StaffRole, secret str
 	if !ok {
 		return "", store.ErrStaffSessionInvalid
 	}
-	row, err := s.CreateStaffSession(userID, utils.HashSHA256(uuid.NewString()), uuid.NewString(), "fixture", "", time.Now().Add(time.Hour))
+	// Fixture tokens represent staff who already finished mandatory enrollment.
+	// Sign-in tests cover the unenrolled challenge path directly.
+	if !u.TOTPEnabled && (u.Role == models.StaffRoleAdmin || u.Role == models.StaffRoleSupport) {
+		updated, err := s.UpdateStaffUser(userID, func(user *models.StaffUser) { user.TOTPEnabled = true })
+		if err != nil {
+			return "", err
+		}
+		u = updated
+	}
+	now := time.Now()
+	if s.Clock != nil {
+		now = s.Clock()
+	}
+	row, err := s.CreateStaffSession(userID, utils.HashSHA256(uuid.NewString()), uuid.NewString(), "fixture", "", now.Add(time.Hour))
 	if err != nil {
 		return "", err
 	}

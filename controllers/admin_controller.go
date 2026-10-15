@@ -613,6 +613,27 @@ func (ac *AdminController) ResetStaffPassword(c *fiber.Ctx) error {
 	})
 }
 
+// ResetStaffMFA clears an authenticator and recovery codes after an authorized
+// admin recovery. The staff member must enroll again at the next sign-in.
+func (ac *AdminController) ResetStaffMFA(c *fiber.Ctx) error {
+	caller := middleware.CurrentStaff(c)
+	if caller == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+	id := c.Params("id")
+	if id == caller.ID {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Ask another administrator to reset your authenticator"})
+	}
+	if _, ok := ac.Store.GetStaffUserByID(id); !ok {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Staff member not found"})
+	}
+	if _, err := ac.Store.ClearStaffMFA(c.UserContext(), id); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to reset authenticator"})
+	}
+	_ = ac.Store.CreateAuditLog(caller.ID, "mfa_reset", "staff_user", id, c.IP(), nil)
+	return c.JSON(fiber.Map{"message": "Authenticator reset. The staff member must set it up again at the next sign-in."})
+}
+
 // RevokeStaffSessions revokes all sessions for a staff member.
 func (ac *AdminController) RevokeStaffSessions(c *fiber.Ctx) error {
 	caller := middleware.CurrentStaff(c)
