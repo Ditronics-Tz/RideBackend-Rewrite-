@@ -9,7 +9,9 @@ import (
 	"ride-backend/storage"
 	"ride-backend/store"
 	"ride-backend/utils"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -99,6 +101,7 @@ func (pc *ProfileController) GetMyPassengerProfile(c *fiber.Ctx) error {
 	}
 	p := pc.Store.EnsurePassengerProfile(uid, user.Name)
 	p.ProfilePictureURL = profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
+	p.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
 	return c.JSON(p)
 }
 
@@ -112,14 +115,27 @@ func (pc *ProfileController) UpdateMyPassengerProfile(c *fiber.Ctx) error {
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
-	if input.Phone != "" {
-		return fiber.NewError(400, "Verify phone through /auth/phone/request-otp and /auth/phone/verify-otp")
-	}
-	p := pc.Store.UpdatePassengerProfile(uid, func(p *models.PassengerProfile) {
-		if input.FullName != "" {
-			p.FullName = input.FullName
+	if input.FullName != nil {
+		trimmed := strings.TrimSpace(*input.FullName)
+		if trimmed == "" || utf8.RuneCountInString(trimmed) > 100 {
+			return operationError(c, store.FieldError("full_name", "full_name must contain 1-100 characters"))
 		}
-	})
+		input.FullName = &trimmed
+	}
+	if input.Phone != nil && input.PhoneNumber != nil {
+		return operationError(c, store.FieldError("phone_number", "provide only phone_number"))
+	}
+	if input.PhoneNumber == nil {
+		input.PhoneNumber = input.Phone
+	}
+	p, err := pc.Store.UpdatePassengerBasics(uid, input.FullName, input.PhoneNumber)
+	if err != nil {
+		return operationError(c, err)
+	}
+	p.ProfilePictureURL = profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
+	if user, ok := pc.Store.GetUserByID(uid); ok {
+		p.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
+	}
 	return c.JSON(p)
 }
 
@@ -205,6 +221,9 @@ func (pc *ProfileController) updateProfilePicture(c *fiber.Ctx, uid string, driv
 		return fiber.NewError(404, "Passenger profile not found")
 	}
 	profile.ProfilePictureURL = profilePictureURL(profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
+	if user, ok := pc.Store.GetUserByID(uid); ok {
+		profile.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
+	}
 	return c.JSON(profile)
 }
 
@@ -218,6 +237,9 @@ func (pc *ProfileController) GetPassengerProfileByID(c *fiber.Ctx) error {
 	uid, role := middleware.CurrentUser(c)
 	if uid == id && role == models.RolePassenger {
 		p.ProfilePictureURL = profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
+		if user, ok := pc.Store.GetUserByID(id); ok {
+			p.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
+		}
 		return c.JSON(p)
 	}
 	user, ok := pc.Store.GetUserByID(id)

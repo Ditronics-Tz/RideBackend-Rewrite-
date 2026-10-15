@@ -73,6 +73,11 @@ func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, column := range expected["users"] {
+		if column.Name == "name" && column.NotNull {
+			t.Fatal("migration 12 must allow users without a profile name")
+		}
+	}
 	for table, columns := range expected {
 		for _, column := range columns {
 			if !db.Migrator().HasColumn(table, column.Name) {

@@ -12,7 +12,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 	"ride-backend/config"
-	backenddb "ride-backend/db"
 	"ride-backend/middleware"
 	"ride-backend/models"
 	"ride-backend/store"
@@ -79,11 +78,17 @@ func appAccessTTL(cfg *config.Config) time.Duration {
 
 func mobileUser(user *models.User) fiber.Map {
 	var phone any
+	var name any
+	if strings.TrimSpace(user.Name) != "" {
+		name = user.Name
+	}
 	if user.Phone != "" {
 		phone = user.Phone
 	}
 	return fiber.Map{"id": user.ID, "name": user.Name, "email": user.Email,
-		"phone": phone, "role": user.Role, "status": user.Status,
+		"full_name": name, "phone": phone, "phone_number": phone,
+		"profile_completed": name != nil && phone != nil,
+		"role":              user.Role, "status": user.Status,
 		"is_active": user.IsActive, "phone_verified_at": user.PhoneVerifiedAt,
 		"suspended_until": user.SuspendedUntil}
 }
@@ -130,13 +135,9 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 	if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
-	input.Name = strings.TrimSpace(input.Name)
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 	if err := ac.throttle(c, "app_register_account", input.Email, 3); err != nil {
 		return authError(c, err)
-	}
-	if input.Name == "" || utf8.RuneCountInString(input.Name) > 100 {
-		return operationError(c, store.FieldError("name", "name must contain 1-100 characters"))
 	}
 	if !validAuthEmail(input.Email) {
 		return operationError(c, store.FieldError("email", "a valid email address is required"))
@@ -156,7 +157,7 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 	if err != nil {
 		return authError(c, store.ErrAuthUnavailable)
 	}
-	user, err := ac.Store.CreateUser(input.Name, input.Email, string(hash), role)
+	user, err := ac.Store.CreateUser("", input.Email, string(hash), role)
 	if err != nil {
 		var sqlState interface{ SQLState() string }
 		if err.Error() == "email already registered" || errors.As(err, &sqlState) && sqlState.SQLState() == "23505" {
@@ -177,35 +178,10 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte("invalid"))
 		return invalidCredentials(c)
 	}
-	provided := 0
-	for _, value := range []string{input.Identifier, input.Email, input.Phone} {
-		if strings.TrimSpace(value) != "" {
-			provided++
-		}
-	}
-	if provided != 1 || input.Password == "" || len(input.Password) > 72 {
+	identifier := strings.ToLower(strings.TrimSpace(input.Email))
+	if !validAuthEmail(identifier) || input.Password == "" || len(input.Password) > 72 {
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(input.Password))
 		return invalidCredentials(c)
-	}
-	identifier := strings.TrimSpace(input.Identifier)
-	if identifier == "" {
-		identifier = strings.TrimSpace(input.Email)
-	}
-	if identifier == "" {
-		identifier = strings.TrimSpace(input.Phone)
-	}
-	identifier = strings.ToLower(identifier)
-	if strings.Contains(identifier, "@") {
-		if !validAuthEmail(identifier) {
-			identifier = ""
-		}
-	} else {
-		phone, err := backenddb.CanonicalPhone(identifier)
-		if err != nil {
-			identifier = ""
-		} else {
-			identifier = phone
-		}
 	}
 	if err := ac.throttle(c, "app_login_account", identifier, 10); err != nil {
 		return authError(c, err)
@@ -335,6 +311,7 @@ func (ac *AuthController) Me(c *fiber.Ctx) error {
 	}
 	if profile, ok := ac.Store.GetPassengerProfile(uid); ok {
 		profile.ProfilePictureURL = profilePictureURL(profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
+		profile.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
 		response["passenger_profile"] = profile
 	}
 	avg, total, err := ac.Store.RatingSummary(uid)

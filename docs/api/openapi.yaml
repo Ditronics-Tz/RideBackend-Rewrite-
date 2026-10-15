@@ -1106,27 +1106,23 @@
           "email": {
             "type": "string"
           },
-          "identifier": {
-            "type": "string"
-          },
           "password": {
-            "type": "string"
-          },
-          "phone": {
             "type": "string"
           }
         },
         "required": [
           "email",
-          "identifier",
-          "password",
-          "phone"
+          "password"
         ],
         "type": "object"
       },
       "MobileUser": {
         "properties": {
           "email": {
+            "type": "string"
+          },
+          "full_name": {
+            "nullable": true,
             "type": "string"
           },
           "id": {
@@ -1143,10 +1139,17 @@
             "nullable": true,
             "type": "string"
           },
+          "phone_number": {
+            "nullable": true,
+            "type": "string"
+          },
           "phone_verified_at": {
             "format": "date-time",
             "nullable": true,
             "type": "string"
+          },
+          "profile_completed": {
+            "type": "boolean"
           },
           "role": {
             "enum": [
@@ -1166,11 +1169,14 @@
         },
         "required": [
           "email",
+          "full_name",
           "id",
           "is_active",
           "name",
           "phone",
+          "phone_number",
           "phone_verified_at",
+          "profile_completed",
           "role",
           "status",
           "suspended_until"
@@ -1359,6 +1365,9 @@
           "phone": {
             "type": "string"
           },
+          "profile_completed": {
+            "type": "boolean"
+          },
           "profile_picture_url": {
             "type": "string"
           },
@@ -1380,6 +1389,7 @@
           "created_at",
           "full_name",
           "phone",
+          "profile_completed",
           "profile_picture_url",
           "total_ratings",
           "updated_at",
@@ -2173,9 +2183,6 @@
           "email": {
             "type": "string"
           },
-          "name": {
-            "type": "string"
-          },
           "password": {
             "type": "string"
           },
@@ -2185,9 +2192,7 @@
         },
         "required": [
           "email",
-          "name",
-          "password",
-          "role"
+          "password"
         ],
         "type": "object"
       },
@@ -12009,7 +12014,7 @@
     },
     "/api/v1/auth/login": {
       "post": {
-        "description": "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.",
+        "description": "App authentication uses email and password; registration needs no name or phone. Existing driver registration may send role=driver. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline.",
         "operationId": "post_api_v1_auth_login",
         "parameters": [
           {
@@ -12028,7 +12033,20 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LoginInput"
+                "properties": {
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "type": "object"
               }
             }
           },
@@ -12043,7 +12061,7 @@
                 }
               }
             },
-            "description": "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.",
+            "description": "App authentication uses email and password; registration needs no name or phone. Existing driver registration may send role=driver. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -12496,7 +12514,7 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "description": "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.",
+        "description": "App authentication uses email and password; registration needs no name or phone. Existing driver registration may send role=driver. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline.",
         "operationId": "post_api_v1_auth_register",
         "parameters": [
           {
@@ -12515,7 +12533,28 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RegisterInput"
+                "properties": {
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "default": "passenger",
+                    "enum": [
+                      "passenger",
+                      "driver"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "type": "object"
               }
             }
           },
@@ -12530,7 +12569,7 @@
                 }
               }
             },
-            "description": "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.",
+            "description": "App authentication uses email and password; registration needs no name or phone. Existing driver registration may send role=driver. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -14994,7 +15033,7 @@
         "x-go-handler": "ride-backend/controllers.(*ProfileController).GetMyPassengerProfile"
       },
       "put": {
-        "description": "Current profile response.",
+        "description": "Update the signed-in passenger's full name and phone number. A new phone is normalized to +255 format and remains unverified until the existing OTP flow succeeds.",
         "operationId": "put_api_v1_passenger_profile_me",
         "parameters": [
           {
@@ -15009,6 +15048,26 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "full_name": {
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "phone_number": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -15019,6 +15078,23 @@
               }
             },
             "description": "Current profile response.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Phone number already belongs to another account.",
             "headers": {
               "X-Request-ID": {
                 "schema": {

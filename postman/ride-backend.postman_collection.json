@@ -595,7 +595,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Juma Driver\",\n  \"email\": \"juma@driver.tz\",\n  \"password\": \"secret123\",\n  \"role\": \"driver\"\n}"
+                  "raw": "{\n  \"email\": \"juma@driver.tz\",\n  \"password\": \"unique-driver-password!\",\n  \"role\": \"driver\"\n}"
                 }
               },
               "event": [
@@ -624,7 +624,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Asha Pax\",\n  \"email\": \"asha@pax.tz\",\n  \"password\": \"secret123\",\n  \"role\": \"passenger\"\n}"
+                  "raw": "{\n  \"email\": \"asha@pax.tz\",\n  \"password\": \"unique-passenger-password!\"\n}"
                 }
               },
               "event": [
@@ -653,7 +653,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"juma@driver.tz\",\n  \"password\": \"secret123\"\n}"
+                  "raw": "{\n  \"email\": \"juma@driver.tz\",\n  \"password\": \"unique-driver-password!\"\n}"
                 }
               },
               "event": [
@@ -682,7 +682,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"asha@pax.tz\",\n  \"password\": \"secret123\"\n}"
+                  "raw": "{\n  \"email\": \"asha@pax.tz\",\n  \"password\": \"unique-passenger-password!\"\n}"
                 }
               },
               "event": [
@@ -865,7 +865,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"full_name\": \"Asha Updated\",\n  \"phone\": \"+255700000000\"\n}"
+                  "raw": "{\n  \"full_name\": \"Asha Updated\",\n  \"phone_number\": \"+255700000000\"\n}"
                 }
               }
             },

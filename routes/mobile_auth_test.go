@@ -80,9 +80,22 @@ func TestMobileGoogleExchangeProfileReplayAndAccountConflict(t *testing.T) {
 	if status != 409 || body["code"] != "ACCOUNT_LINK_REQUIRED" {
 		t.Fatal("existing password account auto-linked")
 	}
+	status, challenge, _ = authRequest(t, app, "POST", "/auth/google/challenge", "", map[string]any{})
+	expectAuthStatus(t, status, 200, challenge)
+	nonce = challenge["nonce"].(string)
+	email, subject = "nameless-google@example.test", "nameless-google-sub"
+	// A verified Google identity without a name must stay incomplete.
+	ac.GoogleID.Validate = func(_ context.Context, token, audience string) (*idtoken.Payload, error) {
+		return &idtoken.Payload{Issuer: "https://accounts.google.com", Audience: audience, Expires: time.Now().Add(time.Hour).Unix(), Subject: subject, Claims: map[string]interface{}{"nonce": nonce, "email": email, "email_verified": true}}, nil
+	}
+	status, body, _ = authRequest(t, app, "POST", "/auth/google", "", map[string]string{"idToken": "signed-fixture", "challengeId": challenge["challengeId"].(string)})
+	expectAuthStatus(t, status, 200, body)
+	if body["user"].(map[string]any)["full_name"] != nil || body["user"].(map[string]any)["profile_completed"] != false {
+		t.Fatal("Google account without a name received a fabricated completed profile")
+	}
 }
 
-func TestMobilePhonePasswordLoginAndRefreshFailures(t *testing.T) {
+func TestMobileEmailPasswordLoginAndRefreshFailures(t *testing.T) {
 	s, cfg, err := testutil.SetupTestStore()
 	if err != nil {
 		t.Fatal(err)
@@ -108,6 +121,10 @@ func TestMobilePhonePasswordLoginAndRefreshFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	status, body, _ = authRequest(t, app, "POST", "/auth/login", "", map[string]string{"identifier": "0712 345 678", "password": "valid-password-for-test!"})
+	if status != 401 {
+		t.Fatal("verified phone was accepted for password login")
+	}
+	status, body, _ = authRequest(t, app, "POST", "/auth/login", "", map[string]string{"email": "phone-mobile@example.test", "password": "valid-password-for-test!"})
 	expectAuthStatus(t, status, 200, body)
 	access := body["accessToken"].(string)
 	if body["user"].(map[string]any)["phone"] != phone || len(body["onboardingRequired"].([]any)) != 0 {

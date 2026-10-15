@@ -21,7 +21,9 @@ func (s *Store) CreateGoogleChallenge(ctx context.Context) (string, string, time
 	now := s.now()
 	row := models.GoogleChallenge{ID: newID(), NonceHash: utils.HashSHA256(nonce), CreatedAt: now, ExpiresAt: now.Add(googleChallengeTTL)}
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("expires_at <= ?", now).Delete(&models.GoogleChallenge{}).Error; err != nil { return err }
+		if err := tx.Where("expires_at <= ?", now).Delete(&models.GoogleChallenge{}).Error; err != nil {
+			return err
+		}
 		return tx.Create(&row).Error
 	}); err != nil {
 		return "", "", time.Time{}, ErrAuthUnavailable
@@ -47,12 +49,7 @@ func (s *Store) ConsumeGoogleChallenge(ctx context.Context, id, signedNonce stri
 
 func (s *Store) FindUserForLogin(ctx context.Context, identifier string) (*models.User, error) {
 	var user models.User
-	var query *gorm.DB
-	if len(identifier) > 0 && identifier[0] == '+' {
-		query = s.db.WithContext(ctx).Where("phone = ? AND phone_verified_at IS NOT NULL", identifier)
-	} else {
-		query = s.db.WithContext(ctx).Where("email = ?", identifier)
-	}
+	query := s.db.WithContext(ctx).Where("email = ?", identifier)
 	if err := query.First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrInvalidCredentials

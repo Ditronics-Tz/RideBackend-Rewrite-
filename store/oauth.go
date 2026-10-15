@@ -94,9 +94,6 @@ func (s *Store) ResolveGoogleIdentity(ctx context.Context, subject, name, email 
 			return OpError(409, "Sign in to the existing account; automatic Google linking is unavailable")
 		}
 		name = strings.TrimSpace(name)
-		if name == "" {
-			name = "Passenger"
-		}
 		if len([]rune(name)) > 100 {
 			name = string([]rune(name)[:100])
 		}

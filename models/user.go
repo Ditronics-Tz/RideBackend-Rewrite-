@@ -46,7 +46,7 @@ type User struct {
 	FailedLoginCount int        `json:"-" gorm:"not null;default:0"`
 	LockedUntil      *time.Time `json:"-" gorm:"index"`
 	ID               string     `json:"id" gorm:"primaryKey;type:uuid"`
-	Name             string     `json:"name" gorm:"not null"`
+	Name             string     `json:"name"`
 	Email            string     `json:"email" gorm:"uniqueIndex;not null"`
 	PasswordHash     string     `json:"-" gorm:"column:password_hash;default:''"`
 	Role             Role       `json:"role" gorm:"type:varchar(20);not null;default:'passenger'"`
@@ -86,6 +86,7 @@ type PassengerProfile struct {
 	ProfilePictureKey string    `json:"-"`
 	UserID            string    `json:"user_id" gorm:"primaryKey;type:uuid"`
 	FullName          string    `json:"full_name"`
+	ProfileCompleted  bool      `json:"profile_completed" gorm:"-"`
 	ProfilePictureURL string    `json:"profile_picture_url"`
 	Phone             string    `json:"phone"`
 	AverageRating     float64   `json:"average_rating" gorm:"default:0"`
@@ -130,17 +131,14 @@ type Rating struct {
 // ---------- Request inputs ----------
 
 type RegisterInput struct {
-	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
-	Role     string `json:"role"` // optional: driver|passenger (default passenger)
+	Role     string `json:"role,omitempty"` // optional: driver|passenger (default passenger)
 }
 
 type LoginInput struct {
-	Email      string `json:"email"`
-	Identifier string `json:"identifier"`
-	Phone      string `json:"phone"`
-	Password   string `json:"password"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type UpdateRoleInput struct {
@@ -155,8 +153,9 @@ type DriverProfileInput struct {
 }
 
 type PassengerProfileInput struct {
-	FullName string `json:"full_name"`
-	Phone    string `json:"phone"`
+	FullName    *string `json:"full_name"`
+	PhoneNumber *string `json:"phone_number"`
+	Phone       *string `json:"phone"` // legacy alias
 }
 
 type RatingInput struct {

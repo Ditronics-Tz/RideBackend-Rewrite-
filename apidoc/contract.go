@@ -267,6 +267,11 @@ func describeCurrent(route Route, operation, schemas object) {
 			operation["x-privacy-contract"] = "public DTO for other users; full profile for owner"
 		}
 		set("200", description, ref(name))
+		if path == "/passenger/profile/me" && route.Method == "PUT" {
+			operation["description"] = "Update the signed-in passenger's full name and phone number. A new phone is normalized to +255 format and remains unverified until the existing OTP flow succeeds."
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"full_name": object{"type": "string", "minLength": 1, "maxLength": 100}, "phone_number": scalar("string")})}}}
+			responses["409"] = jsonResponse("Phone number already belongs to another account.", ref("Error"))
+		}
 		return
 	}
 	if path == "/admin/users/:id/profile" {
@@ -494,8 +499,13 @@ func describeCurrent(route Route, operation, schemas object) {
 			input = reflect.TypeOf(models.RegisterInput{})
 			status = "201"
 		}
-		set(status, "App authentication returns the same session contract for password and Google login. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline. Phone login requires an already verified phone number.", ref("AppSessionToken"))
-		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": schemaFor(input, schemas)}}}
+		set(status, "App authentication uses email and password; registration needs no name or phone. Existing driver registration may send role=driver. Access defaults to 15 minutes; refresh inactivity defaults to 90 days, with a 365-day absolute deadline.", ref("AppSessionToken"))
+		_ = schemaFor(input, schemas)
+		fields := object{"email": object{"type": "string", "format": "email"}, "password": scalar("string")}
+		if path == "/auth/register" {
+			fields["role"] = object{"type": "string", "enum": []string{"passenger", "driver"}, "default": "passenger"}
+		}
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(fields, "email", "password")}}}
 		responses["429"] = jsonResponse("Rate limit exceeded.", ref("Error"))
 		if path == "/auth/login" {
 			responses["401"] = jsonResponse("Invalid credentials.", ref("Error"))

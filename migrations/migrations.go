@@ -19,7 +19,7 @@ import (
 //go:embed *.sql schema*.json
 var files embed.FS
 
-const LatestVersion int64 = 11
+const LatestVersion int64 = 12
 
 var ErrMigration = errors.New("database migration failed; database details and personal data are redacted")
 var ErrIncompatibleSchema = errors.New("existing database schema is incompatible with the frozen baseline; review schema drift before migrating")
@@ -143,6 +143,13 @@ func latestSchema() (map[string][]columnSpec, error) {
 		}
 		for table, columns := range addon {
 			schema[table] = append(schema[table], columns...)
+		}
+	}
+	// Migration 12 relaxes this frozen baseline constraint without rewriting
+	// the baseline manifest used to adopt existing installations.
+	for i := range schema["users"] {
+		if schema["users"][i].Name == "name" {
+			schema["users"][i].NotNull = false
 		}
 	}
 	return schema, nil

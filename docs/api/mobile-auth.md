@@ -2,7 +2,7 @@
 
 All paths use the existing `/api/v1` prefix. Requests and responses are JSON over HTTPS. The Android application ID is `com.example.ridepassenger2`; configure its signing certificate in Google Cloud and request an ID token for the **Web** OAuth client ID. Set that ID in `GOOGLE_WEB_CLIENT_ID` on the backend. The Android app must not contain a Google client secret.
 
-Run `go run ./cmd/migrate up` before starting the updated API. Migration 10 adds a durable, one-use Google challenge table and an absolute deadline to existing app sessions. Existing refresh sessions retain their previous inactivity expiry; the new 90-day policy applies to newly issued sessions and later refreshes, bounded by the 365-day deadline. Browser redirect OAuth (`GET /api/v1/auth/google`) remains separate and uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and the existing redirect allowlist.
+Run `go run ./cmd/migrate up` before starting the updated API. Migration 12 makes `users.name` nullable without changing existing values. Migration 10 added a durable, one-use Google challenge table and an absolute deadline to existing app sessions. Existing refresh sessions retain their previous inactivity expiry; the new 90-day policy applies to newly issued sessions and later refreshes, bounded by the 365-day deadline. Browser redirect OAuth (`GET /api/v1/auth/google`) remains separate and uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and the existing redirect allowlist.
 
 ## Session response
 
@@ -10,7 +10,7 @@ Run `go run ./cmd/migrate up` before starting the updated API. Migration 10 adds
 
 ```json
 {
-  "user": {"id":"d2a2f6ec-7b8c-4eca-afec-2bd4f9b95220","name":"Asha","email":"asha@example.com","phone":null,"role":"passenger","status":"active","is_active":true,"phone_verified_at":null,"suspended_until":null},
+  "user": {"id":"d2a2f6ec-7b8c-4eca-afec-2bd4f9b95220","name":"","full_name":null,"email":"asha@example.com","phone":null,"phone_number":null,"profile_completed":false,"role":"passenger","status":"active","is_active":true,"phone_verified_at":null,"suspended_until":null},
   "accessToken":"eyJ...",
   "expiresIn":900,
   "refreshToken":"opaque-random-token",
@@ -26,26 +26,26 @@ Run `go run ./cmd/migrate up` before starting the updated API. Migration 10 adds
 }
 ```
 
-`user.id` and `sessionId` are UUID strings. `name`, `email`, `role`, and `status` are strings; `phone` is a string or JSON null; `is_active` and `restricted` are booleans; `phone_verified_at` and `suspended_until` are RFC 3339 timestamps or null. `accessToken` is a signed Rida JWT string, `refreshToken` is an opaque string, and `refresh_expires_at` is an RFC 3339 timestamp. `expiresIn`/`expires_in` are integer seconds, configurable with a default of 900. `onboardingRequired` is an array of strings, empty for a passenger with a verified phone; `phone_verification` means phone verification is incomplete. Current ride booking has no server phone-verification gate. A real SMS sender must be configured before the existing `/auth/phone/request-otp` and `/auth/phone/verify-otp` flow can finish onboarding. The snake_case fields are retained for existing clients.
+`user.id` and `sessionId` are UUID strings. `name` is a legacy string that is empty until set in Profile; `full_name` is a string or null. `email`, `role`, and `status` are strings; `phone` and `phone_number` are strings or JSON null. `profile_completed` is true once both name and phone are present, even while phone verification is pending. `is_active` and `restricted` are booleans; `phone_verified_at` and `suspended_until` are RFC 3339 timestamps or null. `accessToken` is a signed Rida JWT string, `refreshToken` is an opaque string, and `refresh_expires_at` is an RFC 3339 timestamp. `expiresIn`/`expires_in` are integer seconds, configurable with a default of 900. `onboardingRequired` is an array of strings, empty for a passenger with a verified phone; `phone_verification` means phone verification is incomplete. Current ride booking has no server phone-verification gate. A real SMS sender must be configured before the existing `/auth/phone/request-otp` and `/auth/phone/verify-otp` flow can finish onboarding. The snake_case fields are retained for existing clients.
 
 Store the refresh token in Android encrypted storage. Send the access token as `Authorization: Bearer <accessToken>`. `X-Device-ID` and `X-Device-Platform: android` are optional informational metadata, never proof of identity. Access tokens expire after 15 minutes by default. Refresh inactivity expires after 90 days without a successful refresh; every refresh slides that deadline but never past 365 days from the original session creation. Rotation also replaces `sessionId`, so the prior access token stops working immediately. Access tokens are checked against the session database on every protected request: logout, logout-all, reuse detection, and administrative revocation take effect on the next request after the revocation transaction commits.
 
 ## Requests
 
-On the Docker VPS, apply migration 10 with `docker compose --profile tools run --rm migrate up` before recreating the API service.
+On the Docker VPS, apply pending migrations through version 12 with `docker compose --profile tools run --rm migrate up` before recreating the API service.
 
 `POST /api/v1/auth/register` (201; response is the session JSON above):
 
 ```json
-{"name":"Asha","email":"asha@example.com","password":"a-unique-long-password"}
+{"email":"asha@example.com","password":"a-unique-long-password"}
 ```
 
-New registrations default to passenger. Existing driver registration remains supported through the optional `role` field. Passwords use bcrypt and the existing 10-character minimum/72-byte maximum policy.
+New registrations default to passenger. Existing driver registration remains supported through the optional `role` field. Name and phone are entered later through Profile. Passwords use bcrypt and the existing 10-character minimum/72-byte maximum policy.
 
-`POST /api/v1/auth/login` (200; response is the session JSON above) accepts an email or a **verified** Tanzanian phone number. Use `identifier` for new clients; `email` and `phone` remain accepted aliases. Phone values are normalized to `+255...` before lookup. Unknown account and wrong password both return a generic 401.
+`POST /api/v1/auth/login` (200; response is the session JSON above) accepts email and password only. Email is trimmed and lowercased. A phone-only request is rejected with the same generic 401 used for invalid credentials.
 
 ```json
-{"identifier":"0712 345 678","password":"a-unique-long-password"}
+{"email":"asha@example.com","password":"a-unique-long-password"}
 ```
 
 `POST /api/v1/auth/google/challenge` accepts `{}` with no Bearer token and returns 200:
@@ -67,7 +67,7 @@ The backend validates Google's signature and certificate, Web client audience, i
 `GET /api/v1/me` requires `Authorization: Bearer <accessToken>` and has no request body. It returns 200 using the same `MobileUser` shape as the session response:
 
 ```json
-{"user":{"id":"d2a2f6ec-7b8c-4eca-afec-2bd4f9b95220","name":"Asha","email":"asha@example.com","phone":null,"role":"passenger","status":"active","is_active":true,"phone_verified_at":null,"suspended_until":null},"onboardingRequired":["phone_verification"]}
+{"user":{"id":"d2a2f6ec-7b8c-4eca-afec-2bd4f9b95220","name":"","full_name":null,"email":"asha@example.com","phone":null,"phone_number":null,"profile_completed":false,"role":"passenger","status":"active","is_active":true,"phone_verified_at":null,"suspended_until":null},"onboardingRequired":["phone_verification"]}
 ```
 
 The existing `GET /api/v1/auth/me` also requires a Bearer token and no body. It returns the legacy account detail contract, including `average_rating` (number), `total_ratings` (integer), and optional `passenger_profile` or `driver_profile` objects. Its `user.phone` is an empty string when unset, so use `/api/v1/me` for the nullable-phone mobile contract. Example:
@@ -77,6 +77,18 @@ The existing `GET /api/v1/auth/me` also requires a Bearer token and no body. It 
 ```
 
 `POST /api/v1/auth/logout` and `POST /api/v1/auth/logout-all` require the current Bearer token and accept no request body. They return 200 with `{"message":"Logged out"}` or `{"message":"All sessions revoked"}` respectively. Logout revokes the current device session; logout-all revokes all of the account's sessions. Clear local credentials after a successful response.
+
+### Passenger profile after sign-in
+
+`GET /api/v1/passenger/profile/me` returns the existing passenger profile object. A new email-only account has `full_name: ""` and `phone: ""` in this legacy profile shape. The compact `/api/v1/me` user object gives nullable `full_name` and `phone_number` and a `profile_completed` boolean.
+
+`PUT /api/v1/passenger/profile/me` accepts either field independently; it returns the updated passenger profile object:
+
+```json
+{"full_name":"Asha Mwakalinga","phone_number":"0712 345 678"}
+```
+
+The server stores that phone as `+255712345678`, rejects a duplicate with 409, and clears `phone_verified_at` if the number changes. Entering a phone does **not** verify ownership. The existing authenticated `POST /api/v1/auth/phone/request-otp` and `POST /api/v1/auth/phone/verify-otp` flow verifies it when a real SMS sender is configured. The legacy `phone` field is still accepted by the profile update endpoint. Registration and login never require profile completion.
 
 ## Error handling
 

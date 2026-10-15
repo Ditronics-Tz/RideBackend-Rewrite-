@@ -113,7 +113,11 @@ func TestAccountControlAndPhoneVerification(t *testing.T) {
 		t.Fatal("Phone ownership not recorded")
 	}
 	request("POST", "/auth/phone/request-otp", otherToken, map[string]string{"phone": "+255712345678"}, 409)
-	request("PUT", "/passenger/profile/me", token, map[string]string{"phone": "0719999999"}, 400)
+	request("PUT", "/passenger/profile/me", token, map[string]string{"phone": "0719999999"}, 200)
+	changed, ok := s.GetUserByID(u.ID)
+	if !ok || changed.Phone != "+255719999999" || changed.PhoneVerifiedAt != nil {
+		t.Fatal("profile phone change must normalize number and require fresh OTP verification")
+	}
 	var count int64
 	if err := s.DB().Model(&models.StaffAuditLog{}).Where("actor_id = ?", support.ID).Count(&count).Error; err != nil || count < 10 {
 		t.Fatalf("Support actions not audited: count=%d error=%v", count, err)
