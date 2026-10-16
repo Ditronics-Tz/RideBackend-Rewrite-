@@ -97,9 +97,16 @@ func describeCurrent(route Route, operation, schemas object) {
 		operation["description"] = description
 	}
 	params := func(values ...any) { operation["parameters"] = append(operation["parameters"].([]any), values...) }
+	if path == "/promos/validate" {
+		set("200", "Validate one promo against the authenticated passenger and a quoted fare in whole TZS. A grant or inbox share alone does not guarantee eligibility.", object{"type": "object", "required": []string{"valid", "discount_amount", "final_fare", "promo"}, "properties": object{"valid": scalar("boolean"), "discount_amount": object{"type": "integer", "format": "int64"}, "final_fare": object{"type": "integer", "format": "int64"}, "promo": object{"type": "object", "required": []string{"code", "title"}, "properties": object{"code": scalar("string"), "title": scalar("string")}}}})
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": object{"type": "object", "required": []string{"code", "fare"}, "properties": object{"code": scalar("string"), "fare": object{"type": "integer", "format": "int64", "minimum": 0, "description": "Actual quoted fare in whole TZS; do not send null or omit."}}}}}}
+		responses["400"] = jsonResponse("Invalid body, missing fare, or promo not eligible for this fare/passenger.", ref("Error"))
+		responses["429"] = jsonResponse("Promo validation rate limit exceeded.", ref("Error"))
+		return
+	}
 	if path == "/passenger/notifications/updates" {
 		params(query("after", object{"type": "string", "format": "uuid", "description": "Latest notification id from the last inbox page; omit if the inbox was empty."}))
-		set("200", "Wait up to 20 seconds for a committed inbox change. Reconnect after every response, and fetch the inbox when changed is true. Requires a passenger bearer token; no notification content is sent here.", object{"type": "object", "required": []string{"changed", "latest_id"}, "properties": object{"changed": scalar("boolean"), "latest_id": scalar("string")}})
+		set("200", "Wait up to 18 seconds for a committed inbox change. Reconnect after every response, and fetch the inbox when changed is true. Requires a passenger bearer token; no notification content is sent here.", object{"type": "object", "required": []string{"changed", "latest_id"}, "properties": object{"changed": scalar("boolean"), "latest_id": scalar("string")}})
 		responses["400"] = jsonResponse("Invalid after notification id.", ref("Error"))
 		responses["401"] = jsonResponse("App session is invalid or revoked.", ref("Error"))
 		responses["429"] = jsonResponse("Too many update requests for this account.", ref("Error"))

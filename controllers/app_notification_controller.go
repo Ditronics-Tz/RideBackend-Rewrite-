@@ -44,28 +44,33 @@ func (nc *AppNotificationController) Updates(c *fiber.Ctx) error {
 	}
 	userID, _ := middleware.CurrentUser(c)
 	sessionID, _ := c.Locals("app_session_id").(string)
-	ctx, cancel := context.WithTimeout(c.UserContext(), 20*time.Second)
-	defer cancel()
+	deadline := time.NewTimer(18 * time.Second)
+	defer deadline.Stop()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
-		latest, err := nc.Store.LatestAppNotificationID(ctx, userID)
+		queryCtx, cancel := context.WithTimeout(c.UserContext(), 3*time.Second)
+		latest, err := nc.Store.LatestAppNotificationID(queryCtx, userID)
+		cancel()
 		if err != nil {
-			return operationError(c, err)
+			return notificationUnavailable(c)
 		}
 		if latest != after && latest != "" {
-			if err := nc.Store.ValidateAppSession(ctx, userID, sessionID); err != nil {
+			checkCtx, cancel := context.WithTimeout(c.UserContext(), 3*time.Second)
+			err := nc.Store.ValidateAppSession(checkCtx, userID, sessionID)
+			cancel()
+			if err != nil {
 				return notificationSessionError(c, err)
 			}
 			return c.JSON(fiber.Map{"changed": true, "latest_id": latest})
 		}
 		select {
 		case <-ticker.C:
-		case <-ctx.Done():
-			if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return ctx.Err()
-			}
-			if err := nc.Store.ValidateAppSession(c.UserContext(), userID, sessionID); err != nil {
+		case <-deadline.C:
+			checkCtx, cancel := context.WithTimeout(c.UserContext(), 3*time.Second)
+			err := nc.Store.ValidateAppSession(checkCtx, userID, sessionID)
+			cancel()
+			if err != nil {
 				return notificationSessionError(c, err)
 			}
 			return c.JSON(fiber.Map{"changed": false, "latest_id": after})
@@ -73,8 +78,12 @@ func (nc *AppNotificationController) Updates(c *fiber.Ctx) error {
 	}
 }
 
+func notificationUnavailable(c *fiber.Ctx) error {
+	return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "notification updates temporarily unavailable", "code": "NOTIFICATION_TEMPORARILY_UNAVAILABLE"})
+}
+
 func notificationSessionError(c *fiber.Ctx, err error) error {
-	if errors.Is(err, store.ErrAuthUnavailable) {
+	if errors.Is(err, store.ErrAuthUnavailable) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "authentication temporarily unavailable", "code": "AUTH_TEMPORARILY_UNAVAILABLE"})
 	}
 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})

@@ -16,7 +16,9 @@ All paths below are relative to `/api/v1`; all require a passenger Bearer token.
 
 ### `POST /promos/validate`
 
-Request: `{"code":"RIDA20","fare":10000}`. Success: `{"valid":true,"discount_amount":2000,"final_fare":8000,"promo":{"code":"RIDA20","title":"Weekend ride"}}`. The existing rate limit is ten checks per minute per app user. Invalid or unavailable promo returns a 4xx structured promo error; 429 includes `Retry-After`. Do not assume validation reserves a promo. The ride booking API performs the actual reservation/redemption.
+Request: `{"code":"RIDA20","fare":10000}`. **`fare` is required** as a non-negative integer in whole TZS; pass the actual ride quote, not null or a placeholder. If the promo details screen does not yet have a quote, show the promo details and wait until a quote exists before calling validate. A promo may also require a minimum fare. Success: `{"valid":true,"discount_amount":2000,"final_fare":8000,"promo":{"code":"RIDA20","title":"Weekend ride"}}`. The existing rate limit is ten checks per minute per app user. Invalid or unavailable promo returns a 4xx structured promo error with `error` and `fields`; show that message in the UI. A missing or negative fare returns `fields.fare = "fare must be a non-negative whole TZS amount"`. 429 includes `Retry-After`. Do not assume validation reserves a promo. The ride booking API performs the actual reservation/redemption.
+
+For Kotlin, model the request as `data class PromoValidationRequest(val code: String, val fare: Long)` and call validate only when the quoted fare is available. Do not convert a nullable fare to `-1`, `null`, or a missing JSON field. Decode the 400 response body and show `fields.fare` or `error` to the passenger.
 
 ### `GET /referral/me` and `POST /referral/apply`
 
@@ -54,7 +56,7 @@ Success (`200`):
 
 ### `GET /passenger/notifications/updates?after=<latest-id>`
 
-New foreground long-poll endpoint. Pass the `id` of the first (newest) item in the last inbox response. If the inbox was empty, omit `after`. The server checks committed notifications for this passenger only. It returns as soon as a new latest item exists or after about 20 seconds. Examples:
+New foreground long-poll endpoint. Pass the `id` of the first (newest) item in the last inbox response. If the inbox was empty, omit `after`. The server checks committed notifications for this passenger only. It returns as soon as a new latest item exists or after about 18 seconds. Examples:
 
 ```json
 {"changed":true,"latest_id":"8f8d5cb3-63f3-4a8c-9ed7-4d5c442039a1"}
@@ -64,7 +66,7 @@ New foreground long-poll endpoint. Pass the `id` of the first (newest) item in t
 {"changed":false,"latest_id":"8f8d5cb3-63f3-4a8c-9ed7-4d5c442039a1"}
 ```
 
-`changed=true` is a signal to fetch `GET /passenger/notifications`; it does not contain notification text. After each response, open another update request while the app is foregrounded. Keep the previous `after` until the inbox fetch succeeds, then replace it with the newest returned ID; this prevents losing messages after a failed fetch. If the inbox remains empty, omit `after` on the next request. Invalid `after` returns 400; revoked session returns 401; temporary authentication/database errors return 503; 429 means slow down. Use an OkHttp read timeout longer than 20 seconds (for example 30 seconds), cancel the request when the app goes to background, and retry network/5xx errors with bounded backoff. Do not clear login state on transient errors. Refresh an expired access token using the existing refresh flow.
+`changed=true` is a signal to fetch `GET /passenger/notifications`; it does not contain notification text. After each response, open another update request while the app is foregrounded. Keep the previous `after` until the inbox fetch succeeds, then replace it with the newest returned ID; this prevents losing messages after a failed fetch. If the inbox remains empty, omit `after` on the next request. Invalid `after` returns 400; revoked session returns 401; temporary authentication/database errors return 503; 429 means slow down. Use an OkHttp read timeout longer than 21 seconds (for example 30 seconds), cancel the request when the app goes to background, and retry network/5xx errors with bounded backoff. Do not clear login state on transient errors. Refresh an expired access token using the existing refresh flow.
 
 ### `POST /passenger/notifications/{id}/read`
 

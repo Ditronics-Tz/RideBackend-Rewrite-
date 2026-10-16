@@ -15197,7 +15197,7 @@
     },
     "/api/v1/passenger/notifications/updates": {
       "get": {
-        "description": "Wait up to 20 seconds for a committed inbox change. Reconnect after every response, and fetch the inbox when changed is true. Requires a passenger bearer token; no notification content is sent here.",
+        "description": "Wait up to 18 seconds for a committed inbox change. Reconnect after every response, and fetch the inbox when changed is true. Requires a passenger bearer token; no notification content is sent here.",
         "operationId": "get_api_v1_passenger_notifications_updates",
         "parameters": [
           {
@@ -15243,7 +15243,7 @@
                 }
               }
             },
-            "description": "Wait up to 20 seconds for a committed inbox change. Reconnect after every response, and fetch the inbox when changed is true. Requires a passenger bearer token; no notification content is sent here.",
+            "description": "Wait up to 18 seconds for a committed inbox change. Reconnect after every response, and fetch the inbox when changed is true. Requires a passenger bearer token; no notification content is sent here.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -16345,7 +16345,7 @@
     },
     "/api/v1/promos/validate": {
       "post": {
-        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "description": "Validate one promo against the authenticated passenger and a quoted fare in whole TZS. A grant or inbox share alone does not guarantee eligibility.",
         "operationId": "post_api_v1_promos_validate",
         "parameters": [
           {
@@ -16360,12 +16360,116 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "fare": {
+                    "description": "Actual quoted fare in whole TZS; do not send null or omit.",
+                    "format": "int64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "code",
+                  "fare"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "2XX": {
-            "description": "Existing handler response; see endpoint implementation for the current payload."
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "discount_amount": {
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "final_fare": {
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "promo": {
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "title"
+                      ],
+                      "type": "object"
+                    },
+                    "valid": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "valid",
+                    "discount_amount",
+                    "final_fare",
+                    "promo"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Validate one promo against the authenticated passenger and a quoted fare in whole TZS. A grant or inbox share alone does not guarantee eligibility.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid body, missing fare, or promo not eligible for this fare/passenger.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "429": {
-            "$ref": "#/components/responses/RateLimited"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Promo validation rate limit exceeded.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/Error"
@@ -16377,7 +16481,7 @@
           }
         ],
         "summary": "POST /api/v1/promos/validate",
-        "x-contract-detail": "route-inventory",
+        "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/promos/validate",
         "x-go-handler": "ride-backend/controllers.(*PromoController).Validate"
       }
