@@ -74,11 +74,33 @@ Firebase is **not required** for the promo system, inbox, or booking. Without FC
 
 If the product chooses FCM:
 
-1. Create or use a Firebase project, register the exact Android package `com.example.ridepassenger2`, and add the Android Firebase config to the mobile project. Enable Cloud Messaging HTTP v1. Follow the [official Android setup](https://firebase.google.com/docs/cloud-messaging/android/get-started). This mobile config is not the server service-account key.
+1. Create or use a Firebase project, register the exact Android package `com.example.ridepassenger2`, and add the Android Firebase config to the mobile project. The previously supplied Google OAuth project ID `rida-511608` is a possible project to reuse **only if** Firebase has been enabled there; the OAuth JSON alone does not prove FCM is configured. Enable Cloud Messaging HTTP v1. Follow the [official Android setup](https://firebase.google.com/docs/cloud-messaging/android/get-started). Place the downloaded `google-services.json` in the Android app module and configure the Google Services Gradle plugin and Firebase Messaging dependency using the current official instructions. This mobile config is not the server service-account key.
 2. Request `POST_NOTIFICATIONS` permission on Android 13+, and provide a `FirebaseMessagingService` for foreground notifications and token refresh. Follow [Android receive guidance](https://firebase.google.com/docs/cloud-messaging/android/receive-messages).
 3. After authenticated login and whenever the FCM registration token changes, call `POST /passenger/push-devices` with `{"token":"<FCM registration token>"}`. Success (`201`): `{"id":"UUID","platform":"android","created_at":"2026-10-16T12:00:00Z"}`. Persist the returned device ID locally per signed-in account. The server encrypts the token at rest. A token already attached to another account returns `409`; sign out/unregister from the old account first. Missing backend FCM encryption configuration returns `503`; the inbox still works.
 4. `GET /passenger/push-devices` returns `{"devices":[{"id":"UUID","platform":"android","created_at":"..."}]}` without tokens. `DELETE /passenger/push-devices/{id}` returns `204`. On logout, call DELETE when practical, then the existing `/auth/logout`; backend logout and logout-all revoke bound push devices automatically. On token refresh, call POST again and remove obsolete device IDs when known.
 5. The FCM payload has `notification.title`, `notification.body`, and data keys `notification_id`, `kind`, optionally `promo_id` or `ride_id`. On tap/foreground, fetch the inbox item or full inbox from Rida API before navigation. Do not put auth tokens in FCM data. A `sent` delivery status means FCM accepted the request, not delivery/display on the handset.
+
+The Android engineer should implement `FirebaseMessagingService.onNewToken` to save a newly issued token locally and register it once a Rida app session exists. Also call `FirebaseMessaging.getInstance().token` after login because `onNewToken` can run before sign-in. In foreground, `onMessageReceived` may render a local notification after checking preferences; in background, FCM notification payloads are shown by Android and data is passed to the launcher intent when tapped. The app must handle both paths and deduplicate by `notification_id`. These behaviors are described in the [official receive-messages guide](https://firebase.google.com/docs/cloud-messaging/android/receive-messages).
+
+### Exact production activation steps
+
+The current VPS has **no** `secrets/firebase-service-account.json` file, so FCM is not active yet. The backend and admin are already deployed in inbox-only mode. Once Firebase Console access is available:
+
+1. In Firebase Console, verify the Firebase project ID and register `com.example.ridepassenger2`. In **Project settings → Cloud Messaging**, ensure the HTTP v1 API is enabled. Create a service account and grant it the [Firebase Cloud Messaging API Admin role](https://firebase.google.com/docs/cloud-messaging/send/v1-api) in the target project; download its JSON private key. This private JSON goes to the VPS, never to Android, GitHub, or this Markdown file. The previously shared Google OAuth Web client secret is unrelated to FCM and cannot replace this JSON.
+2. Transfer the private JSON over SSH to `/root/RideBackend-Rewrite-/secrets/firebase-service-account.json`. On the VPS, create that directory with mode `0700` and set the JSON file mode `0400` or `0440` so the API container's non-root account can read it. Check the ownership and mount permissions before enabling FCM. Do not print the file contents or include it in a Docker image.
+3. Set `FIREBASE_PROJECT_ID=<verified Firebase project ID>` and `PUSH_TOKEN_ENCRYPTION_KEY=<64 hex characters>` in `/root/RideBackend-Rewrite-/.env`. Generate the key on the VPS with `openssl rand -hex 32`, protect `.env` with `chmod 600`, and retain this key for future restarts. Leave `PUSH_PROVIDER=none` in the base `.env`; the optional Compose overlay sets it to `fcm` only for the API container.
+4. From `/root/RideBackend-Rewrite-`, run:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.fcm.yml config -q
+docker compose -f docker-compose.yml -f docker-compose.fcm.yml up -d --no-deps api
+docker compose -f docker-compose.yml -f docker-compose.fcm.yml ps
+docker compose -f docker-compose.yml -f docker-compose.fcm.yml logs --tail=100 api
+```
+
+5. In the passenger Android app, install a signed build configured for the same Firebase project, grant notification permission, log in, register its FCM token, enable `promotions` and `push_enabled` preferences, then share an **active** promo from admin. Check the app inbox first, then the OS notification. The admin Notification deliveries page shows `push_mode=fcm` and FCM queue counts. A test device is necessary to establish actual handset delivery.
+
+For this VPS's `read_only` API container, a bind-mounted file must be readable by UID 10001. A service-account file mode `0400` owned by root will **not** be readable by that UID. A practical layout is a root-owned secrets directory (`0700`) containing a file copied or owned by UID 10001 with mode `0400`, or a dedicated read-only group with mode `0440`. Verify effective permissions with `docker compose -f docker-compose.yml -f docker-compose.fcm.yml run --rm --no-deps --entrypoint /bin/sh api -c 'test -r /run/secrets/firebase-service-account.json'` before restarting production API. Do not use world-readable mode.
 
 ## Retrofit/Moshi sketch
 
