@@ -21,6 +21,13 @@ func SetupPassengerRoutes(r fiber.Router, cfg *config.Config, s *store.Store) {
 	passenger.Delete("/saved-places/:id", pc.DeleteSavedPlace)
 	passenger.Get("/preferences", pc.Preferences)
 	passenger.Patch("/preferences", pc.Preferences)
+	nc := &controllers.AppNotificationController{Store: s}
+	passenger.Get("/notifications", nc.List)
+	passenger.Post("/notifications/read-all", nc.MarkAllRead)
+	passenger.Post("/notifications/:id/read", nc.MarkRead)
+	passenger.Get("/push-devices", nc.Devices)
+	passenger.Post("/push-devices", nc.RegisterDevice)
+	passenger.Delete("/push-devices/:id", nc.UnregisterDevice)
 	schedules := r.Group("/scheduled-rides", guard, role, private)
 	schedules.Get("", pc.ScheduledRides)
 	schedules.Post("", pc.ScheduledRides)

@@ -1,9 +1,11 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"gorm.io/gorm"
 	"ride-backend/models"
+	"ride-backend/notifications"
 	"strconv"
 	"strings"
 	"time"
@@ -113,6 +115,16 @@ func (s *Store) CheckRideEligibility(passenger, driver string) error {
 }
 
 func (s *Store) enqueue(user, template, phone, link string) error {
-	return s.db.Create(&models.NotificationDelivery{ID: newID(), UserID: user, Template: template, Language: "sw", Phone: phone, Link: link, Status: "pending", CreatedAt: s.now()}).Error
+	if err := s.db.Create(&models.NotificationDelivery{ID: newID(), UserID: user, Template: template, Language: "sw", Phone: phone, Link: link, Status: "pending", CreatedAt: s.now()}).Error; err != nil {
+		return err
+	}
+	body, err := notifications.Render(notifications.Message{Template: template, Language: "sw", Link: link})
+	if err != nil {
+		return err
+	}
+	if len([]rune(body)) > 500 {
+		body = string([]rune(body)[:500])
+	}
+	return s.queueAppNotification(context.Background(), user, "system", "Rida", body, map[string]string{"template": template})
 }
 func notFound(err error) bool { return errors.Is(err, gorm.ErrRecordNotFound) }

@@ -225,6 +225,10 @@ func (ac *AdminController) NotificationDeliveries(c *fiber.Ctx) error {
 	if err != nil {
 		return operationError(c, err)
 	}
+	inboxCount, pushCounts, err := ac.Store.AdminAppNotificationCounts(c.UserContext())
+	if err != nil {
+		return operationError(c, err)
+	}
 	items := make([]models.NotificationDeliveryResponse, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, models.NotificationDeliveryResponse{ID: row.ID, Template: row.Template, Language: row.Language, Status: row.Status, Attempts: row.Attempts, CreatedAt: row.CreatedAt})
@@ -235,7 +239,11 @@ func (ac *AdminController) NotificationDeliveries(c *fiber.Ctx) error {
 		senderMode = "logging_stub"
 	}
 	c.Set("Cache-Control", "private, no-store")
-	return c.JSON(models.NotificationDeliveryPage{Notifications: items, Total: total, Limit: p.Limit, Offset: p.Offset, ByStatus: counts, SenderMode: senderMode})
+	pushMode := "disabled"
+	if ac.Store.PushSender != nil {
+		pushMode = "fcm"
+	}
+	return c.JSON(models.NotificationDeliveryPage{Notifications: items, Total: total, Limit: p.Limit, Offset: p.Offset, ByStatus: counts, SenderMode: senderMode, PushMode: pushMode, InboxCount: inboxCount, PushByStatus: pushCounts})
 }
 
 // ListRides — support/admin

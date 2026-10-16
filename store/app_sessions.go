@@ -181,6 +181,9 @@ func (s *Store) RotateAppSession(ctx context.Context, rawRefresh string, device 
 			if err := tx.Model(&models.AppSession{}).Where("family_id = ? AND user_id = ? AND revoked_at IS NULL", previous.FamilyID, previous.UserID).Update("revoked_at", now).Error; err != nil {
 				return ErrAuthUnavailable
 			}
+			if err := tx.Where("user_id = ? AND session_family_id = ?", previous.UserID, previous.FamilyID).Delete(&models.PushDevice{}).Error; err != nil {
+				return ErrAuthUnavailable
+			}
 			rejected = true
 			return recordSecurityEvent(tx, previous.UserID, "refresh_reuse_detected", device.IP, now)
 		}
@@ -272,6 +275,9 @@ func RevokeAppSessionsInTransaction(tx *gorm.DB, userID string, now time.Time) e
 	if err := tx.Model(&models.AppSession{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", now).Error; err != nil {
 		return ErrAuthUnavailable
 	}
+	if err := tx.Where("user_id = ?", userID).Delete(&models.PushDevice{}).Error; err != nil {
+		return ErrAuthUnavailable
+	}
 	return nil
 }
 
@@ -295,6 +301,9 @@ func (s *Store) RevokeAppSession(ctx context.Context, userID, sid string) error 
 			return nil
 		}
 		if err := tx.Model(&session).Update("revoked_at", now).Error; err != nil {
+			return ErrAuthUnavailable
+		}
+		if err := tx.Where("user_id = ? AND session_family_id = ?", userID, session.FamilyID).Delete(&models.PushDevice{}).Error; err != nil {
 			return ErrAuthUnavailable
 		}
 		return recordSecurityEvent(tx, userID, "session_revoked", "", now)

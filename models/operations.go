@@ -138,6 +138,18 @@ type NotificationDeliveryPage struct {
 	Offset        int                            `json:"offset"`
 	ByStatus      NotificationDeliveryCounts     `json:"by_status"`
 	SenderMode    string                         `json:"sender_mode"`
+	PushMode      string                         `json:"push_mode"`
+	InboxCount    int64                          `json:"inbox_count"`
+	PushByStatus  AppPushCounts                  `json:"push_by_status"`
+}
+
+type AppPushCounts struct {
+	Pending    int64 `json:"pending"`
+	Processing int64 `json:"processing"`
+	Sent       int64 `json:"sent"`
+	Skipped    int64 `json:"skipped"`
+	Invalid    int64 `json:"invalid"`
+	Failed     int64 `json:"failed"`
 }
 
 type DailyRegistrationPoint struct {

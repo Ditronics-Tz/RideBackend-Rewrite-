@@ -1,0 +1,11 @@
+# Optional overlay: docker compose -f docker-compose.yml -f docker-compose.fcm.yml up -d --build
+# Create secrets/firebase-service-account.json locally with mode 0400 first.
+services:
+  api:
+    environment:
+      PUSH_PROVIDER: fcm
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?Set FIREBASE_PROJECT_ID in .env}
+      PUSH_TOKEN_ENCRYPTION_KEY: ${PUSH_TOKEN_ENCRYPTION_KEY:?Set PUSH_TOKEN_ENCRYPTION_KEY in .env}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro

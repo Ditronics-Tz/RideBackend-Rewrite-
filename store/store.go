@@ -27,6 +27,8 @@ type Store struct {
 
 	Clock          func() time.Time
 	Delivery       notifications.Sender
+	PushSender     notifications.PushSender
+	PushKey        []byte
 	Events         *EventHub
 	db             *gorm.DB
 	SMS            SMSSender

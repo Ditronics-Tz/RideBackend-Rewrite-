@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 uploads/
+secrets/
 .gocache/
 .tmp/
 .idea/

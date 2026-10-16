@@ -43,3 +43,20 @@ func RunOperations(ctx context.Context, s *store.Store, cfg *config.Config) {
 		}
 	}
 }
+
+// RunPushDeliveries is independent of the optional safety/finance worker flag.
+// The durable inbox remains available if this worker or FCM is unavailable.
+func RunPushDeliveries(ctx context.Context, s *store.Store) {
+	timer := time.NewTicker(10 * time.Second)
+	defer timer.Stop()
+	for {
+		if err := s.ProcessPushDeliveries(ctx); err != nil && ctx.Err() == nil {
+			slog.Error("Push delivery job failed")
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+	}
+}

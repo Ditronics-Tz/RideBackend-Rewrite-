@@ -524,6 +524,20 @@ func (s *Store) SharePromo(ctx context.Context, id, actor string) (int, error) {
 			if err := sender.NotifyPromo(ctx, u.ID, notifier.PromoMessage{PromoID: id, Code: p.Code, Title: p.Title, Description: p.Description}); err != nil {
 				return err
 			}
+			body := "Use code " + p.Code + " for your next eligible ride."
+			if p.Description != "" {
+				body = p.Description
+			}
+			if len([]rune(body)) > 500 {
+				body = string([]rune(body)[:500])
+			}
+			title := p.Title
+			if len([]rune(title)) > 160 {
+				title = string([]rune(title)[:160])
+			}
+			if err := sc.queueAppNotification(ctx, u.ID, "promo", title, body, map[string]string{"promo_id": p.ID, "code": p.Code}); err != nil {
+				return err
+			}
 			if err := sc.db.Model(&models.PromoAudience{}).Where("promo_id = ? AND user_id = ?", id, u.ID).Update("notified_at", now).Error; err != nil {
 				return err
 			}

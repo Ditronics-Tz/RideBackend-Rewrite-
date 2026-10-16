@@ -374,6 +374,9 @@ func (s *Store) rideDriverAction(ctx context.Context, driverID, rideID, key, act
 			if err := appendRideEvent(tx, ride.ID, "assigned", &driverID, "driver", now, nil); err != nil {
 				return err
 			}
+			if err := scopedStore.queueRideNotification(ctx, ride.PassengerID, ride.ID, "assigned"); err != nil {
+				return err
+			}
 		}
 		if err := saveRideIdempotency(tx, driverID, key, action, hash, ride.ID, now); err != nil {
 			return err
@@ -429,6 +432,13 @@ func (s *Store) CancelRide(ctx context.Context, actorID, rideID, key, reason str
 		}
 		if err := appendRideEvent(tx, ride.ID, status, &actor, string(user.Role), now, map[string]any{"reason": reason}); err != nil {
 			return err
+		}
+		if status == "cancelled_by_driver" {
+			scopedStore := *s
+			scopedStore.db = tx
+			if err := scopedStore.queueRideNotification(ctx, ride.PassengerID, ride.ID, status); err != nil {
+				return err
+			}
 		}
 		if err := saveRideIdempotency(tx, actorID, key, "cancel", hash, ride.ID, now); err != nil {
 			return err
@@ -490,6 +500,11 @@ func (s *Store) TransitionRide(ctx context.Context, driverID, rideID, key, actio
 			return err
 		}
 		if err := appendRideEvent(tx, ride.ID, target, &driverID, "driver", now, nil); err != nil {
+			return err
+		}
+		scopedStore := *s
+		scopedStore.db = tx
+		if err := scopedStore.queueRideNotification(ctx, ride.PassengerID, ride.ID, target); err != nil {
 			return err
 		}
 		if err := saveRideIdempotency(tx, driverID, key, action, hash, ride.ID, now); err != nil {

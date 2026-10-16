@@ -16,7 +16,7 @@ type operationsPrivacy struct{ s *Store }
 
 func (operationsPrivacy) Name() string { return "reports_and_rides" }
 func (operationsPrivacy) Tables() []string {
-	return []string{"rides", "ride_events", "ride_idempotency_keys", "user_blocks", "reports", "report_notes", "support_tickets", "support_ticket_notes", "support_ticket_messages", "support_ticket_attachments", "account_flags", "notification_deliveries"}
+	return []string{"rides", "ride_events", "ride_idempotency_keys", "user_blocks", "reports", "report_notes", "support_tickets", "support_ticket_notes", "support_ticket_messages", "support_ticket_attachments", "account_flags", "notification_deliveries", "app_notifications", "push_deliveries"}
 }
 func (operationsPrivacy) Description() string {
 	return "retains anonymous ride/report IDs and counts; clears routes, locations, report free text, staff notes, blocks and notifications"
@@ -65,7 +65,11 @@ func (e operationsPrivacy) Export(id string) (any, []string, error) {
 	if err := e.s.db.Where("ticket_id IN (?)", e.s.db.Model(&models.SupportTicket{}).Select("id").Where("user_id = ?", id)).Find(&attachmentRows).Error; err != nil {
 		return nil, nil, err
 	}
-	return map[string]any{"rides": rideOut, "ride_events": eventOut, "reports_made": reports, "support_tickets": tickets, "ticket_messages": messageRows, "ticket_attachments": attachmentRows}, nil, nil
+	appNotifications := []models.AppNotification{}
+	if err := e.s.db.Where("user_id = ?", id).Order("created_at DESC").Find(&appNotifications).Error; err != nil {
+		return nil, nil, err
+	}
+	return map[string]any{"rides": rideOut, "ride_events": eventOut, "reports_made": reports, "support_tickets": tickets, "ticket_messages": messageRows, "ticket_attachments": attachmentRows, "app_notifications": appNotifications}, nil, nil
 }
 
 func rideIDs(rides []models.Ride) []string {
@@ -114,6 +118,9 @@ func (operationsPrivacy) Anonymize(tx *gorm.DB, id string) error {
 		return err
 	}
 	if err := tx.Model(&models.AccountFlag{}).Where("user_id = ?", id).Update("reason", "").Error; err != nil {
+		return err
+	}
+	if err := tx.Where("user_id = ?", id).Delete(&models.AppNotification{}).Error; err != nil {
 		return err
 	}
 	return tx.Where("user_id = ?", id).Delete(&models.NotificationDelivery{}).Error

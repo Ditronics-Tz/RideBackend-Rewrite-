@@ -71,6 +71,7 @@ func AutoMigrateModels() []interface{} {
 		&models.RideCompletionReceipt{}, &models.ReferralRewardPhone{},
 		&models.AccountDeletionRequest{}, &models.DataExportRequest{},
 		&models.Ride{}, &models.UserBlock{}, &models.Report{}, &models.ReportNote{}, &models.AccountFlag{}, &models.NotificationDelivery{},
+		&models.AppNotification{}, &models.PushDevice{}, &models.PushDelivery{},
 		&models.SupportTicket{}, &models.SupportTicketNote{},
 		&models.SupportTicketMessage{}, &models.SupportTicketAttachment{},
 		&models.SavedPlace{}, &models.PassengerPreferences{}, &models.ScheduledRide{},

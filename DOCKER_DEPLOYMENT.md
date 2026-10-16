@@ -67,6 +67,10 @@ Google Web OAuth client ID before enabling passenger Android Google sign-in.
 The Android ID-token flow does not need `GOOGLE_CLIENT_SECRET`; that setting is
 only for the separate browser redirect flow. The Google Web client ID is public,
 but all client secrets and issued tokens must stay out of the repository and app.
+Promo shares and ride updates now create durable passenger inbox rows after
+schema migration 14. `PUSH_PROVIDER=none` keeps this working without Firebase.
+Optional FCM setup, token encryption, the mobile contract and the alternative
+polling path are documented in `docs/MOBILE_PROMOS_AND_NOTIFICATIONS.md`.
 Use a secret manager instead of a plaintext environment file when one is
 available. Docker administrators can inspect container environment variables.
 

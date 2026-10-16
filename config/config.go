@@ -14,15 +14,18 @@ import (
 )
 
 type Config struct {
-	StorageDriver     string
-	R2AccountID       string
-	R2AccessKeyID     string
-	R2SecretAccessKey string
-	R2PublicBucket    string
-	R2PrivateBucket   string
-	R2PublicBaseURL   string
-	AppEnv            string
-	DeviceHashPepper  string
+	StorageDriver          string
+	R2AccountID            string
+	R2AccessKeyID          string
+	R2SecretAccessKey      string
+	R2PublicBucket         string
+	R2PrivateBucket        string
+	R2PublicBaseURL        string
+	AppEnv                 string
+	DeviceHashPepper       string
+	PushProvider           string
+	FirebaseProjectID      string
+	PushTokenEncryptionKey []byte
 
 	PaymentProviderName          string
 	PaymentGatewayURL            string
@@ -116,6 +119,15 @@ func (c *Config) Validate() error {
 	if c.StorageDriver != "" && c.StorageDriver != "local" && c.StorageDriver != "r2" {
 		return errors.New("STORAGE_DRIVER must be local or r2")
 	}
+	if c.PushProvider != "" && c.PushProvider != "none" && c.PushProvider != "fcm" {
+		return errors.New("PUSH_PROVIDER must be none or fcm")
+	}
+	if c.PushProvider == "fcm" && (c.FirebaseProjectID == "" || len(c.PushTokenEncryptionKey) != 32) {
+		return errors.New("FIREBASE_PROJECT_ID and a 64-character PUSH_TOKEN_ENCRYPTION_KEY are required for FCM")
+	}
+	if len(c.PushTokenEncryptionKey) != 0 && len(c.PushTokenEncryptionKey) != 32 {
+		return errors.New("PUSH_TOKEN_ENCRYPTION_KEY must decode to 32 bytes")
+	}
 	if c.StorageDriver == "r2" {
 		for _, setting := range []struct{ name, value string }{
 			{"R2_ACCOUNT_ID", c.R2AccountID}, {"R2_ACCESS_KEY_ID", c.R2AccessKeyID}, {"R2_SECRET_ACCESS_KEY", c.R2SecretAccessKey}, {"R2_PUBLIC_BUCKET", c.R2PublicBucket}, {"R2_PRIVATE_BUCKET", c.R2PrivateBucket}, {"R2_PUBLIC_BASE_URL", c.R2PublicBaseURL},
@@ -195,6 +207,13 @@ func NewConfigFromEnv() (*Config, error) {
 	if err != nil && os.Getenv("STAFF_TOTP_KEY") != "" {
 		return nil, err
 	}
+	var pushKey []byte
+	if raw := strings.TrimSpace(os.Getenv("PUSH_TOKEN_ENCRYPTION_KEY")); raw != "" {
+		pushKey, err = hex.DecodeString(raw)
+		if err != nil {
+			return nil, errors.New("PUSH_TOKEN_ENCRYPTION_KEY must be hex encoded")
+		}
+	}
 
 	cfg := &Config{
 		StorageDriver:                getEnv("STORAGE_DRIVER", "local"),
@@ -206,6 +225,9 @@ func NewConfigFromEnv() (*Config, error) {
 		R2PublicBaseURL:              getEnv("R2_PUBLIC_BASE_URL", ""),
 		AppEnv:                       getEnv("APP_ENV", "development"),
 		DeviceHashPepper:             getEnv("DEVICE_HASH_PEPPER", ""),
+		PushProvider:                 getEnv("PUSH_PROVIDER", "none"),
+		FirebaseProjectID:            getEnv("FIREBASE_PROJECT_ID", ""),
+		PushTokenEncryptionKey:       pushKey,
 		PaymentProviderName:          getEnv("PAYMENT_PROVIDER", "mock"),
 		PaymentGatewayURL:            getEnv("PAYMENT_GATEWAY_URL", ""),
 		PaymentGatewayKey:            getEnv("PAYMENT_GATEWAY_KEY", ""),

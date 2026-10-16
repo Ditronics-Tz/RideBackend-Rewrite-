@@ -19,7 +19,7 @@ import (
 //go:embed *.sql schema*.json
 var files embed.FS
 
-const LatestVersion int64 = 13
+const LatestVersion int64 = 14
 
 var ErrMigration = errors.New("database migration failed; database details and personal data are redacted")
 var ErrIncompatibleSchema = errors.New("existing database schema is incompatible with the frozen baseline; review schema drift before migrating")

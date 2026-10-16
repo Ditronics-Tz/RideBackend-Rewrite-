@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -82,6 +83,9 @@ func (s *Store) AdminCancelRide(rideID string, actor *models.StaffUser, reason s
 		if err := appendRideEvent(tx.db, ride.ID, "cancelled_by_staff", &actorID, string(actor.Role), now, map[string]any{"reason": reason}); err != nil {
 			return err
 		}
+		if err := tx.queueRideNotification(context.Background(), ride.PassengerID, ride.ID, "cancelled_by_admin"); err != nil {
+			return err
+		}
 		return tx.CreateAuditLog(actor.ID, "ride_cancelled_by_staff", "ride", ride.ID, "", map[string]string{"reason": reason, "actor_role": string(actor.Role)})
 	})
 }
@@ -131,6 +135,9 @@ func (s *Store) AdminReassignRide(rideID, driverID string, actor *models.StaffUs
 			return err
 		}
 		if err := appendRideEvent(tx.db, ride.ID, "staff_reassigned", &actorID, string(actor.Role), now, map[string]any{"reason": reason, "previous_driver_id": previous, "driver_id": driverID}); err != nil {
+			return err
+		}
+		if err := tx.queueRideNotification(context.Background(), ride.PassengerID, ride.ID, "assigned"); err != nil {
 			return err
 		}
 		return tx.CreateAuditLog(actor.ID, "ride_reassigned", "ride", ride.ID, "", map[string]string{"reason": reason, "driver_id": driverID, "actor_role": string(actor.Role)})

@@ -1,0 +1,32 @@
+{
+  "app_notifications": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"user_id","type":"uuid","not_null":true},
+    {"name":"kind","type":"varchar(24)","not_null":true},
+    {"name":"title","type":"varchar(160)","not_null":true},
+    {"name":"body","type":"varchar(500)","not_null":true},
+    {"name":"data","type":"jsonb","not_null":true},
+    {"name":"read_at","type":"timestamptz","not_null":false},
+    {"name":"created_at","type":"timestamptz","not_null":true}
+  ],
+  "push_devices": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"user_id","type":"uuid","not_null":true},
+    {"name":"session_family_id","type":"uuid","not_null":true},
+    {"name":"token_hash","type":"varchar(64)","not_null":true},
+    {"name":"token_ciphertext","type":"text","not_null":true},
+    {"name":"platform","type":"varchar(16)","not_null":true},
+    {"name":"active","type":"boolean","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true},
+    {"name":"updated_at","type":"timestamptz","not_null":true}
+  ],
+  "push_deliveries": [
+    {"name":"notification_id","type":"uuid","primary":true,"not_null":true},
+    {"name":"device_id","type":"uuid","primary":true,"not_null":true},
+    {"name":"status","type":"varchar(16)","not_null":true},
+    {"name":"attempts","type":"bigint","not_null":true},
+    {"name":"claimed_at","type":"timestamptz","not_null":false},
+    {"name":"next_attempt_at","type":"timestamptz","not_null":true},
+    {"name":"sent_at","type":"timestamptz","not_null":false}
+  ]
+}
