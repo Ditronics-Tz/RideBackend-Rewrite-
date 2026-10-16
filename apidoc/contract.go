@@ -97,6 +97,15 @@ func describeCurrent(route Route, operation, schemas object) {
 		operation["description"] = description
 	}
 	params := func(values ...any) { operation["parameters"] = append(operation["parameters"].([]any), values...) }
+	if path == "/passenger/notifications/updates" {
+		params(query("after", object{"type": "string", "format": "uuid", "description": "Latest notification id from the last inbox page; omit if the inbox was empty."}))
+		set("200", "Wait up to 20 seconds for a committed inbox change. Reconnect after every response, and fetch the inbox when changed is true. Requires a passenger bearer token; no notification content is sent here.", object{"type": "object", "required": []string{"changed", "latest_id"}, "properties": object{"changed": scalar("boolean"), "latest_id": scalar("string")}})
+		responses["400"] = jsonResponse("Invalid after notification id.", ref("Error"))
+		responses["401"] = jsonResponse("App session is invalid or revoked.", ref("Error"))
+		responses["429"] = jsonResponse("Too many update requests for this account.", ref("Error"))
+		responses["503"] = jsonResponse("Authentication temporarily unavailable; retry without logging out.", ref("Error"))
+		return
+	}
 	pagination := func() {
 		params(query("limit", object{"type": "integer", "default": 50, "minimum": 1, "maximum": 200}), query("offset", object{"type": "integer", "default": 0, "minimum": 0}))
 	}

@@ -1,5 +1,10 @@
 # Activate FCM for Rida passenger Android
 
+**Deferred:** The current mobile notification implementation does not use FCM.
+Use [MOBILE_PROMOS_AND_NOTIFICATIONS.md](MOBILE_PROMOS_AND_NOTIFICATIONS.md)
+for the active Firebase-free inbox and foreground update contract. Keep
+`PUSH_PROVIDER=none`. The steps below are retained only if FCM is chosen later.
+
 The backend and admin are already deployed with a durable passenger inbox. FCM is an optional delivery channel for immediate Android push alerts. On 16 October 2026, the VPS did not contain a Firebase service-account JSON, so production is currently **inbox-only**. No actual handset push has been verified.
 
 ## 1. Firebase Console

@@ -1,9 +1,13 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"ride-backend/middleware"
 	"ride-backend/store"
 )
@@ -27,6 +31,53 @@ func (nc *AppNotificationController) List(c *fiber.Ctx) error {
 		items = append(items, fiber.Map{"id": row.ID, "kind": row.Kind, "title": row.Title, "body": row.Body, "data": data, "read_at": row.ReadAt, "created_at": row.CreatedAt})
 	}
 	return c.JSON(fiber.Map{"notifications": items, "total": total, "unread_count": unread, "limit": page.Limit, "offset": page.Offset})
+}
+
+// Updates holds a request briefly until the durable inbox changes. The client
+// then fetches the inbox page; this endpoint never sends notification content.
+func (nc *AppNotificationController) Updates(c *fiber.Ctx) error {
+	after := c.Query("after")
+	if after != "" {
+		if _, err := uuid.Parse(after); err != nil {
+			return operationError(c, store.FieldError("after", "invalid notification ID"))
+		}
+	}
+	userID, _ := middleware.CurrentUser(c)
+	sessionID, _ := c.Locals("app_session_id").(string)
+	ctx, cancel := context.WithTimeout(c.UserContext(), 20*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for {
+		latest, err := nc.Store.LatestAppNotificationID(ctx, userID)
+		if err != nil {
+			return operationError(c, err)
+		}
+		if latest != after && latest != "" {
+			if err := nc.Store.ValidateAppSession(ctx, userID, sessionID); err != nil {
+				return notificationSessionError(c, err)
+			}
+			return c.JSON(fiber.Map{"changed": true, "latest_id": latest})
+		}
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return ctx.Err()
+			}
+			if err := nc.Store.ValidateAppSession(c.UserContext(), userID, sessionID); err != nil {
+				return notificationSessionError(c, err)
+			}
+			return c.JSON(fiber.Map{"changed": false, "latest_id": after})
+		}
+	}
+}
+
+func notificationSessionError(c *fiber.Ctx, err error) error {
+	if errors.Is(err, store.ErrAuthUnavailable) {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "authentication temporarily unavailable", "code": "AUTH_TEMPORARILY_UNAVAILABLE"})
+	}
+	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})
 }
 
 func (nc *AppNotificationController) MarkRead(c *fiber.Ctx) error {

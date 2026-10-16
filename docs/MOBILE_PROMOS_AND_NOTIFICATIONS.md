@@ -1,12 +1,10 @@
-# Rida passenger app: promo codes and notifications
+# Rida passenger app: promo codes and notifications without Firebase
 
-Audience: Android engineer working on `com.example.ridepassenger2` (Kotlin, Compose, Retrofit, OkHttp, Moshi). API base: `https://rida-backend.ditronics.co.tz/api/v1`. Use the app access token as `Authorization: Bearer <accessToken>`; refresh with the existing `/auth/refresh` contract. Do not put any Google or Firebase server credential in the Android app.
+Audience: Android engineer working on `com.example.ridepassenger2` (Kotlin, Compose, Retrofit, OkHttp, Moshi). API base: `https://rida-backend.ditronics.co.tz/api/v1`. Use `Authorization: Bearer <accessToken>` and the existing `/auth/refresh` contract.
 
-## What the backend implements
+## What is implemented
 
-Promos already had creation, audience, validity, validation, redemption and admin management. This change adds a durable passenger inbox, connects promo sharing and ride/account events to it, and adds optional FCM delivery. The inbox is the source of truth. FCM only signals a new message and is **not** proof that Android displayed it. Existing mobile clients need no changes to keep using their current API; to display these new notifications, the passenger app must implement the inbox UI and sync described below.
-
-The admin frontend already has **Promotions → Create promo** at `/promotions/new`. Admin can save a draft, activate it, choose all or selected passengers, then open the promo detail and press **Share with audience**. Saving or activating alone does not send notifications. Sharing persists one inbox item per selected passenger, including a promo ID and code. Sharing again creates another item. The frontend now previews this message and shows backend push status in **Notification deliveries**. Support may view promos; only admin may create, edit or share.
+The backend stores one durable inbox item per passenger for promo shares and supported ride/account events. Admin creates or activates a promo and then selects **Share with audience**; saving alone does not notify users. The Android app must fetch and display its inbox. A new long-poll endpoint tells an open app when the inbox has changed. Firebase and an FCM device token are not part of this flow. Google Sign-In is independent and remains unchanged.
 
 ## Promo API (passenger)
 
@@ -26,7 +24,7 @@ Existing referral endpoints are unchanged. Request for apply: `{"code":"FRIEND12
 
 ## Durable notification inbox API
 
-All paths require a passenger Bearer token and return `Cache-Control: private, no-store`.
+All paths are relative to `/api/v1`, require a passenger Bearer token and return `Cache-Control: private, no-store`.
 
 ### `GET /passenger/notifications?limit=20&offset=0`
 
@@ -52,102 +50,63 @@ Success (`200`):
 }
 ```
 
-`kind` is currently `promo`, `ride`, or `system`. `data` is a string map. For `ride`, it contains `ride_id` and `status` (`assigned`, `driver_arrived`, `in_progress`, `completed`, `cancelled_by_driver`, or `cancelled_by_admin`). For supported account/finance/safety events, `system` contains `template`. `read_at` is ISO-8601 UTC or JSON null. Treat unknown kinds/keys as a generic message. Deduplicate by `id`. Fetch new pages on app start, after login/refresh, when the notifications screen opens, and on foreground resume. Use `total`/`offset` for pagination.
+`kind` is `promo`, `ride`, or `system`; allow unknown future values. `data` is a string map. Ride messages include `ride_id` and `status`. `read_at` is an ISO-8601 UTC timestamp or null. Deduplicate by `id`. Fetch on app start, login, foreground resume and opening the inbox screen. Paginate with `limit`/`offset`.
+
+### `GET /passenger/notifications/updates?after=<latest-id>`
+
+New foreground long-poll endpoint. Pass the `id` of the first (newest) item in the last inbox response. If the inbox was empty, omit `after`. The server checks committed notifications for this passenger only. It returns as soon as a new latest item exists or after about 20 seconds. Examples:
+
+```json
+{"changed":true,"latest_id":"8f8d5cb3-63f3-4a8c-9ed7-4d5c442039a1"}
+```
+
+```json
+{"changed":false,"latest_id":"8f8d5cb3-63f3-4a8c-9ed7-4d5c442039a1"}
+```
+
+`changed=true` is a signal to fetch `GET /passenger/notifications`; it does not contain notification text. After each response, open another update request while the app is foregrounded. Keep the previous `after` until the inbox fetch succeeds, then replace it with the newest returned ID; this prevents losing messages after a failed fetch. If the inbox remains empty, omit `after` on the next request. Invalid `after` returns 400; revoked session returns 401; temporary authentication/database errors return 503; 429 means slow down. Use an OkHttp read timeout longer than 20 seconds (for example 30 seconds), cancel the request when the app goes to background, and retry network/5xx errors with bounded backoff. Do not clear login state on transient errors. Refresh an expired access token using the existing refresh flow.
 
 ### `POST /passenger/notifications/{id}/read`
 
-No body. Returns `204`. Repeating it is safe. Invalid ID returns `400`; another user's/missing ID returns `404`.
+No body. Returns 204. Invalid ID returns 400; another passenger's or missing ID returns 404.
 
 ### `POST /passenger/notifications/read-all`
 
-No body. Returns `204`. Mark all current items read.
+No body. Returns 204. Marks current inbox items read.
 
-Recommended Compose screens/components: unread badge, paginated inbox list, empty/error states, item detail/tap action, promo CTA to the promo/booking screen, ride CTA to the ride details screen, and settings links for promotions/push. Never trust `data` URLs or arbitrary navigation strings; navigate only on known kind and valid UUID. Show inbox content even if FCM is unavailable.
+## Mobile implementation
 
-## Notification preferences
-
-`GET /passenger/preferences` and `PATCH /passenger/preferences` already exist. Example patch: `{"promotions":true,"ride_updates":true,"push_enabled":true,"language":"sw"}`. `promotions`, `ride_updates`, and `push_enabled` govern **push delivery**. The durable inbox keeps messages so a passenger can view important history after a push failure or provider change. Default `promotions` may be false until the user enables it, so provide a clear opt-in in Settings. Do not claim a phone alert is guaranteed.
-
-## Optional FCM integration
-
-Firebase is **not required** for the promo system, inbox, or booking. Without FCM, call the inbox API on app start/foreground and optionally schedule WorkManager periodic sync. Android WorkManager periodic tasks have a [15-minute minimum interval](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work) and the OS may delay execution, so this route cannot promise instant background alerts. FCM provides the familiar background notification experience on compatible Android devices. Another push transport can be added later behind the backend `PushSender` interface.
-
-If the product chooses FCM:
-
-1. Create or use a Firebase project, register the exact Android package `com.example.ridepassenger2`, and add the Android Firebase config to the mobile project. The previously supplied Google OAuth project ID `rida-511608` is a possible project to reuse **only if** Firebase has been enabled there; the OAuth JSON alone does not prove FCM is configured. Enable Cloud Messaging HTTP v1. Follow the [official Android setup](https://firebase.google.com/docs/cloud-messaging/android/get-started). Place the downloaded `google-services.json` in the Android app module and configure the Google Services Gradle plugin and Firebase Messaging dependency using the current official instructions. This mobile config is not the server service-account key.
-2. Request `POST_NOTIFICATIONS` permission on Android 13+, and provide a `FirebaseMessagingService` for foreground notifications and token refresh. Follow [Android receive guidance](https://firebase.google.com/docs/cloud-messaging/android/receive-messages).
-3. After authenticated login and whenever the FCM registration token changes, call `POST /passenger/push-devices` with `{"token":"<FCM registration token>"}`. Success (`201`): `{"id":"UUID","platform":"android","created_at":"2026-10-16T12:00:00Z"}`. Persist the returned device ID locally per signed-in account. The server encrypts the token at rest. A token already attached to another account returns `409`; sign out/unregister from the old account first. Missing backend FCM encryption configuration returns `503`; the inbox still works.
-4. `GET /passenger/push-devices` returns `{"devices":[{"id":"UUID","platform":"android","created_at":"..."}]}` without tokens. `DELETE /passenger/push-devices/{id}` returns `204`. On logout, call DELETE when practical, then the existing `/auth/logout`; backend logout and logout-all revoke bound push devices automatically. On token refresh, call POST again and remove obsolete device IDs when known.
-5. The FCM payload has `notification.title`, `notification.body`, and data keys `notification_id`, `kind`, optionally `promo_id` or `ride_id`. On tap/foreground, fetch the inbox item or full inbox from Rida API before navigation. Do not put auth tokens in FCM data. A `sent` delivery status means FCM accepted the request, not delivery/display on the handset.
-
-The Android engineer should implement `FirebaseMessagingService.onNewToken` to save a newly issued token locally and register it once a Rida app session exists. Also call `FirebaseMessaging.getInstance().token` after login because `onNewToken` can run before sign-in. In foreground, `onMessageReceived` may render a local notification after checking preferences; in background, FCM notification payloads are shown by Android and data is passed to the launcher intent when tapped. The app must handle both paths and deduplicate by `notification_id`. These behaviors are described in the [official receive-messages guide](https://firebase.google.com/docs/cloud-messaging/android/receive-messages).
-
-### Exact production activation steps
-
-The current VPS has **no** `secrets/firebase-service-account.json` file, so FCM is not active yet. The backend and admin are already deployed in inbox-only mode. Once Firebase Console access is available:
-
-1. In Firebase Console, verify the Firebase project ID and register `com.example.ridepassenger2`. In **Project settings → Cloud Messaging**, ensure the HTTP v1 API is enabled. Create a service account and grant it the [Firebase Cloud Messaging API Admin role](https://firebase.google.com/docs/cloud-messaging/send/v1-api) in the target project; download its JSON private key. This private JSON goes to the VPS, never to Android, GitHub, or this Markdown file. The previously shared Google OAuth Web client secret is unrelated to FCM and cannot replace this JSON.
-2. Transfer the private JSON over SSH to `/root/RideBackend-Rewrite-/secrets/firebase-service-account.json`. On the VPS, create that directory with mode `0700` and set the JSON file mode `0400` or `0440` so the API container's non-root account can read it. Check the ownership and mount permissions before enabling FCM. Do not print the file contents or include it in a Docker image.
-3. Set `FIREBASE_PROJECT_ID=<verified Firebase project ID>` and `PUSH_TOKEN_ENCRYPTION_KEY=<64 hex characters>` in `/root/RideBackend-Rewrite-/.env`. Generate the key on the VPS with `openssl rand -hex 32`, protect `.env` with `chmod 600`, and retain this key for future restarts. Leave `PUSH_PROVIDER=none` in the base `.env`; the optional Compose overlay sets it to `fcm` only for the API container.
-4. From `/root/RideBackend-Rewrite-`, run:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml config -q
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml up -d --no-deps api
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml ps
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml logs --tail=100 api
-```
-
-5. In the passenger Android app, install a signed build configured for the same Firebase project, grant notification permission, log in, register its FCM token, enable `promotions` and `push_enabled` preferences, then share an **active** promo from admin. Check the app inbox first, then the OS notification. The admin Notification deliveries page shows `push_mode=fcm` and FCM queue counts. A test device is necessary to establish actual handset delivery.
-
-For this VPS's `read_only` API container, a bind-mounted file must be readable by UID 10001. A service-account file mode `0400` owned by root will **not** be readable by that UID. A practical layout is a root-owned secrets directory (`0700`) containing a file copied or owned by UID 10001 with mode `0400`, or a dedicated read-only group with mode `0440`. Verify effective permissions with `docker compose -f docker-compose.yml -f docker-compose.fcm.yml run --rm --no-deps --entrypoint /bin/sh api -c 'test -r /run/secrets/firebase-service-account.json'` before restarting production API. Do not use world-readable mode.
-
-## Retrofit/Moshi sketch
+In Compose, provide an unread badge, paginated inbox, empty/error states, and navigation for known `promo_id` or `ride_id`. Never follow arbitrary strings in `data` as URLs. Show the item from the Rida API rather than treating `latest_id` as message content. Optionally show a local Android notification while the app is open, after checking user preferences and Android 13+ notification permission. This local alert is generated by the app when its live request detects a new inbox item.
 
 ```kotlin
-data class InboxPage(
-  val notifications: List<InboxItem>,
-  val total: Long,
-  @Json(name = "unread_count") val unreadCount: Long,
-  val limit: Int,
-  val offset: Int
+data class InboxUpdate(
+  val changed: Boolean,
+  @Json(name = "latest_id") val latestId: String
 )
-data class InboxItem(
-  val id: String,
-  val kind: String,
-  val title: String,
-  val body: String,
-  val data: Map<String, String>,
-  @Json(name = "read_at") val readAt: String?,
-  @Json(name = "created_at") val createdAt: String
-)
-data class PushDeviceRequest(val token: String)
 
 interface RidaNotificationApi {
   @GET("passenger/notifications")
   suspend fun inbox(@Query("limit") limit: Int = 20, @Query("offset") offset: Int = 0): InboxPage
+
+  @GET("passenger/notifications/updates")
+  suspend fun updates(@Query("after") after: String?): InboxUpdate
+
   @POST("passenger/notifications/{id}/read")
   suspend fun markRead(@Path("id") id: String): Response<Unit>
+
   @POST("passenger/notifications/read-all")
   suspend fun markAllRead(): Response<Unit>
-  @POST("passenger/push-devices")
-  suspend fun registerDevice(@Body request: PushDeviceRequest): PushDeviceResponse
-  @DELETE("passenger/push-devices/{id}")
-  suspend fun unregisterDevice(@Path("id") id: String): Response<Unit>
 }
 ```
 
-Use the existing authorized Retrofit client and one refresh interceptor. On transient 5xx/network errors keep the session, retain cached inbox rows, and retry later. On 401 follow the existing app session refresh policy; do not log out on a transient failure.
+`InboxPage` contains `notifications: List<InboxItem>`, `total: Long`, `unread_count: Long`, `limit: Int`, `offset: Int`. `InboxItem` contains `id`, `kind`, `title`, `body`, `data: Map<String,String>`, nullable `read_at`, and `created_at`. Use Moshi `@Json` for snake_case names. Run the update loop in an app-level coroutine tied to authenticated foreground lifecycle, not in a single screen. Cancel it on logout or background; refetch the inbox when foreground resumes.
+
+If background discovery is acceptable, use periodic WorkManager sync with a minimum 15-minute interval; Android may delay it for battery management. This cannot promise immediate phone alerts while the app is closed. [Android WorkManager documentation](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work). A standard Android app cannot maintain a guaranteed background connection for instant delivery without a system-supported push transport; Android also restricts starting foreground services from the background. [Android background service restrictions](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start).
+
+## Notification preferences
+
+`GET /passenger/preferences` and `PATCH /passenger/preferences` remain available. Example patch: `{"promotions":true,"ride_updates":true,"language":"sw"}`. Use these preferences when deciding whether to show an optional local alert. The inbox remains the durable source of messages. `push_enabled` is a legacy setting and has no effect on this Firebase-free flow.
 
 ## Backend deployment
 
-Migration `00014_app_notifications.sql` is required before starting the new API. It creates inbox, encrypted push-device and push-delivery tables; it does not modify existing users or promos. Run the existing migration command, then recreate API as described in `DOCKER_DEPLOYMENT.md`. `PUSH_PROVIDER=none` is the default. This requires no Firebase account or credential and makes the inbox available immediately.
-
-To enable FCM later, set `FIREBASE_PROJECT_ID`, generate a stable `PUSH_TOKEN_ENCRYPTION_KEY` (`openssl rand -hex 32`), put a real service-account JSON at `secrets/firebase-service-account.json` with restrictive permissions, then use the optional overlay:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml config -q
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml up -d --build api
-```
-
-The JSON and `.env` stay outside Git and the Docker build context. Do not reuse the Google Sign-In Web client secret; it is not an FCM server credential. The app starts with FCM only when Application Default Credentials can be loaded. Keep the encryption key stable; changing it prevents decryption of already registered device tokens, requiring app re-registration. The backend retries transient FCM failures with backoff; invalid registration tokens are deactivated. Multiple push deliveries can occur after worker crashes because FCM send and database update are separate operations; Android should deduplicate by `notification_id`.
+Migration `00014_app_notifications.sql` is already required for the inbox. No new migration or Firebase credential is needed for the update endpoint. Keep `PUSH_PROVIDER=none`; use the base `docker-compose.yml` only. Deploy backend changes using the existing migration/build/restart process in `DOCKER_DEPLOYMENT.md`. Existing Google Sign-In, sessions, promos, and stored inbox messages are unaffected. The Android app source is a separate project and must implement the API calls above before users see these notifications.

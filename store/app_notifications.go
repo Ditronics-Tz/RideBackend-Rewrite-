@@ -83,6 +83,19 @@ func (s *Store) ListAppNotifications(ctx context.Context, userID string, page Pa
 	return rows, total, unread, err
 }
 
+// LatestAppNotificationID reads the durable inbox, so change detection works
+// across API instances and only observes committed notifications.
+func (s *Store) LatestAppNotificationID(ctx context.Context, userID string) (string, error) {
+	var ids []string
+	err := s.db.WithContext(ctx).Model(&models.AppNotification{}).
+		Where("user_id = ?", userID).
+		Order("created_at DESC, id DESC").Limit(1).Pluck("id", &ids).Error
+	if err != nil || len(ids) == 0 {
+		return "", err
+	}
+	return ids[0], nil
+}
+
 func (s *Store) MarkAppNotificationRead(ctx context.Context, userID, id string) error {
 	if _, err := uuid.Parse(id); err != nil {
 		return FieldError("id", "invalid notification ID")

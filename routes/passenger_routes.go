@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"ride-backend/config"
 	"ride-backend/controllers"
@@ -23,6 +25,7 @@ func SetupPassengerRoutes(r fiber.Router, cfg *config.Config, s *store.Store) {
 	passenger.Patch("/preferences", pc.Preferences)
 	nc := &controllers.AppNotificationController{Store: s}
 	passenger.Get("/notifications", nc.List)
+	passenger.Get("/notifications/updates", middleware.WindowLimit(60, time.Minute, func(c *fiber.Ctx) string { id, _ := middleware.CurrentUser(c); return id }), nc.Updates)
 	passenger.Post("/notifications/read-all", nc.MarkAllRead)
 	passenger.Post("/notifications/:id/read", nc.MarkRead)
 	passenger.Get("/push-devices", nc.Devices)
