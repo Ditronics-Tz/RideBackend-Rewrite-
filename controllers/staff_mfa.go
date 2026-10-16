@@ -131,6 +131,7 @@ func (sc *StaffAuthController) finishMFALogin(c *fiber.Ctx, staff *models.StaffU
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate token"})
 	}
 	_ = sc.Store.CreateAuditLog(fresh.ID, "login_success", "staff_user", fresh.ID, c.IP(), nil)
+	c.Locals("audit_staff_user_id", fresh.ID)
 	c.Set("Cache-Control", "no-store")
 	body := fiber.Map{
 		"access_token":         access,

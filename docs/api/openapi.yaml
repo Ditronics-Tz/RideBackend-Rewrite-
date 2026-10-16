@@ -1293,6 +1293,56 @@
         ],
         "type": "object"
       },
+      "OperationEvent": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "actor_type": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "status": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "target_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "actor_id",
+          "actor_type",
+          "created_at",
+          "id",
+          "method",
+          "request_id",
+          "route",
+          "status",
+          "target_id"
+        ],
+        "type": "object"
+      },
       "PassengerPreferences": {
         "properties": {
           "email_enabled": {
@@ -5797,6 +5847,156 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/admin/notifications",
         "x-go-handler": "ride-backend/controllers.(*AdminController).NotificationDeliveries"
+      }
+    },
+    "/api/v1/admin/operation-events": {
+      "get": {
+        "description": "Current paged list; existing collection key is preserved alongside total, limit and offset.",
+        "operationId": "get_api_v1_admin_operation_events",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor_type",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "request_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "events": {
+                      "items": {
+                        "$ref": "#/components/schemas/OperationEvent"
+                      },
+                      "type": "array"
+                    },
+                    "limit": {
+                      "maximum": 200,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "total": {
+                      "format": "int64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "events",
+                    "limit",
+                    "offset",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Current paged list; existing collection key is preserved alongside total, limit and offset.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/operation-events",
+        "x-allowed-roles": [
+          "admin"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/operation-events",
+        "x-go-handler": "ride-backend/controllers.(*AdminController).ListOperationEvents"
       }
     },
     "/api/v1/admin/payment-settings": {

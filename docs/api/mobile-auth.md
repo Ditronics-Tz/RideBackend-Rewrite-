@@ -34,7 +34,7 @@ Store the refresh token in Android encrypted storage. Send the access token as `
 
 ## Requests
 
-On the Docker VPS, apply pending migrations through version 12 with `docker compose --profile tools run --rm migrate up` before recreating the API service.
+On the Docker VPS, apply pending migrations through version 13 with `docker compose --profile tools run --rm migrate up` before recreating the API service.
 
 `POST /api/v1/auth/register` (201; response is the session JSON above):
 

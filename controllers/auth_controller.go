@@ -106,6 +106,7 @@ func (ac *AuthController) respondSession(c *fiber.Ctx, user *models.User, issued
 	if err != nil {
 		return authError(c, err)
 	}
+	c.Locals("audit_app_user_id", user.ID)
 	c.Set("Cache-Control", "no-store")
 	return c.Status(status).JSON(fiber.Map{"message": message, "token": access,
 		"access_token": access, "refresh_token": issued.RefreshToken,

@@ -48,7 +48,8 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 			})
 		},
 	})
-	app.Use(middleware.RequestContext(slog.New(slog.NewJSONHandler(os.Stdout, nil))))
+	requestLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	app.Use(middleware.RequestContext(requestLogger))
 	app.Use(recover.New())
 	started := time.Now()
 	health := func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"status": "ok", "version": "1.0.0"}) }
@@ -70,6 +71,7 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 
 	// Global security and logging middlewares on /api/v1
 	v1.Use(helmet.New())
+	v1.Use(middleware.OperationAudit(appStore, requestLogger))
 	// Allow cross-origin clients and answer preflight before authentication.
 	v1.Use(cors.New(cors.Config{
 		AllowOriginsFunc: func(origin string) bool { return config.OriginAllowed(cfg.CORSAllowedOrigins, origin) },

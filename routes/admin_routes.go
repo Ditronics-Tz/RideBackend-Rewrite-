@@ -92,6 +92,7 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 	admin.Post("/users/:id/ban", adminOnly, ac.ChangeAccountStatus)
 	admin.Delete("/users/:id/notes/:noteId", adminOnly, ac.DeleteUserNote)
 	admin.Get("/audit-logs", adminOnly, ac.ListAuditLogs)
+	admin.Get("/operation-events", adminOnly, ac.ListOperationEvents)
 
 	// Staff management (Admin only)
 	admin.Post("/staff", adminOnly, ac.CreateStaff)

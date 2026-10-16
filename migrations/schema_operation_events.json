@@ -1,0 +1,14 @@
+{
+  "operation_events": [
+    {"name":"id","type":"uuid","primary":true,"not_null":true},
+    {"name":"actor_type","type":"varchar(16)","not_null":true},
+    {"name":"actor_id","type":"varchar(64)","not_null":true},
+    {"name":"action","type":"varchar(64)","not_null":true},
+    {"name":"method","type":"varchar(8)","not_null":true},
+    {"name":"route","type":"varchar(160)","not_null":true},
+    {"name":"status","type":"bigint","not_null":true},
+    {"name":"request_id","type":"varchar(64)","not_null":true},
+    {"name":"target_id","type":"varchar(64)","not_null":true},
+    {"name":"created_at","type":"timestamptz","not_null":true}
+  ]
+}

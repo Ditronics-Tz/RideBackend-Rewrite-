@@ -74,6 +74,7 @@ func realm(route Route) ([]any, []string) {
 	}
 	if strings.HasPrefix(path, "/admin/") {
 		adminOnly := strings.HasPrefix(path, "/admin/staff") || strings.HasPrefix(path, "/admin/ratings") || path == "/admin/audit-logs" || strings.HasSuffix(path, "/role") || strings.HasSuffix(path, "/ban") || route.Method == "DELETE" && strings.Contains(path, "/notes/") || route.Method == "POST" && (strings.Contains(path, "/data-requests/") || strings.HasSuffix(path, "/deletion-request")) || strings.HasPrefix(path, "/admin/payouts") || strings.HasPrefix(path, "/admin/wallets") || strings.HasPrefix(path, "/admin/reconciliation") || path == "/admin/payment-settings" || path == "/admin/payments/summary" || path == "/admin/payments/export" || path == "/admin/sos/export" || route.Method != "GET" && (strings.HasPrefix(path, "/admin/promos") || path == "/admin/referral-settings" || strings.HasPrefix(path, "/admin/fraud/rules"))
+		adminOnly = adminOnly || path == "/admin/operation-events"
 		roles := []string{"admin", "support"}
 		if adminOnly {
 			roles = []string{"admin"}
@@ -636,6 +637,7 @@ type listContract struct {
 var listContracts = map[string]listContract{
 	"/admin/users":                     {"users", ref("UserResponse"), true, []string{"role", "status", "verification_status", "q", "created_from", "created_to"}},
 	"/admin/audit-logs":                {"logs", ref("StaffAuditLog"), false, []string{"q", "action", "actor", "actor_id", "from", "to"}},
+	"/admin/operation-events":          {"events", ref("OperationEvent"), false, []string{"action", "actor_type", "actor_id", "request_id", "from", "to"}},
 	"/admin/staff":                     {"staff", ref("StaffUserResponse"), true, []string{"q", "role", "status"}},
 	"/admin/verifications":             {"verifications", ref("DriverProfile"), true, []string{"status", "q", "expiring_soon"}},
 	"/driver/notifications":            {"notifications", ref("DriverNotification"), false, nil},

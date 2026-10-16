@@ -409,6 +409,22 @@ func (ac *AdminController) ListAuditLogs(c *fiber.Ctx) error {
 	})
 }
 
+// ListOperationEvents returns metadata-only app and staff API activity.
+func (ac *AdminController) ListOperationEvents(c *fiber.Ctx) error {
+	p, err := operationPage(c)
+	if err != nil {
+		return operationError(c, err)
+	}
+	rows, total, err := ac.Store.SearchOperationEvents(c.UserContext(), store.OperationFilter{
+		Action: c.Query("action"), ActorType: c.Query("actor_type"), ActorID: c.Query("actor_id"),
+		RequestID: c.Query("request_id"), From: c.Query("from"), To: c.Query("to"),
+	}, p)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": rows, "total": total, "limit": p.Limit, "offset": p.Offset})
+}
+
 // ---------- Staff Management (Admin only) ----------
 
 // CreateStaff creates a new staff account with a generated one-time password.

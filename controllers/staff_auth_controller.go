@@ -228,6 +228,7 @@ func (sc *StaffAuthController) Refresh(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate access token"})
 	}
+	c.Locals("audit_staff_user_id", staff.ID)
 
 	return c.JSON(fiber.Map{
 		"access_token":  newAccessToken,
