@@ -230,6 +230,14 @@ All endpoints require bearer authentication and the passenger role where stated.
 | PUT | `/passenger/saved-places/{id}` | Replace/update a saved place |
 | DELETE | `/passenger/saved-places/{id}` | 204 on success |
 
+### Profile photo for Android
+
+Send `POST /api/v1/passenger/profile/me/image` with the passenger bearer token and one `multipart/form-data` file part named `profile_picture`. The source must be a valid JPEG, PNG or WebP image of 1–5,242,880 bytes, with width and height between 1 and 4,096 pixels and no more than 16,777,216 pixels total. The backend decodes and stores a metadata-free PNG, using a new generated filename on every replacement. Do not set the multipart boundary manually in OkHttp/Retrofit.
+
+Successful upload (`200`) includes `{"profile_picture_url":"https://rida-backend.ditronics.co.tz/api/v1/uploads/passenger_...png"}` in the existing profile object. `GET /api/v1/passenger/profile/me` returns the same field; it is `null` if no image exists. The URL is public and can be loaded without an Authorization header. R2 storage uses its configured HTTPS public media domain instead of `/uploads`. Each replacement returns a different URL, so clients can use the new URL as the cache key. A failed upload leaves the previous photo unchanged.
+
+Upload errors use JSON `{"error":"...","fields":{"profile_picture":"..."}}` for image validation: `401` missing/invalid app session, `403` wrong role, `413` source or normalized image over 5 MiB, `415` non-multipart request or unsupported JPEG/PNG/WebP format, `422` missing/empty/corrupt image or invalid dimensions, `429` upload quota (three validated upload attempts per passenger per hour; `Retry-After` header), and `503` unavailable storage/rate limiter. For a retryable `503`, keep showing the existing avatar. The image URL must be an HTTPS public origin in production (`PUBLIC_BASE_URL` for local storage or `R2_PUBLIC_BASE_URL` for R2). No Android request change is needed beyond consuming the absolute URL and nullable profile field.
+
 Saved place example:
 
 ```json

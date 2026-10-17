@@ -18,7 +18,7 @@ func TestProductionSecretValidation(t *testing.T) {
 		{"development compatible", "development", "local", strings.Repeat("bY5?", 10), ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &config.Config{AppEnv: tc.env, DBSSLMode: "require", JWTSecret: tc.app, StaffJWTSecret: tc.staff, DBPassword: "local-test", StaffTOTPKey: []byte(strings.Repeat("x", 32))}
+			cfg := &config.Config{AppEnv: tc.env, DBSSLMode: "require", JWTSecret: tc.app, StaffJWTSecret: tc.staff, DBPassword: "local-test", StaffTOTPKey: []byte(strings.Repeat("x", 32)), PublicBaseURL: "https://api.example.test"}
 			err := cfg.Validate()
 			if tc.errorKey == "" {
 				if err != nil {

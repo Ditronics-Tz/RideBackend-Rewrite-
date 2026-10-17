@@ -114,6 +114,7 @@ func TestProfileImageDecodeReencodeAndPerUserQuota(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg.PublicBaseURL = "https://api.example.test"
 	user, err := s.CreateUser("Image Passenger", uuid.NewString()+"@example.test", "unused", models.RolePassenger)
 	if err != nil {
 		t.Fatal(err)
@@ -151,15 +152,15 @@ func TestProfileImageDecodeReencodeAndPerUserQuota(t *testing.T) {
 		url, _ := response["profile_picture_url"].(string)
 		return resp.StatusCode, url
 	}
-	if status, _ := post([]byte("MZ fake executable pretending to be image/png")); status != 400 {
-		t.Fatalf("spoofed image status = %d, want 400", status)
+	if status, _ := post([]byte("MZ fake executable pretending to be image/png")); status != 415 {
+		t.Fatalf("spoofed image status = %d, want 415", status)
 	}
 	for i := 0; i < 3; i++ {
 		status, url := post(imageBytes.Bytes())
 		if status != 200 || !strings.HasSuffix(url, ".png") {
 			t.Fatalf("valid image %d: status=%d url=%q", i+1, status, url)
 		}
-		filename := strings.TrimPrefix(url, "/api/v1/uploads/")
+		filename := strings.TrimPrefix(url, "https://api.example.test/api/v1/uploads/")
 		saved := filepath.Join("uploads", "public", filename)
 		data, err := os.ReadFile(saved)
 		if err != nil {

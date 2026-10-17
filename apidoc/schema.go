@@ -90,6 +90,7 @@ func components() object {
 		schemaFor(reflect.TypeOf(value), schemas)
 	}
 	schemaFor(reflect.TypeOf(models.OperationEvent{}), schemas)
+	schemas["PassengerProfile"].(object)["properties"].(object)["profile_picture_url"] = object{"type": "string", "format": "uri", "nullable": true, "description": "Directly readable HTTPS URL, or null when no photo is set."}
 	schemas["ModerateRatingInput"] = properties(object{"reason": object{"type": "string", "minLength": 1, "maxLength": 500}}, "reason")
 	schemas["CreateRideInput"] = properties(object{"pickup": ref("RidePoint"), "dropoff": ref("RidePoint"), "vehicle_type": object{"type": "string", "maxLength": 50}}, "pickup", "dropoff")
 	schemas["CancelRideInput"] = properties(object{"reason": object{"type": "string", "minLength": 1, "maxLength": 250}}, "reason")

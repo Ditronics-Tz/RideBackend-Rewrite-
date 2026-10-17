@@ -307,11 +307,11 @@ func (ac *AuthController) Me(c *fiber.Ctx) error {
 	}
 	response := fiber.Map{"user": models.ToUserResponse(user)}
 	if profile, ok := ac.Store.GetDriverProfile(uid); ok {
-		profile.ProfilePictureURL = profilePictureURL(profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
+		profile.ProfilePictureURL = profilePictureURL(ac.Cfg, profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
 		response["driver_profile"] = profile
 	}
 	if profile, ok := ac.Store.GetPassengerProfile(uid); ok {
-		profile.ProfilePictureURL = profilePictureURL(profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
+		profile.ProfilePictureURL = profilePictureURL(ac.Cfg, profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
 		profile.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
 		response["passenger_profile"] = profile
 	}

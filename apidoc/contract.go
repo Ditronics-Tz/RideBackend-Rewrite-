@@ -262,8 +262,12 @@ func describeCurrent(route Route, operation, schemas object) {
 		if strings.HasPrefix(path, "/driver") {
 			name = "DriverProfile"
 		}
-		set("200", "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.", ref(name))
+		description := "Multipart profile_picture, maximum 5 MiB. The server validates actual JPEG, PNG or WebP bytes and dimensions, then re-encodes as PNG. At most three validated upload attempts per account per hour. The response contains a directly readable HTTPS profile_picture_url that changes after replacement."
+		set("200", description, ref(name))
 		operation["requestBody"] = multipart(properties(object{"profile_picture": object{"type": "string", "format": "binary"}}, "profile_picture"))
+		responses["413"] = jsonResponse("Profile image exceeds 5 MiB.", ref("Error"))
+		responses["415"] = jsonResponse("Unsupported content type or image format.", ref("Error"))
+		responses["422"] = jsonResponse("Missing, empty, corrupt or invalid-dimension image.", ref("Error"))
 		if name == "DriverProfile" {
 			responses["410"] = jsonResponse("licence_image uploads moved to the document endpoint.", ref("Error"))
 		}

@@ -2,7 +2,12 @@ package controllers
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"mime"
+	"net/url"
+	"os"
+	"path/filepath"
 	"ride-backend/config"
 	"ride-backend/middleware"
 	"ride-backend/models"
@@ -35,7 +40,7 @@ func (pc *ProfileController) GetMyDriverProfile(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "driver role required"})
 	}
 	p := pc.Store.EnsureDriverProfile(uid)
-	p.ProfilePictureURL = profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
+	p.ProfilePictureURL = profilePictureURL(pc.Cfg, p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
 	return c.JSON(p)
 }
 
@@ -77,14 +82,14 @@ func (pc *ProfileController) GetDriverProfileByID(c *fiber.Ctx) error {
 	}
 	uid, role := middleware.CurrentUser(c)
 	if uid == id && role == models.RoleDriver {
-		p.ProfilePictureURL = profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
+		p.ProfilePictureURL = profilePictureURL(pc.Cfg, p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
 		return c.JSON(p)
 	}
 	user, ok := pc.Store.GetUserByID(id)
 	if !ok {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Driver profile not found"})
 	}
-	return c.JSON(models.PublicDriverProfile{UserID: id, Name: user.Name, VehicleType: p.VehicleType, ProfilePictureURL: profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey), AverageRating: p.AverageRating, TotalRatings: p.TotalRatings})
+	return c.JSON(models.PublicDriverProfile{UserID: id, Name: user.Name, VehicleType: p.VehicleType, ProfilePictureURL: profilePictureURL(pc.Cfg, p.UserID, p.ProfilePictureURL, p.ProfilePictureKey), AverageRating: p.AverageRating, TotalRatings: p.TotalRatings})
 }
 
 // ---------- Passenger ----------
@@ -100,7 +105,7 @@ func (pc *ProfileController) GetMyPassengerProfile(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "passenger role required"})
 	}
 	p := pc.Store.EnsurePassengerProfile(uid, user.Name)
-	p.ProfilePictureURL = profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
+	p.ProfilePictureURL = profilePictureURL(pc.Cfg, p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
 	p.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
 	return c.JSON(p)
 }
@@ -132,7 +137,7 @@ func (pc *ProfileController) UpdateMyPassengerProfile(c *fiber.Ctx) error {
 	if err != nil {
 		return operationError(c, err)
 	}
-	p.ProfilePictureURL = profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
+	p.ProfilePictureURL = profilePictureURL(pc.Cfg, p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
 	if user, ok := pc.Store.GetUserByID(uid); ok {
 		p.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
 	}
@@ -149,9 +154,23 @@ func (pc *ProfileController) UploadMyPassengerImage(c *fiber.Ctx) error {
 }
 
 func (pc *ProfileController) updateProfilePicture(c *fiber.Ctx, uid string, driver bool) error {
+	mediaType, _, err := mime.ParseMediaType(c.Get(fiber.HeaderContentType))
+	if err != nil || mediaType != "multipart/form-data" {
+		return operationError(c, store.OpError(415, "multipart/form-data is required"))
+	}
+	form, err := c.MultipartForm()
+	if err != nil || form == nil || len(form.File) != 1 || len(form.File["profile_picture"]) != 1 {
+		return operationError(c, &store.OperationError{Status: 422, Message: "exactly one profile_picture file is required", Field: "profile_picture"})
+	}
 	data, err := utils.ReadProfileImage(c, "profile_picture")
 	if err != nil {
-		return operationError(c, store.FieldError("profile_picture", err.Error()))
+		status := 422
+		if errors.Is(err, utils.ErrProfileImageTooLarge) {
+			status = 413
+		} else if errors.Is(err, utils.ErrProfileImageUnsupported) {
+			status = 415
+		}
+		return operationError(c, &store.OperationError{Status: status, Message: err.Error(), Field: "profile_picture"})
 	}
 	if pc.Cfg.StorageDriver == "r2" && pc.Store.Storage == nil {
 		return operationError(c, store.OpError(503, "object storage is not configured"))
@@ -179,6 +198,15 @@ func (pc *ProfileController) updateProfilePicture(c *fiber.Ctx, uid string, driv
 			return operationError(c, store.FieldError("profile_picture", "unable to save image"))
 		}
 	}
+	// Retain the previous reference until the replacement is safely stored.
+	oldURL, oldKey := "", ""
+	if driver {
+		if previous, ok := pc.Store.GetDriverProfile(uid); ok {
+			oldURL, oldKey = previous.ProfilePictureURL, previous.ProfilePictureKey
+		}
+	} else if previous, ok := pc.Store.GetPassengerProfile(uid); ok {
+		oldURL, oldKey = previous.ProfilePictureURL, previous.ProfilePictureKey
+	}
 	model := any(&models.PassengerProfile{})
 	if driver {
 		pc.Store.EnsureDriverProfile(uid)
@@ -195,32 +223,43 @@ func (pc *ProfileController) updateProfilePicture(c *fiber.Ctx, uid string, driv
 	if key != "" {
 		values = map[string]any{"profile_picture_key": key, "profile_picture_url": ""}
 	}
-	result := pc.Store.DB().Model(model).Where("user_id = ?", uid).Updates(values)
-	if result.Error != nil {
+	removeNewImage := func() {
 		if key != "" && pc.Store.Storage != nil {
 			_ = pc.Store.Storage.Delete(c.UserContext(), storage.Public, key)
+		} else if strings.HasPrefix(url, "/api/v1/uploads/") {
+			_ = os.Remove(filepath.Join("uploads", "public", strings.TrimPrefix(url, "/api/v1/uploads/")))
 		}
+	}
+	result := pc.Store.DB().Model(model).Where("user_id = ? AND COALESCE(profile_picture_url, '') = ? AND COALESCE(profile_picture_key, '') = ?", uid, oldURL, oldKey).Updates(values)
+	if result.Error != nil {
+		removeNewImage()
 		return verificationError(c, result.Error)
 	}
 	if result.RowsAffected != 1 {
-		if key != "" && pc.Store.Storage != nil {
-			_ = pc.Store.Storage.Delete(c.UserContext(), storage.Public, key)
-		}
+		removeNewImage()
 		return fiber.NewError(409, "Profile picture could not be updated")
+	}
+	if oldKey != "" && oldKey != key && pc.Store.Storage != nil {
+		_ = pc.Store.Storage.Delete(c.UserContext(), storage.Public, oldKey)
+	} else if oldURL != "" && oldURL != url && strings.HasPrefix(oldURL, "/api/v1/uploads/") {
+		oldName := strings.TrimPrefix(oldURL, "/api/v1/uploads/")
+		if filepath.Base(oldName) == oldName && strings.HasPrefix(oldName, map[bool]string{true: "driver_", false: "passenger_"}[driver]+uid+"_") {
+			_ = os.Remove(filepath.Join("uploads", "public", oldName))
+		}
 	}
 	if driver {
 		profile, ok := pc.Store.GetDriverProfile(uid)
 		if !ok {
 			return fiber.NewError(404, "Driver profile not found")
 		}
-		profile.ProfilePictureURL = profilePictureURL(profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
+		profile.ProfilePictureURL = profilePictureURL(pc.Cfg, profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
 		return c.JSON(profile)
 	}
 	profile, ok := pc.Store.GetPassengerProfile(uid)
 	if !ok {
 		return fiber.NewError(404, "Passenger profile not found")
 	}
-	profile.ProfilePictureURL = profilePictureURL(profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
+	profile.ProfilePictureURL = profilePictureURL(pc.Cfg, profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
 	if user, ok := pc.Store.GetUserByID(uid); ok {
 		profile.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
 	}
@@ -236,7 +275,7 @@ func (pc *ProfileController) GetPassengerProfileByID(c *fiber.Ctx) error {
 	}
 	uid, role := middleware.CurrentUser(c)
 	if uid == id && role == models.RolePassenger {
-		p.ProfilePictureURL = profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
+		p.ProfilePictureURL = profilePictureURL(pc.Cfg, p.UserID, p.ProfilePictureURL, p.ProfilePictureKey)
 		if user, ok := pc.Store.GetUserByID(id); ok {
 			p.ProfileCompleted = strings.TrimSpace(user.Name) != "" && user.Phone != ""
 		}
@@ -246,14 +285,23 @@ func (pc *ProfileController) GetPassengerProfileByID(c *fiber.Ctx) error {
 	if !ok {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Passenger profile not found"})
 	}
-	return c.JSON(models.PublicPassengerProfile{UserID: id, Name: user.Name, ProfilePictureURL: profilePictureURL(p.UserID, p.ProfilePictureURL, p.ProfilePictureKey), AverageRating: p.AverageRating, TotalRatings: p.TotalRatings})
+	return c.JSON(models.PublicPassengerProfile{UserID: id, Name: user.Name, ProfilePictureURL: profilePictureURL(pc.Cfg, p.UserID, p.ProfilePictureURL, p.ProfilePictureKey), AverageRating: p.AverageRating, TotalRatings: p.TotalRatings})
 }
 
-func profilePictureURL(userID, currentURL, key string) string {
+func profilePictureURL(cfg *config.Config, userID, currentURL, key string) string {
 	if key != "" {
-		return "/api/v1/profile-images/" + userID
+		return strings.TrimRight(cfg.R2PublicBaseURL, "/") + "/" + key
 	}
-	return currentURL
+	if strings.HasPrefix(currentURL, "/api/v1/uploads/") {
+		return strings.TrimRight(cfg.PublicBaseURL, "/") + currentURL
+	}
+	if parsed, err := url.Parse(currentURL); err == nil && parsed.Scheme == "https" && parsed.Host != "" {
+		return currentURL
+	}
+	if currentURL != "" && cfg.AppEnv != "production" {
+		return currentURL
+	}
+	return ""
 }
 
 // GetFullProfileForStaff is mounted only behind StaffProtected and the support/admin role check.
@@ -269,14 +317,14 @@ func (pc *ProfileController) GetFullProfileForStaff(c *fiber.Ctx) error {
 	if user.Role == models.RoleDriver {
 		profile, exists := pc.Store.GetDriverProfile(user.ID)
 		if exists {
-			profile.ProfilePictureURL = profilePictureURL(profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
+			profile.ProfilePictureURL = profilePictureURL(pc.Cfg, profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
 			response["driver_profile"] = profile
 		}
 	}
 	if user.Role == models.RolePassenger {
 		profile, exists := pc.Store.GetPassengerProfile(user.ID)
 		if exists {
-			profile.ProfilePictureURL = profilePictureURL(profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
+			profile.ProfilePictureURL = profilePictureURL(pc.Cfg, profile.UserID, profile.ProfilePictureURL, profile.ProfilePictureKey)
 			response["passenger_profile"] = profile
 		}
 	}

@@ -36,7 +36,9 @@ document URL (refetch document metadata for its protected URL).
   are not readable. Fetch a new URL on open/expiry; never persist signed URLs or
   forward application tokens to storage.
 - R2 profile uploads keep existing multipart request fields, persist object keys,
-  and return `/api/v1/profile-images/:id` resolving to the configured public domain.
+  and return a directly readable HTTPS URL on the configured public domain. The
+  URL changes with each replacement; existing `/api/v1/profile-images/:id`
+  redirects remain available for older clients.
 - One-shot `go run ./cmd/migrate-files-to-r2 --dry-run` inventories metadata;
   real migration requires configured R2 and verifies each copy before switching
   metadata. Existing local files are retained for operator reconciliation.

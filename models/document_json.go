@@ -16,7 +16,7 @@ func (d DriverDocument) MarshalJSON() ([]byte, error) {
 func (p DriverProfile) MarshalJSON() ([]byte, error) {
 	type profile DriverProfile
 	value := profile(p)
-	if p.ProfilePictureKey != "" {
+	if p.ProfilePictureKey != "" && value.ProfilePictureURL == "" {
 		value.ProfilePictureURL = "/api/v1/profile-images/" + p.UserID
 	}
 	return json.Marshal(value)
@@ -25,8 +25,15 @@ func (p DriverProfile) MarshalJSON() ([]byte, error) {
 func (p PassengerProfile) MarshalJSON() ([]byte, error) {
 	type profile PassengerProfile
 	value := profile(p)
-	if p.ProfilePictureKey != "" {
+	if p.ProfilePictureKey != "" && value.ProfilePictureURL == "" {
 		value.ProfilePictureURL = "/api/v1/profile-images/" + p.UserID
 	}
-	return json.Marshal(value)
+	var photoURL *string
+	if value.ProfilePictureURL != "" {
+		photoURL = &value.ProfilePictureURL
+	}
+	return json.Marshal(struct {
+		profile
+		ProfilePictureURL *string `json:"profile_picture_url"`
+	}{value, photoURL})
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -118,6 +119,12 @@ func (c *Config) Validate() error {
 	}
 	if c.StorageDriver != "" && c.StorageDriver != "local" && c.StorageDriver != "r2" {
 		return errors.New("STORAGE_DRIVER must be local or r2")
+	}
+	if c.AppEnv == "production" {
+		publicURL, err := url.Parse(c.PublicBaseURL)
+		if err != nil || publicURL.Scheme != "https" || publicURL.Host == "" || publicURL.User != nil || publicURL.RawQuery != "" || publicURL.Fragment != "" || (publicURL.Path != "" && publicURL.Path != "/") {
+			return errors.New("PUBLIC_BASE_URL must be an HTTPS origin in production")
+		}
 	}
 	if c.PushProvider != "" && c.PushProvider != "none" && c.PushProvider != "fcm" {
 		return errors.New("PUSH_PROVIDER must be none or fcm")

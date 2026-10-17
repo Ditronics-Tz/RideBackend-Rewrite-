@@ -1469,6 +1469,9 @@
             "type": "boolean"
           },
           "profile_picture_url": {
+            "description": "Directly readable HTTPS URL, or null when no photo is set.",
+            "format": "uri",
+            "nullable": true,
             "type": "string"
           },
           "total_ratings": {
@@ -14147,7 +14150,7 @@
     },
     "/api/v1/driver/profile/me/images": {
       "post": {
-        "description": "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.",
+        "description": "Multipart profile_picture, maximum 5 MiB. The server validates actual JPEG, PNG or WebP bytes and dimensions, then re-encodes as PNG. At most three validated upload attempts per account per hour. The response contains a directly readable HTTPS profile_picture_url that changes after replacement.",
         "operationId": "post_api_v1_driver_profile_me_images",
         "parameters": [
           {
@@ -14190,7 +14193,7 @@
                 }
               }
             },
-            "description": "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.",
+            "description": "Multipart profile_picture, maximum 5 MiB. The server validates actual JPEG, PNG or WebP bytes and dimensions, then re-encodes as PNG. At most three validated upload attempts per account per hour. The response contains a directly readable HTTPS profile_picture_url that changes after replacement.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -14208,6 +14211,57 @@
               }
             },
             "description": "licence_image uploads moved to the document endpoint.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Profile image exceeds 5 MiB.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unsupported content type or image format.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Missing, empty, corrupt or invalid-dimension image.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -15627,7 +15681,7 @@
     },
     "/api/v1/passenger/profile/me/image": {
       "post": {
-        "description": "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.",
+        "description": "Multipart profile_picture, maximum 5 MiB. The server validates actual JPEG, PNG or WebP bytes and dimensions, then re-encodes as PNG. At most three validated upload attempts per account per hour. The response contains a directly readable HTTPS profile_picture_url that changes after replacement.",
         "operationId": "post_api_v1_passenger_profile_me_image",
         "parameters": [
           {
@@ -15670,7 +15724,58 @@
                 }
               }
             },
-            "description": "Multipart profile_picture, maximum 5 MiB. The server validates magic bytes, decodes and re-encodes the picture as PNG to strip metadata, limits decoded dimensions, and allows at most three valid uploads per account per hour. R2 returns a derived API image redirect; local mode returns the public upload URL.",
+            "description": "Multipart profile_picture, maximum 5 MiB. The server validates actual JPEG, PNG or WebP bytes and dimensions, then re-encodes as PNG. At most three validated upload attempts per account per hour. The response contains a directly readable HTTPS profile_picture_url that changes after replacement.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Profile image exceeds 5 MiB.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unsupported content type or image format.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Missing, empty, corrupt or invalid-dimension image.",
             "headers": {
               "X-Request-ID": {
                 "schema": {

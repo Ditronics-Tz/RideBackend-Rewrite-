@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -16,6 +17,12 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/image/webp"
+)
+
+var (
+	ErrProfileImageTooLarge    = errors.New("profile image exceeds 5 MiB")
+	ErrProfileImageUnsupported = errors.New("JPEG, PNG or WebP image required")
+	ErrProfileImageInvalid     = errors.New("invalid profile image")
 )
 
 var allowedImageExt = map[string]bool{
@@ -45,38 +52,44 @@ func SavePublicImage(c *fiber.Ctx, field, prefix string) (string, error) {
 func ReadProfileImage(c *fiber.Ctx, field string) ([]byte, error) {
 	fh, err := c.FormFile(field)
 	if err != nil {
-		return nil, fmt.Errorf("field %s: image required", field)
+		return nil, ErrProfileImageInvalid
 	}
 	input, err := readImageHeader(fh)
 	if err != nil {
-		return nil, fmt.Errorf("field %s: %w", field, err)
+		return nil, err
 	}
 	normalized, _, err := NormalizeProfileImage(input)
 	if err != nil {
-		return nil, fmt.Errorf("field %s: %w", field, err)
+		return nil, err
 	}
 	return normalized, nil
 }
 
 func readImageHeader(fh *multipart.FileHeader) ([]byte, error) {
-	if fh.Size < 1 || fh.Size > 5*1024*1024 {
-		return nil, fmt.Errorf("image must contain 1-5242880 bytes")
+	if fh.Size > 5*1024*1024 {
+		return nil, ErrProfileImageTooLarge
+	}
+	if fh.Size < 1 {
+		return nil, ErrProfileImageInvalid
 	}
 	file, err := fh.Open()
 	if err != nil {
-		return nil, fmt.Errorf("unable to read image")
+		return nil, ErrProfileImageInvalid
 	}
 	defer file.Close()
 	data, err := io.ReadAll(io.LimitReader(file, 5*1024*1024+1))
 	if err != nil || int64(len(data)) != fh.Size {
-		return nil, fmt.Errorf("unable to read image")
+		return nil, ErrProfileImageInvalid
 	}
 	return data, nil
 }
 
 func NormalizeProfileImage(data []byte) ([]byte, string, error) {
-	if len(data) < 1 || len(data) > 5*1024*1024 {
-		return nil, "", fmt.Errorf("image must contain 1-5242880 bytes")
+	if len(data) > 5*1024*1024 {
+		return nil, "", ErrProfileImageTooLarge
+	}
+	if len(data) < 1 {
+		return nil, "", ErrProfileImageInvalid
 	}
 	kind := http.DetectContentType(data)
 	var config image.Config
@@ -89,10 +102,10 @@ func NormalizeProfileImage(data []byte) ([]byte, string, error) {
 	case "image/webp":
 		config, err = webp.DecodeConfig(bytes.NewReader(data))
 	default:
-		return nil, "", fmt.Errorf("JPEG, PNG or WebP image required")
+		return nil, "", ErrProfileImageUnsupported
 	}
 	if err != nil || config.Width < 1 || config.Height < 1 || config.Width > 4096 || config.Height > 4096 || int64(config.Width)*int64(config.Height) > 16*1024*1024 {
-		return nil, "", fmt.Errorf("invalid or oversized image")
+		return nil, "", ErrProfileImageInvalid
 	}
 	var decoded image.Image
 	switch kind {
@@ -104,11 +117,11 @@ func NormalizeProfileImage(data []byte) ([]byte, string, error) {
 		decoded, err = webp.Decode(bytes.NewReader(data))
 	}
 	if err != nil || decoded == nil {
-		return nil, "", fmt.Errorf("invalid or unsupported image")
+		return nil, "", ErrProfileImageInvalid
 	}
 	var normalized bytes.Buffer
 	if err := (&png.Encoder{CompressionLevel: png.BestSpeed}).Encode(&normalized, decoded); err != nil || normalized.Len() > 5*1024*1024 {
-		return nil, "", fmt.Errorf("normalized image exceeds 5MB")
+		return nil, "", ErrProfileImageTooLarge
 	}
 	return normalized.Bytes(), "image/png", nil
 }

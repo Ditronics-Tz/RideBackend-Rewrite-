@@ -34,11 +34,20 @@ func TestDSNQuotesCredentialValues(t *testing.T) {
 
 func TestProductionDatabaseTLS(t *testing.T) {
 	for _, mode := range []string{"disable", "allow", "prefer", "require", "verify-ca", "verify-full"} {
-		cfg := &config.Config{AppEnv: "production", DBSSLMode: mode, JWTSecret: strings.Repeat("aZ4!", 10), StaffJWTSecret: strings.Repeat("bY5?", 10), DBPassword: "fixture", StaffTOTPKey: []byte(strings.Repeat("x", 32))}
+		cfg := &config.Config{AppEnv: "production", DBSSLMode: mode, JWTSecret: strings.Repeat("aZ4!", 10), StaffJWTSecret: strings.Repeat("bY5?", 10), DBPassword: "fixture", StaffTOTPKey: []byte(strings.Repeat("x", 32)), PublicBaseURL: "https://api.example.test"}
 		err := cfg.Validate()
 		want := mode == "require" || mode == "verify-ca" || mode == "verify-full"
 		if (err == nil) != want {
 			t.Fatalf("TLS mode %s unexpected: %v", mode, err)
+		}
+	}
+}
+
+func TestProductionPublicBaseURLRequiresHTTPSOrigin(t *testing.T) {
+	for _, value := range []string{"", "http://api.example.test", "https://api.example.test/path", "https://user:pass@api.example.test"} {
+		cfg := &config.Config{AppEnv: "production", DBSSLMode: "require", JWTSecret: strings.Repeat("aZ4!", 10), StaffJWTSecret: strings.Repeat("bY5?", 10), DBPassword: "fixture", StaffTOTPKey: []byte(strings.Repeat("x", 32)), PublicBaseURL: value}
+		if err := cfg.Validate(); err == nil {
+			t.Fatalf("accepted insecure PUBLIC_BASE_URL %q", value)
 		}
 	}
 }
