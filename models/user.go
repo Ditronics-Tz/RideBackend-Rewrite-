@@ -146,10 +146,12 @@ type UpdateRoleInput struct {
 }
 
 type DriverProfileInput struct {
-	LicenceNumber     string `json:"licence_number"`
-	VehicleCardNumber string `json:"vehicle_card_number"`
-	PlateNumber       string `json:"plate_number"`
-	VehicleType       string `json:"vehicle_type"`
+	FullName          *string `json:"full_name"`
+	PhoneNumber       *string `json:"phone_number"`
+	LicenceNumber     string  `json:"licence_number"`
+	VehicleCardNumber string  `json:"vehicle_card_number"`
+	PlateNumber       string  `json:"plate_number"`
+	VehicleType       string  `json:"vehicle_type"`
 }
 
 type PassengerProfileInput struct {

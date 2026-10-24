@@ -17,6 +17,7 @@ type GoogleIdentity struct {
 	Email         string `json:"email"`
 	VerifiedEmail bool   `json:"email_verified"`
 	Name          string `json:"name"`
+	Picture       string `json:"picture"`
 }
 
 type GoogleAuthenticator interface {

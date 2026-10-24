@@ -11952,7 +11952,7 @@
         "x-go-handler": "ride-backend/controllers.(*AuthController).GoogleLogin"
       },
       "post": {
-        "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.",
+        "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts. The verified Google picture initializes an empty profile photo; uploaded photos are preserved.",
         "operationId": "post_api_v1_auth_google",
         "parameters": [
           {
@@ -11978,6 +11978,15 @@
                   },
                   "idToken": {
                     "type": "string"
+                  },
+                  "role": {
+                    "default": "passenger",
+                    "description": "Selects a new account role. Existing accounts keep their role; an explicit mismatch returns ACCOUNT_ROLE_MISMATCH.",
+                    "enum": [
+                      "driver",
+                      "passenger"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -11999,7 +12008,7 @@
                 }
               }
             },
-            "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.",
+            "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts. The verified Google picture initializes an empty profile photo; uploaded photos are preserved.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -14100,7 +14109,7 @@
         "x-go-handler": "ride-backend/controllers.(*ProfileController).GetMyDriverProfile"
       },
       "put": {
-        "description": "Current profile response.",
+        "description": "Updates driver name, phone and vehicle identifiers atomically. Phone changes clear verification and require the OTP flow to verify the new number.",
         "operationId": "put_api_v1_driver_profile_me",
         "parameters": [
           {
@@ -14115,6 +14124,39 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "full_name": {
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "licence_number": {
+                    "type": "string"
+                  },
+                  "phone_number": {
+                    "type": "string"
+                  },
+                  "plate_number": {
+                    "type": "string"
+                  },
+                  "vehicle_card_number": {
+                    "type": "string"
+                  },
+                  "vehicle_type": {
+                    "maxLength": 50,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -14125,6 +14167,23 @@
               }
             },
             "description": "Current profile response.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Phone number or driver identifiers already belong to another account, or a claimed review prevents profile changes.",
             "headers": {
               "X-Request-ID": {
                 "schema": {

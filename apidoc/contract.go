@@ -288,6 +288,15 @@ func describeCurrent(route Route, operation, schemas object) {
 			operation["x-privacy-contract"] = "public DTO for other users; full profile for owner"
 		}
 		set("200", description, ref(name))
+		if path == "/driver/profile/me" && route.Method == "PUT" {
+			operation["description"] = "Updates driver name, phone and vehicle identifiers atomically. Phone changes clear verification and require the OTP flow to verify the new number."
+			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{
+				"full_name":    object{"type": "string", "minLength": 1, "maxLength": 100},
+				"phone_number": scalar("string"), "vehicle_type": object{"type": "string", "maxLength": 50},
+				"licence_number": scalar("string"), "vehicle_card_number": scalar("string"), "plate_number": scalar("string"),
+			})}}}
+			responses["409"] = jsonResponse("Phone number or driver identifiers already belong to another account, or a claimed review prevents profile changes.", ref("Error"))
+		}
 		if path == "/passenger/profile/me" && route.Method == "PUT" {
 			operation["description"] = "Update the signed-in passenger's full name and phone number. A new phone is normalized to +255 format and remains unverified until the existing OTP flow succeeds."
 			operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"full_name": object{"type": "string", "minLength": 1, "maxLength": 100}, "phone_number": scalar("string")})}}}
@@ -593,8 +602,8 @@ func describeCurrent(route Route, operation, schemas object) {
 		return
 	}
 	if path == "/auth/google" && route.Method == "POST" {
-		set("200", "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.", ref("AppSessionToken"))
-		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"idToken": scalar("string"), "challengeId": object{"type": "string", "format": "uuid"}}, "idToken", "challengeId")}}}
+		set("200", "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts. The verified Google picture initializes an empty profile photo; uploaded photos are preserved.", ref("AppSessionToken"))
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"idToken": scalar("string"), "challengeId": object{"type": "string", "format": "uuid"}, "role": object{"type": "string", "enum": []string{"driver", "passenger"}, "default": "passenger", "description": "Selects a new account role. Existing accounts keep their role; an explicit mismatch returns ACCOUNT_ROLE_MISMATCH."}}, "idToken", "challengeId")}}}
 		responses["401"] = jsonResponse("Invalid token, expired challenge, or replay.", ref("Error"))
 		responses["409"] = jsonResponse("ACCOUNT_LINK_REQUIRED: sign in to existing account before linking Google.", ref("Error"))
 		responses["503"] = jsonResponse("Google is not configured or authentication storage is unavailable.", ref("Error"))

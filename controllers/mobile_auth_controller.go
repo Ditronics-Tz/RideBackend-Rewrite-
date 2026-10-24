@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"ride-backend/middleware"
+	"ride-backend/models"
 	"ride-backend/store"
 )
 
@@ -36,9 +37,18 @@ func (ac *AuthController) GoogleMobileExchange(c *fiber.Ctx) error {
 	var input struct {
 		IDToken     string `json:"idToken"`
 		ChallengeID string `json:"challengeId"`
+		Role        string `json:"role"`
 	}
 	if len(c.Body()) > 20000 || c.BodyParser(&input) != nil || input.ChallengeID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid Google sign-in request", "code": "INVALID_REQUEST"})
+	}
+	role := models.RolePassenger
+	if input.Role != "" {
+		parsed, err := models.ParseRole(input.Role)
+		if err != nil || (parsed != models.RoleDriver && parsed != models.RolePassenger) {
+			return operationError(c, store.FieldError("role", "role must be driver or passenger"))
+		}
+		role = parsed
 	}
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
@@ -56,12 +66,18 @@ func (ac *AuthController) GoogleMobileExchange(c *fiber.Ctx) error {
 		}
 		return authError(c, err)
 	}
-	user, err := ac.Store.ResolveGoogleIdentity(ctx, identity.Subject, identity.Name, email)
+	user, err := ac.Store.ResolveGoogleIdentityForRole(ctx, identity.Subject, identity.Name, email, role)
 	if err != nil {
 		var op *store.OperationError
 		if errors.As(err, &op) && op.Status == 409 {
 			return c.Status(409).JSON(fiber.Map{"error": "Sign in to the existing account before linking Google", "code": "ACCOUNT_LINK_REQUIRED"})
 		}
+		return authError(c, err)
+	}
+	if input.Role != "" && user.Role != role {
+		return c.Status(403).JSON(fiber.Map{"error": "Use the app for your account type", "code": "ACCOUNT_ROLE_MISMATCH"})
+	}
+	if err := ac.Store.SaveGoogleProfilePicture(ctx, user, identity.Picture); err != nil {
 		return authError(c, err)
 	}
 	return ac.issue(c, user, 200, "Google authentication successful")

@@ -368,5 +368,8 @@ func (ac *AuthController) GoogleCallback(c *fiber.Ctx) error {
 	if err != nil {
 		return operationError(c, err)
 	}
+	if err := ac.Store.SaveGoogleProfilePicture(c.UserContext(), user, identity.Picture); err != nil {
+		return authError(c, err)
+	}
 	return ac.issue(c, user, 200, "Google authentication successful")
 }

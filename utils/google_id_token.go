@@ -46,5 +46,6 @@ func (v GoogleIDTokenVerifier) Verify(ctx context.Context, raw, audience string)
 		return empty, "", ErrGoogleIDToken
 	}
 	name, _ := payload.Claims["name"].(string)
-	return GoogleIdentity{Subject: payload.Subject, Email: email, VerifiedEmail: true, Name: name}, nonce, nil
+	picture, _ := payload.Claims["picture"].(string)
+	return GoogleIdentity{Subject: payload.Subject, Email: email, VerifiedEmail: true, Name: name, Picture: picture}, nonce, nil
 }

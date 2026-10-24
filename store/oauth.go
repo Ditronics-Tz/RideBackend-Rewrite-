@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"net/url"
 	"strings"
 	"time"
 
@@ -65,6 +66,14 @@ func (s *Store) ConsumeOAuthState(ctx context.Context, state, browser, redirect 
 // Existing emails are never auto-linked: an unverified local registration must
 // not gain control of an unrelated Google identity with the same email.
 func (s *Store) ResolveGoogleIdentity(ctx context.Context, subject, name, email string) (*models.User, error) {
+	return s.ResolveGoogleIdentityForRole(ctx, subject, name, email, models.RolePassenger)
+}
+
+// Role selects only a newly registered account; existing accounts are never promoted.
+func (s *Store) ResolveGoogleIdentityForRole(ctx context.Context, subject, name, email string, role models.Role) (*models.User, error) {
+	if role != models.RoleDriver && role != models.RolePassenger {
+		return nil, FieldError("role", "role must be driver or passenger")
+	}
 	if subject == "" || len(subject) > 255 {
 		return nil, OpError(401, "invalid Google identity")
 	}
@@ -97,7 +106,7 @@ func (s *Store) ResolveGoogleIdentity(ctx context.Context, subject, name, email 
 		if len([]rune(name)) > 100 {
 			name = string([]rune(name)[:100])
 		}
-		u, err := tx.CreateUser(name, email, "", models.RolePassenger)
+		u, err := tx.CreateUser(name, email, "", role)
 		if err != nil {
 			return err
 		}
@@ -145,4 +154,21 @@ func (oauthAnonymizer) Description() string {
 }
 func (oauthAnonymizer) Anonymize(tx *gorm.DB, id string) error {
 	return tx.Where("user_id = ?", id).Delete(&models.OAuthIdentity{}).Error
+}
+
+// SaveGoogleProfilePicture accepts only Google's verified identity claim. Never
+// overwrite a photo the account has already uploaded, including an object key.
+func (s *Store) SaveGoogleProfilePicture(ctx context.Context, user *models.User, picture string) error {
+	parsed, err := url.Parse(picture)
+	if err != nil || parsed.Scheme != "https" || parsed.User != nil || parsed.Port() != "" ||
+		!strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".googleusercontent.com") {
+		return nil
+	}
+	var profile any = &models.PassengerProfile{}
+	if user.Role == models.RoleDriver {
+		profile = &models.DriverProfile{}
+	}
+	return s.db.WithContext(ctx).Model(profile).
+		Where("user_id = ? AND COALESCE(profile_picture_url, '') = '' AND COALESCE(profile_picture_key, '') = ''", user.ID).
+		Update("profile_picture_url", parsed.String()).Error
 }

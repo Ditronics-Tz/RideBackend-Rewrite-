@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	backenddb "ride-backend/db"
 	"ride-backend/models"
 )
 
@@ -380,6 +381,20 @@ func (s *Store) UpdateDriverIdentifiers(id string, input models.DriverProfileInp
 }
 
 func (s *Store) updateDriverIdentifiers(id string, input models.DriverProfileInput, retry bool) (*models.DriverProfile, error) {
+	if input.FullName != nil {
+		name := strings.TrimSpace(*input.FullName)
+		if name == "" || len([]rune(name)) > 100 {
+			return nil, FieldError("full_name", "full_name must contain 1-100 characters")
+		}
+		input.FullName = &name
+	}
+	if input.PhoneNumber != nil {
+		phone, err := backenddb.CanonicalPhone(*input.PhoneNumber)
+		if err != nil {
+			return nil, FieldError("phone_number", err.Error())
+		}
+		input.PhoneNumber = &phone
+	}
 	values := map[string]string{"licence_number": CanonicalIdentifier(input.LicenceNumber), "plate_number": CanonicalIdentifier(input.PlateNumber)}
 	vehicleType := strings.TrimSpace(input.VehicleType)
 	if len([]rune(vehicleType)) > 50 {
@@ -412,6 +427,34 @@ func (s *Store) updateDriverIdentifiers(id string, input models.DriverProfileInp
 		}
 		if p.AssignedTo != nil {
 			return conflict("profile cannot change during a claimed review")
+		}
+		if input.FullName != nil || input.PhoneNumber != nil {
+			var user models.User
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, "id = ?", id).Error; err != nil {
+				return err
+			}
+			updates := map[string]any{}
+			if input.FullName != nil {
+				updates["name"] = *input.FullName
+			}
+			if input.PhoneNumber != nil {
+				if *input.PhoneNumber != "" && *input.PhoneNumber != user.Phone {
+					var count int64
+					if err := tx.Model(&models.User{}).Where("phone = ? AND id <> ?", *input.PhoneNumber, id).Count(&count).Error; err != nil {
+						return err
+					}
+					if count > 0 {
+						return OpError(409, "phone number is already registered")
+					}
+				}
+				updates["phone"] = *input.PhoneNumber
+				if *input.PhoneNumber != user.Phone {
+					updates["phone_verified_at"] = nil
+				}
+			}
+			if err := tx.Model(&user).Updates(updates).Error; err != nil {
+				return err
+			}
 		}
 		changedIdentifiers := false
 		if v := values["licence_number"]; v != "" && v != p.LicenceNumber {
