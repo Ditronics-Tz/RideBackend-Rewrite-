@@ -11952,7 +11952,7 @@
         "x-go-handler": "ride-backend/controllers.(*AuthController).GoogleLogin"
       },
       "post": {
-        "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.",
+        "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; optional role (driver or passenger, default passenger) sets the account/session role; matching email alone never links accounts.",
         "operationId": "post_api_v1_auth_google",
         "parameters": [
           {
@@ -11978,6 +11978,13 @@
                   },
                   "idToken": {
                     "type": "string"
+                  },
+                  "role": {
+                    "enum": [
+                      "driver",
+                      "passenger"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -11999,7 +12006,24 @@
                 }
               }
             },
-            "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.",
+            "description": "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; optional role (driver or passenger, default passenger) sets the account/session role; matching email alone never links accounts.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid request or unsupported role.",
             "headers": {
               "X-Request-ID": {
                 "schema": {

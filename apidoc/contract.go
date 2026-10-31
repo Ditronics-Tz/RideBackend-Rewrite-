@@ -593,8 +593,9 @@ func describeCurrent(route Route, operation, schemas object) {
 		return
 	}
 	if path == "/auth/google" && route.Method == "POST" {
-		set("200", "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; matching email alone never links accounts.", ref("AppSessionToken"))
-		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"idToken": scalar("string"), "challengeId": object{"type": "string", "format": "uuid"}}, "idToken", "challengeId")}}}
+		set("200", "Verifies the signed Google ID token, Web client audience, issuer, expiry, verified email, and one-use challenge nonce. Google subject identifies the account; optional role (driver or passenger, default passenger) sets the account/session role; matching email alone never links accounts.", ref("AppSessionToken"))
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"idToken": scalar("string"), "challengeId": object{"type": "string", "format": "uuid"}, "role": object{"type": "string", "enum": []string{"driver", "passenger"}}}, "idToken", "challengeId")}}}
+		responses["400"] = jsonResponse("Invalid request or unsupported role.", ref("Error"))
 		responses["401"] = jsonResponse("Invalid token, expired challenge, or replay.", ref("Error"))
 		responses["409"] = jsonResponse("ACCOUNT_LINK_REQUIRED: sign in to existing account before linking Google.", ref("Error"))
 		responses["503"] = jsonResponse("Google is not configured or authentication storage is unavailable.", ref("Error"))

@@ -93,6 +93,50 @@ func TestMobileGoogleExchangeProfileReplayAndAccountConflict(t *testing.T) {
 	if body["user"].(map[string]any)["full_name"] != nil || body["user"].(map[string]any)["profile_completed"] != false {
 		t.Fatal("Google account without a name received a fabricated completed profile")
 	}
+	// Driver Google sign-in on a new subject creates a driver account and DriverProfile.
+	status, challenge, _ = authRequest(t, app, "POST", "/auth/google/challenge", "", map[string]any{"role": "driver"})
+	expectAuthStatus(t, status, 200, challenge)
+	nonce = challenge["nonce"].(string)
+	email, subject = "driver-google@example.test", "driver-google-sub"
+	ac.GoogleID.Validate = func(_ context.Context, token, audience string) (*idtoken.Payload, error) {
+		return &idtoken.Payload{Issuer: "https://accounts.google.com", Audience: audience, Expires: time.Now().Add(time.Hour).Unix(), Subject: subject, Claims: map[string]interface{}{"nonce": nonce, "email": email, "email_verified": true, "name": "Driver Google"}}, nil
+	}
+	status, body, _ = authRequest(t, app, "POST", "/auth/google", "", map[string]string{"idToken": "signed-fixture", "challengeId": challenge["challengeId"].(string), "role": "driver"})
+	expectAuthStatus(t, status, 200, body)
+	if body["user"].(map[string]any)["role"] != "driver" || len(body["onboardingRequired"].([]any)) != 0 {
+		t.Fatalf("driver Google sign-in did not issue driver role: %+v", body)
+	}
+	if _, ok := s.GetDriverProfile(body["user"].(map[string]any)["id"].(string)); !ok {
+		t.Fatal("driver Google sign-in did not create DriverProfile")
+	}
+	// Existing passenger Google subject signing in with role=driver switches to driver and revokes prior passenger session.
+	status, challenge, _ = authRequest(t, app, "POST", "/auth/google/challenge", "", map[string]any{})
+	expectAuthStatus(t, status, 200, challenge)
+	nonce = challenge["nonce"].(string)
+	email, subject = "google-mobile@example.test", "google-mobile-sub"
+	status, body, _ = authRequest(t, app, "POST", "/auth/google", "", map[string]string{"idToken": "signed-fixture", "challengeId": challenge["challengeId"].(string), "role": "driver"})
+	expectAuthStatus(t, status, 200, body)
+	if body["user"].(map[string]any)["role"] != "driver" {
+		t.Fatalf("existing Google account did not switch to driver: %+v", body["user"])
+	}
+	if _, ok := s.GetDriverProfile(body["user"].(map[string]any)["id"].(string)); !ok {
+		t.Fatal("role switch to driver did not ensure DriverProfile")
+	}
+	status, _, _ = authRequest(t, app, "GET", "/me", access, nil)
+	if status != 403 && status != 401 {
+		t.Fatalf("previous passenger session remained usable after role switch: status %d", status)
+	}
+	// Invalid/staff roles (admin, support, superadmin) are rejected with 400 before consuming challenge.
+	for _, staffRole := range []string{"admin", "support", "superadmin"} {
+		status, badRole, _ := authRequest(t, app, "POST", "/auth/google", "", map[string]string{"idToken": "signed-fixture", "challengeId": challenge["challengeId"].(string), "role": staffRole})
+		if status != 400 {
+			t.Fatalf("expected 400 for invalid role %q, got %d: %+v", staffRole, status, badRole)
+		}
+		status, badChallenge, _ := authRequest(t, app, "POST", "/auth/google/challenge", "", map[string]string{"role": staffRole})
+		if status != 400 {
+			t.Fatalf("expected 400 for invalid challenge role %q, got %d: %+v", staffRole, status, badChallenge)
+		}
+	}
 }
 
 func TestMobileEmailPasswordLoginAndRefreshFailures(t *testing.T) {
