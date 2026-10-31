@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"ride-backend/models"
 	"ride-backend/utils"
 )
@@ -64,9 +65,17 @@ func (s *Store) ConsumeOAuthState(ctx context.Context, state, browser, redirect 
 
 // Existing emails are never auto-linked: an unverified local registration must
 // not gain control of an unrelated Google identity with the same email.
-func (s *Store) ResolveGoogleIdentity(ctx context.Context, subject, name, email string) (*models.User, error) {
+func (s *Store) ResolveGoogleIdentity(ctx context.Context, subject, name, email string, roles ...models.Role) (*models.User, error) {
 	if subject == "" || len(subject) > 255 {
 		return nil, OpError(401, "invalid Google identity")
+	}
+	role := models.RolePassenger
+	explicitRole := len(roles) > 0 && roles[0] != ""
+	if explicitRole {
+		if !models.IsValidRole(roles[0]) {
+			return nil, FieldError("role", "role must be driver or passenger")
+		}
+		role = roles[0]
 	}
 	var result *models.User
 	err := s.WithContext(ctx).Transaction(func(tx *Store) error {
@@ -74,11 +83,30 @@ func (s *Store) ResolveGoogleIdentity(ctx context.Context, subject, name, email 
 		err := tx.db.Where("provider = ? AND subject = ?", "google", subject).First(&identity).Error
 		if err == nil {
 			var u models.User
-			if err := tx.db.First(&u, "id = ?", identity.UserID).Error; err != nil {
+			if err := tx.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&u, "id = ?", identity.UserID).Error; err != nil {
 				return err
 			}
 			if u.DeletedAt != nil || (u.Status != "pending_deletion" && (!u.IsActive || u.Status != "active")) {
 				return OpError(401, "invalid credentials")
+			}
+			if explicitRole && u.Role != role {
+				if err := tx.db.Model(&u).Updates(map[string]any{"role": role, "updated_at": s.now()}).Error; err != nil {
+					return err
+				}
+				u.Role = role
+				if err := RevokeAppSessionsInTransaction(tx.db, u.ID, s.now()); err != nil {
+					return err
+				}
+			}
+			switch u.Role {
+			case models.RoleDriver:
+				if err := tx.db.FirstOrCreate(&models.DriverProfile{}, &models.DriverProfile{UserID: u.ID}).Error; err != nil {
+					return err
+				}
+			case models.RolePassenger:
+				if err := tx.db.FirstOrCreate(&models.PassengerProfile{}, &models.PassengerProfile{UserID: u.ID, FullName: u.Name}).Error; err != nil {
+					return err
+				}
 			}
 			result = &u
 			return nil
@@ -97,7 +125,7 @@ func (s *Store) ResolveGoogleIdentity(ctx context.Context, subject, name, email 
 		if len([]rune(name)) > 100 {
 			name = string([]rune(name)[:100])
 		}
-		u, err := tx.CreateUser(name, email, "", models.RolePassenger)
+		u, err := tx.CreateUser(name, email, "", role)
 		if err != nil {
 			return err
 		}

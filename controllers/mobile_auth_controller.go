@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"ride-backend/middleware"
+	"ride-backend/models"
 	"ride-backend/store"
 )
 
@@ -17,6 +18,19 @@ func (ac *AuthController) GoogleMobileChallenge(c *fiber.Ctx) error {
 	}
 	if err := ac.throttle(c, "app_google_challenge_ip", c.IP(), 20); err != nil {
 		return authError(c, err)
+	}
+	if len(c.Body()) > 0 {
+		var input struct {
+			Role string `json:"role"`
+		}
+		if len(c.Body()) > 4096 || c.BodyParser(&input) != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid Google challenge request", "code": "INVALID_REQUEST"})
+		}
+		if input.Role != "" {
+			if _, err := models.ParseRole(input.Role); err != nil {
+				return operationError(c, store.FieldError("role", "role must be driver or passenger"))
+			}
+		}
 	}
 	id, nonce, expiry, err := ac.Store.CreateGoogleChallenge(c.UserContext())
 	if err != nil {
@@ -36,9 +50,18 @@ func (ac *AuthController) GoogleMobileExchange(c *fiber.Ctx) error {
 	var input struct {
 		IDToken     string `json:"idToken"`
 		ChallengeID string `json:"challengeId"`
+		Role        string `json:"role"`
 	}
 	if len(c.Body()) > 20000 || c.BodyParser(&input) != nil || input.ChallengeID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid Google sign-in request", "code": "INVALID_REQUEST"})
+	}
+	role := models.RolePassenger
+	if input.Role != "" {
+		parsed, err := models.ParseRole(input.Role)
+		if err != nil {
+			return operationError(c, store.FieldError("role", "role must be driver or passenger"))
+		}
+		role = parsed
 	}
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
@@ -56,7 +79,7 @@ func (ac *AuthController) GoogleMobileExchange(c *fiber.Ctx) error {
 		}
 		return authError(c, err)
 	}
-	user, err := ac.Store.ResolveGoogleIdentity(ctx, identity.Subject, identity.Name, email)
+	user, err := ac.Store.ResolveGoogleIdentity(ctx, identity.Subject, identity.Name, email, role)
 	if err != nil {
 		var op *store.OperationError
 		if errors.As(err, &op) && op.Status == 409 {
