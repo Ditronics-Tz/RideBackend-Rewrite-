@@ -10,18 +10,19 @@ type TransportSettings struct {
 }
 
 type SharedTrip struct {
-	ID       string    `gorm:"type:uuid;primaryKey" json:"id"`
-	DriverID string    `gorm:"type:uuid;index" json:"-"`
-	Pickup   RidePoint `gorm:"embedded;embeddedPrefix:pickup_" json:"pickup"`
-	Dropoff  RidePoint `gorm:"embedded;embeddedPrefix:dropoff_" json:"dropoff"`
-	Vehicle  string    `json:"vehicle"`
-	Capacity int       `json:"capacity"`
-	Seats    int       `json:"seats"`
-	Price    int64     `json:"price"`
-	Fee      int64     `json:"fee"`
-	Status   string    `json:"status"`
-	Deadline int64     `json:"deadline"`
-	Created  int64     `json:"created"`
+	Completed int64     `json:"completed,omitempty"`
+	ID        string    `gorm:"type:uuid;primaryKey" json:"id"`
+	DriverID  string    `gorm:"type:uuid;index" json:"-"`
+	Pickup    RidePoint `gorm:"embedded;embeddedPrefix:pickup_" json:"pickup"`
+	Dropoff   RidePoint `gorm:"embedded;embeddedPrefix:dropoff_" json:"dropoff"`
+	Vehicle   string    `json:"vehicle"`
+	Capacity  int       `json:"capacity"`
+	Seats     int       `json:"seats"`
+	Price     int64     `json:"price"`
+	Fee       int64     `json:"fee"`
+	Status    string    `json:"status"`
+	Deadline  int64     `json:"deadline"`
+	Created   int64     `json:"created"`
 }
 
 type SharedSeat struct {

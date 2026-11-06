@@ -435,6 +435,13 @@ func (oc *OperationsController) Reconciliation(c *fiber.Ctx) error {
 }
 func (oc *OperationsController) Earnings(c *fiber.Ctx) error {
 	uid, _ := middleware.CurrentUser(c)
+	if period := c.Query("period"); period != "" {
+		result, err := oc.Store.WithContext(c.UserContext()).DriverPeriodEarnings(uid, period)
+		if err != nil {
+			return operationError(c, err)
+		}
+		return c.JSON(result)
+	}
 	now := time.Now().UTC()
 	out := fiber.Map{}
 	for _, span := range []struct {

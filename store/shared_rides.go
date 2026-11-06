@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -164,6 +165,14 @@ func (s *Store) PublishShared(actor, key string, in models.SharedPublish) (strin
 		if active > 0 {
 			return "", nil, OpError(409, "Finish your current hailed ride first")
 		}
+		if p.PassengerSeats > 0 && in.Capacity != p.PassengerSeats {
+			return "", nil, FieldError("capacity", "Enter the registered passenger capacity or update your vehicle")
+		}
+		if p.PassengerSeats == 0 {
+			if err := w.db.Model(&p).Update("passenger_seats", in.Capacity).Error; err != nil {
+				return "", nil, err
+			}
+		}
 		trip := models.SharedTrip{ID: newID(), DriverID: actor, Status: "waiting", Vehicle: p.VehicleType, Pickup: in.Pickup, Dropoff: in.Dropoff, Capacity: in.Capacity, Seats: in.Seats, Price: in.Price, Fee: settings.SharedFee, Created: now, Deadline: now + int64(in.WaitMinutes)*60}
 		return trip.ID, nil, w.db.Create(&trip).Error
 	})
@@ -200,7 +209,7 @@ func (s *Store) sharedView(trip models.SharedTrip, actor, secret string, staff b
 		case "confirmed":
 			v.Confirmed++
 		}
-		if actor == seat.PassengerID {
+		if actor == seat.PassengerID && (v.MySeat == nil || (v.MySeat.Status != "held" && v.MySeat.Status != "confirmed") || seat.Status == "held" || seat.Status == "confirmed") {
 			v.MySeat = &seat
 			v.PIN = ""
 			if seat.Status == "held" {
@@ -286,7 +295,10 @@ func (s *Store) SharedAction(actor, role, tripID, key, action, secret string, in
 				}
 				return t.ID, OpError(409, "Pickup code was rejected"), w.db.Save(&seat).Error
 			}
-			return t.ID, nil, w.db.Model(&seat).Update("status", "confirmed").Error
+			if err := w.db.Model(&seat).Update("status", "confirmed").Error; err != nil {
+				return "", nil, err
+			}
+			return t.ID, nil, w.queueAppNotification(w.db.Statement.Context, seat.PassengerID, "ride", "Seat confirmed", "Your driver verified your shared ride pickup.", map[string]string{"shared_trip_id": t.ID, "status": "confirmed"})
 		case "start":
 			if t.Status != "waiting" || v.Held != 0 || v.Confirmed == 0 {
 				return "", nil, OpError(409, "Confirm passengers and resolve live holds before departure")
@@ -308,10 +320,19 @@ func (s *Store) SharedAction(actor, role, tripID, key, action, secret string, in
 				return "", nil, err
 			}
 			t.Status = "completed"
+			t.Completed = now
 		default:
 			return "", nil, OpError(404, "Unknown trip action")
 		}
-		return t.ID, nil, w.db.Save(&t).Error
+		if err := w.db.Save(&t).Error; err != nil {
+			return "", nil, err
+		}
+		for _, seat := range v.Manifest {
+			if err := w.queueAppNotification(w.db.Statement.Context, seat.PassengerID, "ride", "Shared trip update", "Your shared trip is "+strings.ReplaceAll(t.Status, "_", " ")+".", map[string]string{"shared_trip_id": t.ID, "status": t.Status}); err != nil {
+				return "", nil, err
+			}
+		}
+		return t.ID, nil, nil
 	})
 }
 
@@ -401,6 +422,9 @@ func (s *Store) ActiveDriverHail(actor string) (*models.Ride, error) {
 }
 
 func (s *Store) HailFee(ride *models.Ride) (int64, error) {
+	if ride.AssessedFee != nil {
+		return *ride.AssessedFee, nil
+	}
 	var payment models.PaymentTransaction
 	err := s.db.Where("ride_id=? AND status = ?", ride.ID, "succeeded").First(&payment).Error
 	if err == nil {
@@ -410,4 +434,77 @@ func (s *Store) HailFee(ride *models.Ride) (int64, error) {
 		return 0, err
 	}
 	return s.rideCommission(ride)
+}
+
+// DriverPeriodEarnings counts completed trips once. New hails use their assessed
+// commission, legacy hails use their settled payment, and shared cash fares use
+// verified passengers at completion.
+func (s *Store) DriverPeriodEarnings(driver string, period string) (map[string]any, error) {
+	days, ok := map[string]int{"today": 1, "week": 7, "month": 30}[period]
+	if !ok {
+		return nil, FieldError("period", "Use today, week or month")
+	}
+	now := s.now()
+	since := now.AddDate(0, 0, -days)
+	if period == "today" {
+		local := now.In(time.FixedZone("EAT", 3*3600))
+		since = time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, local.Location())
+	}
+	type totals struct {
+		Gross    int64
+		Fee      int64
+		Trips    int64
+		Distance int64
+	}
+	var newHails, oldHails, shared totals
+	if err := s.db.Model(&models.Ride{}).Where("driver_id=? AND status='completed' AND completed_at>=? AND assessed_fee IS NOT NULL", driver, since).
+		Select("coalesce(sum(fare),0) gross,coalesce(sum(assessed_fee),0) fee,count(*) trips,coalesce(round(sum(expected_distance)),0) distance").Scan(&newHails).Error; err != nil {
+		return nil, err
+	}
+	if err := s.db.Table("payment_transactions p").Joins("JOIN rides r ON r.id=p.ride_id").Where("r.driver_id=? AND r.assessed_fee IS NULL AND p.status='succeeded' AND p.created_at>=?", driver, since).
+		Select("coalesce(sum(p.fare),0) gross,coalesce(sum(p.commission),0) fee,count(*) trips").Scan(&oldHails).Error; err != nil {
+		return nil, err
+	}
+	if err := s.db.Model(&models.SharedTrip{}).Where("driver_id=? AND status='completed' AND completed>=?", driver, since.Unix()).
+		Select("coalesce(sum(price * (select count(*) from shared_seats b where b.trip_id=shared_trips.id and b.status='confirmed')),0) gross,coalesce(sum(fee),0) fee,count(*) trips").Scan(&shared).Error; err != nil {
+		return nil, err
+	}
+	gross := newHails.Gross + oldHails.Gross + shared.Gross
+	fee := newHails.Fee + oldHails.Fee + shared.Fee
+	return map[string]any{"period": period, "gross_tzs": gross, "commission_tzs": fee, "net_tzs": gross - fee, "trips": newHails.Trips + oldHails.Trips + shared.Trips, "distance_meters": newHails.Distance}, nil
+}
+
+func (s *Store) StaffCancelShared(actor *models.StaffUser, id, reason string) error {
+	reason = strings.TrimSpace(reason)
+	if actor == nil || actor.Role != models.StaffRoleAdmin {
+		return OpError(403, "Administrator required")
+	}
+	if reason == "" || len([]rune(reason)) > 250 {
+		return FieldError("reason", "Supply a reason of up to 250 characters")
+	}
+	return s.Transaction(func(w *Store) error {
+		var trip models.SharedTrip
+		if err := w.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&trip, "id=?", id).Error; err != nil {
+			return err
+		}
+		if trip.Status == "cancelled" {
+			return nil
+		}
+		v, err := w.sharedView(trip, "", "", true, w.now().Unix())
+		if err != nil {
+			return err
+		}
+		if v.Status != "waiting" {
+			return OpError(409, "Only a waiting shared trip can be cancelled")
+		}
+		if err := w.db.Model(&trip).Update("status", "cancelled").Error; err != nil {
+			return err
+		}
+		for _, seat := range v.Manifest {
+			if err := w.queueAppNotification(w.db.Statement.Context, seat.PassengerID, "ride", "Shared trip cancelled", "Rida cancelled the shared trip and released your seat.", map[string]string{"shared_trip_id": id, "status": "cancelled"}); err != nil {
+				return err
+			}
+		}
+		return w.CreateAuditLog(actor.ID, "shared_trip_cancelled", "shared_trip", id, "", map[string]string{"reason": reason})
+	})
 }

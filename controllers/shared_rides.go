@@ -97,6 +97,9 @@ func (rc *RideController) SharedTrip(c *fiber.Ctx) error {
 		return operationError(c, err)
 	}
 	c.Set("Cache-Control", "no-store")
+	if c.Method() == "POST" {
+		s.NotifyShared(detail)
+	}
 	return c.JSON(detail)
 }
 
@@ -115,4 +118,47 @@ func (rc *RideController) ActiveHail(c *fiber.Ctx) error {
 		return operationError(c, err)
 	}
 	return c.JSON(out)
+}
+
+func (rc *RideController) WaitForShared(c *fiber.Ctx) error {
+	actor, _ := middleware.CurrentUser(c)
+	s := rc.Store.WithContext(c.UserContext())
+	id := c.Query("trip_id")
+	lat, e1 := strconv.ParseFloat(c.Query("lat"), 64)
+	lng, e2 := strconv.ParseFloat(c.Query("lng"), 64)
+	if id != "" {
+		if _, e := uuid.Parse(id); e != nil {
+			return fiber.ErrBadRequest
+		}
+		v, e := s.SharedDetail(id, actor, rc.Cfg.JWTSecret)
+		if e != nil {
+			return operationError(c, e)
+		}
+		if actor != v.DriverID && v.MySeat == nil {
+			return fiber.ErrNotFound
+		}
+	} else if e1 != nil || e2 != nil || !(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+		return fiber.ErrBadRequest
+	}
+	s.WaitForShared(c.UserContext(), id, lat, lng)
+	c.Set("Cache-Control", "no-store")
+	return c.SendStatus(204)
+}
+
+func (rc *RideController) StaffCancelShared(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if _, err := uuid.Parse(id); err != nil {
+		return fiber.ErrBadRequest
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if c.BodyParser(&in) != nil {
+		return fiber.ErrBadRequest
+	}
+	err := rc.Store.WithContext(c.UserContext()).StaffCancelShared(middleware.CurrentStaff(c), id, in.Reason)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.SendStatus(204)
 }

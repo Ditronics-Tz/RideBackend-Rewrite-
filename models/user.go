@@ -63,6 +63,7 @@ type User struct {
 // DriverProfile holds driver-specific fields:
 // licence, kadi ya gari (vehicle card), plate number + images.
 type DriverProfile struct {
+	PassengerSeats     int                `json:"passenger_seats" gorm:"not null;default:0"`
 	ProfilePictureKey  string             `json:"-"`
 	UserID             string             `json:"user_id" gorm:"primaryKey;type:uuid"`
 	LicenceNumber      string             `json:"licence_number"`
@@ -146,6 +147,7 @@ type UpdateRoleInput struct {
 }
 
 type DriverProfileInput struct {
+	PassengerSeats    *int   `json:"passenger_seats"`
 	LicenceNumber     string `json:"licence_number"`
 	VehicleCardNumber string `json:"vehicle_card_number"`
 	PlateNumber       string `json:"plate_number"`

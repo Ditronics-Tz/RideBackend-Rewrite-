@@ -509,6 +509,13 @@ func (s *Store) TransitionRide(ctx context.Context, driverID, rideID, key, actio
 				return FieldError("final_fare", "server-calculated final fare is invalid")
 			}
 			ride.Fare = finalFare
+			scoped := *s
+			scoped.db = tx
+			assessed, err := scoped.rideCommission(&ride)
+			if err != nil {
+				return err
+			}
+			ride.AssessedFee = &assessed
 			completed := now
 			ride.CompletedAt = &completed
 		}

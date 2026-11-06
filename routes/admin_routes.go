@@ -43,6 +43,7 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 	// Support + Admin permissions
 	SetupPromoAdminRoutes(admin, controllers.NewPromoController(cfg, s), cfg)
 	transport := controllers.NewRideController(cfg, s)
+	admin.Post("/shared-trips/:id/cancel", adminOnly, transport.StaffCancelShared)
 	admin.Get("/shared-trips", supportAndAdmin, transport.SharedTrips(true))
 	admin.Get("/transport/settings", supportAndAdmin, transport.TransportSettings)
 	admin.Put("/transport/settings", adminOnly, transport.TransportSettings)

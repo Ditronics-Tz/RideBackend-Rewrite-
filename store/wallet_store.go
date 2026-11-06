@@ -124,6 +124,9 @@ func Commission(fare int64, percent int, minFee int64) (int64, error) {
 	return amount, nil
 }
 func (s *Store) rideCommission(r *models.Ride) (int64, error) {
+	if r.AssessedFee != nil {
+		return *r.AssessedFee, nil
+	}
 	if r.HailPercent != nil {
 		return Commission(r.Fare, *r.HailPercent, 0)
 	}

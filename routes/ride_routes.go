@@ -25,6 +25,7 @@ func SetupRideRoutes(router fiber.Router, rc *controllers.RideController, cfg *c
 	passenger := middleware.RequireAppRoles(models.RolePassenger)
 	driver := middleware.RequireAppRoles(models.RoleDriver)
 	participant := middleware.RequireAppRoles(models.RolePassenger, models.RoleDriver)
+	router.Get("/transport/watch", protected, participant, rc.WaitForShared)
 	router.Get("/transport/settings", protected, participant, rc.TransportSettings)
 	router.Get("/shared-trips", protected, participant, rc.SharedTrips(false))
 	router.Post("/shared-trips", protected, driver, rideIdempotencyKey, rc.SharedTrip)

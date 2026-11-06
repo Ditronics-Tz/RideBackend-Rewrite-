@@ -74,7 +74,7 @@ func realm(route Route) ([]any, []string) {
 	}
 	if strings.HasPrefix(path, "/admin/") {
 		adminOnly := strings.HasPrefix(path, "/admin/staff") || strings.HasPrefix(path, "/admin/ratings") || path == "/admin/audit-logs" || strings.HasSuffix(path, "/role") || strings.HasSuffix(path, "/ban") || route.Method == "DELETE" && strings.Contains(path, "/notes/") || route.Method == "POST" && (strings.Contains(path, "/data-requests/") || strings.HasSuffix(path, "/deletion-request")) || strings.HasPrefix(path, "/admin/payouts") || strings.HasPrefix(path, "/admin/wallets") || strings.HasPrefix(path, "/admin/reconciliation") || path == "/admin/payment-settings" || path == "/admin/payments/summary" || path == "/admin/payments/export" || path == "/admin/sos/export" || route.Method != "GET" && (strings.HasPrefix(path, "/admin/promos") || path == "/admin/referral-settings" || strings.HasPrefix(path, "/admin/fraud/rules"))
-		adminOnly = adminOnly || path == "/admin/operation-events"
+		adminOnly = adminOnly || path == "/admin/shared-trips/:id/cancel" || path == "/admin/operation-events" || path == "/admin/transport/settings" && route.Method == "PUT"
 		roles := []string{"admin", "support"}
 		if adminOnly {
 			roles = []string{"admin"}
@@ -97,6 +97,9 @@ func describeCurrent(route Route, operation, schemas object) {
 		operation["description"] = description
 	}
 	params := func(values ...any) { operation["parameters"] = append(operation["parameters"].([]any), values...) }
+	if describeTransport(route, operation, schemas) {
+		return
+	}
 	if path == "/promos/validate" {
 		set("200", "Validate one promo against the authenticated passenger and a quoted fare in whole TZS. A grant or inbox share alone does not guarantee eligibility.", object{"type": "object", "required": []string{"valid", "discount_amount", "final_fare", "promo"}, "properties": object{"valid": scalar("boolean"), "discount_amount": object{"type": "integer", "format": "int64"}, "final_fare": object{"type": "integer", "format": "int64"}, "promo": object{"type": "object", "required": []string{"code", "title"}, "properties": object{"code": scalar("string"), "title": scalar("string")}}}})
 		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": object{"type": "object", "required": []string{"code", "fare"}, "properties": object{"code": scalar("string"), "fare": object{"type": "integer", "format": "int64", "minimum": 0, "description": "Actual quoted fare in whole TZS; do not send null or omit."}}}}}}

@@ -44,11 +44,11 @@ var appAuthColumns = map[string]map[string]bool{
 }
 
 var publicProfileColumns = map[string]map[string]bool{
-	"driver_profiles": {"vehicle_type": true},
+	"driver_profiles": {"vehicle_type": true, "passenger_seats": true},
 }
 
 var rideColumns = map[string]map[string]bool{
-	"rides": {"hail_percent": true, "estimated_fare": true, "started_at": true, "cancelled_at": true, "offer_expires_at": true, "cancel_reason": true},
+	"rides": {"assessed_fee": true, "hail_percent": true, "estimated_fare": true, "started_at": true, "cancelled_at": true, "offer_expires_at": true, "cancel_reason": true},
 }
 
 var supportColumns = map[string]map[string]bool{

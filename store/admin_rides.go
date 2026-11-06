@@ -115,6 +115,11 @@ func (s *Store) AdminReassignRide(rideID, driverID string, actor *models.StaffUs
 		if ride.VehicleType != "" && driver.VehicleType != ride.VehicleType {
 			return OpError(409, "Replacement driver has the wrong vehicle type")
 		}
+		if busy, err := scoped.activeSharedDriver(driverID, now.Unix()); err != nil {
+			return err
+		} else if busy {
+			return OpError(409, "Replacement driver has a shared trip")
+		}
 		if err := scoped.CheckDispatchEligibility(ride.PassengerID, driverID); err != nil {
 			return OpError(409, "Replacement driver is not eligible")
 		}

@@ -127,6 +127,12 @@
       "type": "bigint",
       "not_null": true,
       "primary": false
+    },
+    {
+      "name": "completed",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
     }
   ],
   "shared_seats": [
@@ -198,6 +204,20 @@
       "name": "hail_percent",
       "type": "bigint",
       "not_null": false,
+      "primary": false
+    },
+    {
+      "name": "assessed_fee",
+      "type": "bigint",
+      "not_null": false,
+      "primary": false
+    }
+  ],
+  "driver_profiles": [
+    {
+      "name": "passenger_seats",
+      "type": "bigint",
+      "not_null": true,
       "primary": false
     }
   ]

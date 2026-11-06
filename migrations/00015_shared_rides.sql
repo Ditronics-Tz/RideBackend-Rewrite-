@@ -12,6 +12,7 @@ CREATE TABLE transport_settings (
 CREATE TABLE shared_trips (
   id uuid NOT NULL,
   driver_id uuid NOT NULL,
+  completed bigint NOT NULL DEFAULT 0,
   pickup_lat double precision NOT NULL,
   pickup_lng double precision NOT NULL,
   pickup_address text NOT NULL,
@@ -59,6 +60,8 @@ CREATE INDEX shared_seat_passenger ON shared_seats(passenger_id, trip_id);
 INSERT INTO transport_settings VALUES (1, 0, false, 0, 0);
 
 ALTER TABLE rides ADD COLUMN hail_percent bigint;
+ALTER TABLE rides ADD COLUMN assessed_fee bigint;
+ALTER TABLE driver_profiles ADD COLUMN passenger_seats bigint NOT NULL DEFAULT 0;
 
 -- +goose Down
 

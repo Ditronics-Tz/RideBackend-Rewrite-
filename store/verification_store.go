@@ -413,6 +413,12 @@ func (s *Store) updateDriverIdentifiers(id string, input models.DriverProfileInp
 		if p.AssignedTo != nil {
 			return conflict("profile cannot change during a claimed review")
 		}
+		if input.PassengerSeats != nil {
+			if *input.PassengerSeats < 1 || *input.PassengerSeats > 100 {
+				return FieldError("passenger_seats", "Enter 1–100 passenger seats excluding the driver")
+			}
+			p.PassengerSeats = *input.PassengerSeats
+		}
 		changedIdentifiers := false
 		if v := values["licence_number"]; v != "" && v != p.LicenceNumber {
 			p.LicenceNumber = v
