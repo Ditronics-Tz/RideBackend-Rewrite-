@@ -11,7 +11,8 @@ import (
 func TestEveryMigratedTableHasPrivacyCoverageOrReasonedExemption(t *testing.T) {
 	exported, anonymized := store.RegisteredPrivacyCoverage()
 	exempt := map[string]string{
-		"staff_users":       "staff identity and credentials belong to the separate staff realm; they are not passenger or driver data",
+		"transport_settings": "global trip fee configuration contains no individual account data",
+  "staff_users":       "staff identity and credentials belong to the separate staff realm; they are not passenger or driver data",
 		"staff_sessions":    "staff authentication session records are security controls, not app-user data",
 		"staff_audit_logs":         "security audit history is legally retained and is never deleted; new audit metadata stores IDs only",
 		"staff_mfa_challenges":     "short-lived staff login challenges are security controls, not passenger or driver data",

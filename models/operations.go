@@ -5,6 +5,7 @@ import "time"
 // Ride is the authoritative integration record. Dispatch is deliberately a
 // separate module; never populate these fields from a payment/report request.
 type Ride struct {
+	HailPercent *int `json:"-"`
 	// Optional authoritative route polyline as JSON [[lat,lng],...]; never accepted from payment requests.
 	RouteGeometry    string     `json:"-"`
 	AcceptedAt       *time.Time `json:"accepted_at"`

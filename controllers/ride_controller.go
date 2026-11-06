@@ -42,7 +42,24 @@ func (rc *RideController) RideResponse(c *fiber.Ctx, ride *models.Ride) (*models
 		AcceptedAt: ride.AcceptedAt, StartedAt: ride.StartedAt, CompletedAt: ride.CompletedAt,
 		CancelledAt: ride.CancelledAt, Events: []models.RideEventResponse{},
 	}
+	response.DistanceMeters = int64(ride.ExpectedDistance)
+	if ride.OfferExpiresAt != nil {
+		response.OfferSeconds = int(time.Until(*ride.OfferExpiresAt).Seconds())
+		if response.OfferSeconds < 1 {
+			response.OfferSeconds = 1
+		}
+	}
+	if ride.CompletedAt != nil && ride.StartedAt != nil {
+		response.DurationSeconds = int64(ride.CompletedAt.Sub(*ride.StartedAt).Seconds())
+	}
 	if ride.Status == "completed" {
+		commission, err := rc.Store.HailFee(ride)
+		if err != nil {
+			return nil, err
+		}
+		net := ride.Fare - commission
+		response.CommissionTZS = &commission
+		response.NetTZS = &net
 		fare := ride.Fare
 		response.FinalFare = &fare
 	}

@@ -1,0 +1,204 @@
+{
+  "transport_settings": [
+    {
+      "name": "id",
+      "type": "bigint",
+      "not_null": true,
+      "primary": true
+    },
+    {
+      "name": "version",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "shared_fee",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "hail_percent",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    }
+  ],
+  "shared_trips": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "not_null": true,
+      "primary": true
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "pickup_lat",
+      "type": "double precision",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "pickup_lng",
+      "type": "double precision",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "pickup_address",
+      "type": "text",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "dropoff_lat",
+      "type": "double precision",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "dropoff_lng",
+      "type": "double precision",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "dropoff_address",
+      "type": "text",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "vehicle",
+      "type": "text",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "capacity",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "seats",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "price",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "fee",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "deadline",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "created",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    }
+  ],
+  "shared_seats": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "not_null": true,
+      "primary": true
+    },
+    {
+      "name": "trip_id",
+      "type": "uuid",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "passenger_id",
+      "type": "uuid",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "expires",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "failures",
+      "type": "bigint",
+      "not_null": true,
+      "primary": false
+    }
+  ],
+  "shared_requests": [
+    {
+      "name": "actor",
+      "type": "uuid",
+      "not_null": true,
+      "primary": true
+    },
+    {
+      "name": "key",
+      "type": "text",
+      "not_null": true,
+      "primary": true
+    },
+    {
+      "name": "hash",
+      "type": "text",
+      "not_null": true,
+      "primary": false
+    },
+    {
+      "name": "trip_id",
+      "type": "uuid",
+      "not_null": true,
+      "primary": false
+    }
+  ],
+  "rides": [
+    {
+      "name": "hail_percent",
+      "type": "bigint",
+      "not_null": false,
+      "primary": false
+    }
+  ]
+}

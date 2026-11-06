@@ -87,6 +87,11 @@ func MigrateUploads(root string, classify func(string) UploadClass, moved func(U
 	if err := safeUploadDirectory(root, root, false); err != nil {
 		return counts, err
 	}
+	for _, dir := range []string{"public", "private", "licences"} {
+		if err := safeUploadDirectory(root, filepath.Join(root, dir), false); err != nil {
+			return counts, err
+		}
+	}
 	journal := filepath.Join(root, "private", "upload-migration")
 	migratedDestinations := map[string]bool{}
 	finish := func(plan UploadMove, path string) error {

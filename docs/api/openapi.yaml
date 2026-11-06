@@ -2525,6 +2525,11 @@
             "nullable": true,
             "type": "string"
           },
+          "commission_tzs": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
           "completed_at": {
             "format": "date-time",
             "nullable": true,
@@ -2534,6 +2539,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "distance_meters": {
+            "format": "int64",
+            "type": "integer"
+          },
           "driver": {
             "allOf": [
               {
@@ -2542,8 +2551,17 @@
             ],
             "nullable": true
           },
+          "driver_earnings_tzs": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
           "dropoff": {
             "$ref": "#/components/schemas/RidePoint"
+          },
+          "duration_seconds": {
+            "format": "int64",
+            "type": "integer"
           },
           "estimated_fare": {
             "format": "int64",
@@ -2554,6 +2572,10 @@
               "$ref": "#/components/schemas/RideEventResponse"
             },
             "type": "array"
+          },
+          "expires_in": {
+            "format": "int64",
+            "type": "integer"
           },
           "final_fare": {
             "format": "int64",
@@ -2583,6 +2605,7 @@
         },
         "required": [
           "created_at",
+          "distance_meters",
           "driver",
           "dropoff",
           "estimated_fare",
@@ -8903,6 +8926,46 @@
         "x-go-handler": "ride-backend/controllers.(*AdminController).ReassignRide"
       }
     },
+    "/api/v1/admin/shared-trips": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_admin_shared_trips",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/shared-trips",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/admin/shared-trips",
+        "x-go-handler": "ride-backend/controllers.(*RideController).SharedTrips.func1"
+      }
+    },
     "/api/v1/admin/sos": {
       "get": {
         "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
@@ -10235,6 +10298,84 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/admin/tickets/:id/messages",
         "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketMessage"
+      }
+    },
+    "/api/v1/admin/transport/settings": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_admin_transport_settings",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/transport/settings",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/admin/transport/settings",
+        "x-go-handler": "ride-backend/controllers.(*RideController).TransportSettings"
+      },
+      "put": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "put_api_v1_admin_transport_settings",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "PUT /api/v1/admin/transport/settings",
+        "x-allowed-roles": [
+          "admin",
+          "support"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/admin/transport/settings",
+        "x-go-handler": "ride-backend/controllers.(*RideController).TransportSettings"
       }
     },
     "/api/v1/admin/users": {
@@ -14367,6 +14508,42 @@
         "x-fiber-path": "/api/v1/driver/profile/:userId",
         "x-go-handler": "ride-backend/controllers.(*ProfileController).GetDriverProfileByID",
         "x-privacy-contract": "public DTO for other users; full profile for owner"
+      }
+    },
+    "/api/v1/driver/rides/current": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_driver_rides_current",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/driver/rides/current",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/driver/rides/current",
+        "x-go-handler": "ride-backend/controllers.(*RideController).ActiveHail"
       }
     },
     "/api/v1/driver/verification/me": {
@@ -18741,6 +18918,174 @@
         "x-go-handler": "ride-backend/controllers.(*OperationsController).PublicShare"
       }
     },
+    "/api/v1/shared-trips": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_shared_trips",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/shared-trips",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/shared-trips",
+        "x-go-handler": "ride-backend/controllers.(*RideController).SharedTrips.func1"
+      },
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_shared_trips",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/shared-trips",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/shared-trips",
+        "x-go-handler": "ride-backend/controllers.(*RideController).SharedTrip"
+      }
+    },
+    "/api/v1/shared-trips/{id}": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_shared_trips_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/shared-trips/{id}",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/shared-trips/:id",
+        "x-go-handler": "ride-backend/controllers.(*RideController).SharedTrip"
+      }
+    },
+    "/api/v1/shared-trips/{id}/{action}": {
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_shared_trips_id_action",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/shared-trips/{id}/{action}",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/shared-trips/:id/:action",
+        "x-go-handler": "ride-backend/controllers.(*RideController).SharedTrip"
+      }
+    },
     "/api/v1/sos/{id}": {
       "get": {
         "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
@@ -20049,6 +20394,42 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/support/tickets/:id/messages",
         "x-go-handler": "ride-backend/controllers.(*OperationsController).TicketMessage"
+      }
+    },
+    "/api/v1/transport/settings": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_transport_settings",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/transport/settings",
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/transport/settings",
+        "x-go-handler": "ride-backend/controllers.(*RideController).TransportSettings"
       }
     },
     "/api/v1/wallet": {

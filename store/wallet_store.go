@@ -124,6 +124,9 @@ func Commission(fare int64, percent int, minFee int64) (int64, error) {
 	return amount, nil
 }
 func (s *Store) rideCommission(r *models.Ride) (int64, error) {
+	if r.HailPercent != nil {
+		return Commission(r.Fare, *r.HailPercent, 0)
+	}
 	var rule models.CommissionRule
 	err := s.db.Where("effective_from <= ? AND (scope = ? OR (scope = ? AND vehicle_type = ?))", s.now(), "default", "vehicle_type", r.VehicleType).Order("scope DESC,effective_from DESC,created_at DESC,id DESC").First(&rule).Error
 	if notFound(err) {

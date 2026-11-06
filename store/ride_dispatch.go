@@ -118,6 +118,17 @@ func (s *Store) CreateRideRequest(ctx context.Context, passengerID, key string, 
 			result = *prior
 			return nil
 		}
+		scoped := *s
+		scoped.db = tx
+		if busy, err := scoped.activeSharedPassenger(passengerID, now.Unix()); err != nil {
+			return err
+		} else if busy {
+			return OpError(409, "Finish the shared ride first")
+		}
+		settings, err := scoped.TransportSettings()
+		if err != nil {
+			return err
+		}
 		var active int64
 		if err := tx.Model(&models.Ride{}).Where("passenger_id = ? AND status IN ?", passengerID, rideActiveStatuses).Count(&active).Error; err != nil {
 			return err
@@ -126,6 +137,9 @@ func (s *Store) CreateRideRequest(ctx context.Context, passengerID, key string, 
 			return OpError(409, "Passenger already has an active ride")
 		}
 		result = models.Ride{ID: newID(), PassengerID: passengerID, DriverID: models.UnassignedRideDriverID, Status: "searching", EstimatedFare: estimatedFare, VehicleType: input.VehicleType, Pickup: input.Pickup.Address, Dropoff: input.Dropoff.Address, PickupLat: input.Pickup.Lat, PickupLng: input.Pickup.Lng, DropoffLat: input.Dropoff.Lat, DropoffLng: input.Dropoff.Lng, ExpectedDistance: distanceMeters, CreatedAt: now, UpdatedAt: now}
+		if settings.Version > 0 {
+			result.HailPercent = &settings.HailPercent
+		}
 		if err := tx.Create(&result).Error; err != nil {
 			return err
 		}
@@ -222,7 +236,11 @@ func (s *Store) offerNextDriver(tx *gorm.DB, ride *models.Ride, radiusKM int, ti
 		if err := tx.Model(&models.Ride{}).Where("driver_id = ? AND status IN ?", chosen.profile.UserID, rideActiveStatuses).Count(&active).Error; err != nil {
 			return err
 		}
-		if active != 0 || scopedStore.CheckDispatchEligibility(ride.PassengerID, chosen.profile.UserID) != nil {
+		busy, err := scopedStore.activeSharedDriver(chosen.profile.UserID, now.Unix())
+		if err != nil {
+			return err
+		}
+		if busy || active != 0 || scopedStore.CheckDispatchEligibility(ride.PassengerID, chosen.profile.UserID) != nil {
 			continue
 		}
 		expires := now.Add(timeout)

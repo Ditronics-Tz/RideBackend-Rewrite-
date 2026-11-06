@@ -22,7 +22,7 @@ func authTestStore(t *testing.T) (*Store, *models.User, *time.Time) {
 	if err != nil {
 		t.Fatal("test database unavailable")
 	}
-	if err := database.AutoMigrate(&models.User{}, &models.AppSession{}, &models.AppSecurityEvent{}, &models.AuthRateBucket{}, &models.StaffAuditLog{}, &models.GoogleChallenge{}); err != nil {
+	if err := database.AutoMigrate(&models.User{}, &models.AppSession{}, &models.AppSecurityEvent{}, &models.AuthRateBucket{}, &models.StaffAuditLog{}, &models.GoogleChallenge{}, &models.PushDevice{}); err != nil {
 		t.Fatal("test schema unavailable")
 	}
 	sqlDB, err := database.DB()

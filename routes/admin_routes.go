@@ -42,6 +42,10 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 
 	// Support + Admin permissions
 	SetupPromoAdminRoutes(admin, controllers.NewPromoController(cfg, s), cfg)
+	transport := controllers.NewRideController(cfg, s)
+	admin.Get("/shared-trips", supportAndAdmin, transport.SharedTrips(true))
+	admin.Get("/transport/settings", supportAndAdmin, transport.TransportSettings)
+	admin.Put("/transport/settings", adminOnly, transport.TransportSettings)
 	SetupFinanceAdminRoutes(admin, controllers.NewOperationsController(cfg, s), cfg)
 	SetupOperationsAdminRoutes(admin, controllers.NewOperationsController(cfg, s), cfg)
 	admin.Get("/users", supportAndAdmin, ac.ListUsers)

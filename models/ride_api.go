@@ -30,22 +30,27 @@ type RideEventResponse struct {
 }
 
 type RideResponse struct {
-	ID            string              `json:"id"`
-	Status        string              `json:"status"`
-	Passenger     RideParty           `json:"passenger"`
-	Driver        *RideParty          `json:"driver"`
-	Pickup        RidePoint           `json:"pickup"`
-	Dropoff       RidePoint           `json:"dropoff"`
-	VehicleType   string              `json:"vehicle_type"`
-	EstimatedFare int64               `json:"estimated_fare"`
-	FinalFare     *int64              `json:"final_fare,omitempty"`
-	CancelReason  string              `json:"cancel_reason,omitempty"`
-	CreatedAt     time.Time           `json:"created_at"`
-	AcceptedAt    *time.Time          `json:"accepted_at,omitempty"`
-	StartedAt     *time.Time          `json:"started_at,omitempty"`
-	CompletedAt   *time.Time          `json:"completed_at,omitempty"`
-	CancelledAt   *time.Time          `json:"cancelled_at,omitempty"`
-	Events        []RideEventResponse `json:"events"`
+	CommissionTZS   *int64              `json:"commission_tzs,omitempty"`
+	NetTZS          *int64              `json:"driver_earnings_tzs,omitempty"`
+	OfferSeconds    int                 `json:"expires_in,omitempty"`
+	DistanceMeters  int64               `json:"distance_meters"`
+	DurationSeconds int64               `json:"duration_seconds,omitempty"`
+	ID              string              `json:"id"`
+	Status          string              `json:"status"`
+	Passenger       RideParty           `json:"passenger"`
+	Driver          *RideParty          `json:"driver"`
+	Pickup          RidePoint           `json:"pickup"`
+	Dropoff         RidePoint           `json:"dropoff"`
+	VehicleType     string              `json:"vehicle_type"`
+	EstimatedFare   int64               `json:"estimated_fare"`
+	FinalFare       *int64              `json:"final_fare,omitempty"`
+	CancelReason    string              `json:"cancel_reason,omitempty"`
+	CreatedAt       time.Time           `json:"created_at"`
+	AcceptedAt      *time.Time          `json:"accepted_at,omitempty"`
+	StartedAt       *time.Time          `json:"started_at,omitempty"`
+	CompletedAt     *time.Time          `json:"completed_at,omitempty"`
+	CancelledAt     *time.Time          `json:"cancelled_at,omitempty"`
+	Events          []RideEventResponse `json:"events"`
 }
 
 type RideQuote struct {

@@ -19,7 +19,7 @@ import (
 //go:embed *.sql schema*.json
 var files embed.FS
 
-const LatestVersion int64 = 14
+const LatestVersion int64 = 15
 
 var ErrMigration = errors.New("database migration failed; database details and personal data are redacted")
 var ErrIncompatibleSchema = errors.New("existing database schema is incompatible with the frozen baseline; review schema drift before migrating")
@@ -48,7 +48,7 @@ var publicProfileColumns = map[string]map[string]bool{
 }
 
 var rideColumns = map[string]map[string]bool{
-	"rides": {"estimated_fare": true, "started_at": true, "cancelled_at": true, "offer_expires_at": true, "cancel_reason": true},
+	"rides": {"hail_percent": true, "estimated_fare": true, "started_at": true, "cancelled_at": true, "offer_expires_at": true, "cancel_reason": true},
 }
 
 var supportColumns = map[string]map[string]bool{
