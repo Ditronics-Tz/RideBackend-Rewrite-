@@ -12,6 +12,7 @@ import (
 )
 
 type OperationError struct {
+	Code       string
 	Status     int
 	Message    string
 	Field      string
@@ -21,6 +22,9 @@ type OperationError struct {
 func (e *OperationError) Error() string { return e.Message }
 func OpError(status int, message string) error {
 	return &OperationError{Status: status, Message: message}
+}
+func TransportError(status int, code, message string) error {
+	return &OperationError{Status: status, Code: code, Message: message}
 }
 func FieldError(field, message string) error {
 	return &OperationError{Status: 400, Message: message, Field: field}

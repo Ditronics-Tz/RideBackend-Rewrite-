@@ -1,0 +1,194 @@
+{
+  "shared_trips": [
+    {
+      "name": "version",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "fee_version",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    }
+  ],
+  "shared_seats": [
+    {
+      "name": "created",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "confirmed_at",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "completed_at",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    }
+  ],
+  "rides": [
+    {
+      "name": "fee_version",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    }
+  ],
+  "transport_cursors": [
+    {
+      "name": "id",
+      "type": "bigint",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "revision",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    }
+  ],
+  "transport_events": [
+    {
+      "name": "id",
+      "type": "bigint",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "trip_id",
+      "type": "uuid",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "version",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "type",
+      "type": "text",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "actor_id",
+      "type": "uuid",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "at",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "reason",
+      "type": "text",
+      "primary": false,
+      "not_null": true
+    }
+  ],
+  "transport_assessments": [
+    {
+      "name": "mode",
+      "type": "text",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "trip_id",
+      "type": "uuid",
+      "primary": true,
+      "not_null": true
+    },
+    {
+      "name": "driver_id",
+      "type": "uuid",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "gross",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "fee",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "net",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "passengers",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "fee_version",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "created",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    },
+    {
+      "name": "updated",
+      "type": "bigint",
+      "primary": false,
+      "not_null": true
+    }
+  ],
+  "support_tickets": [
+    {
+      "name": "shared_trip_id",
+      "type": "uuid",
+      "primary": false,
+      "not_null": false
+    }
+  ],
+  "sos_alerts": [
+    {
+      "name": "shared_trip_id",
+      "type": "uuid",
+      "primary": false,
+      "not_null": false
+    }
+  ],
+  "ratings": [
+    {
+      "name": "shared_trip_id",
+      "type": "uuid",
+      "primary": false,
+      "not_null": false
+    }
+  ]
+}

@@ -93,6 +93,10 @@ func guardFor(route Route) (access, guard, status string) {
 		guard, status = "App session and ticket user_id guard every conversation and private attachment read/write; retry keys scope message and attachment mutations.", "ticket owner scoped"
 	case path == "/admin/tickets/:id/messages" || strings.HasPrefix(path, "/admin/tickets/:id/attachments"):
 		guard, status = "Active support/admin staff only; access and staff writes are audited, private objects are served through authenticated reads.", "staff scoped and audited"
+	case strings.HasPrefix(path, "/admin/shared-trips"):
+		guard, status = "Support/admin audited detail and timeline; waiting-trip cancellation requires admin role and a reason.", "staff scoped and audited"
+	case strings.HasPrefix(path, "/shared-trips/"):
+		guard, status = "Authenticated limited discovery; owner-only booking PIN; trip driver alone verifies/starts/completes; location, SOS and ratings require participant/state authorization. Mutations serialize capacity and commitments with durable events.", "mode-aware and participant scoped"
 	case path == "/rides" && route.Method == "POST":
 		guard, status = "Passenger role; idempotency key; server-calculated fare; serialized active ride check and transactional event creation.", "passenger scoped and idempotent"
 	case path == "/rides" && route.Method == "GET", path == "/rides/:id":
@@ -106,7 +110,7 @@ func guardFor(route Route) (access, guard, status string) {
 	case path == "/driver/availability":
 		guard, status = "Driver role; going online requires current approval/documents and no active ride.", "owner scoped and idempotent"
 	case path == "/driver/location":
-		guard, status = "Online driver role; bounded coordinates are stored by driver_id with an idempotency key.", "owner scoped and idempotent"
+		guard, status = "Online or active-trip driver role; fresh accurate coordinates are stored by driver_id with an idempotency key.", "owner scoped and idempotent"
 	case path == "/admin/rides/:id" || path == "/admin/rides/:id/cancel" || path == "/admin/rides/:id/reassign":
 		guard, status = "Support/admin staff; ride is loaded from persistence, operational changes require reasons and write timeline events; staff requests are audit logged.", "staff scoped and audited"
 	case path == "/admin/tickets/:id":

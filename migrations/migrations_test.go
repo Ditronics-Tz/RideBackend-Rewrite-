@@ -57,7 +57,7 @@ func TestLatestSchemaAddonsCoverAuthTablesWithoutChangingBaseline(t *testing.T) 
 		t.Fatal(err)
 	}
 	defer sqlDB.Close()
-	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql", "00007_rides.sql", "00008_support.sql", "00009_mobile_passenger.sql", "00010_mobile_auth.sql", "00011_staff_mfa.sql", "00013_operation_events.sql", "00014_app_notifications.sql", "00015_shared_rides.sql"} {
+	for _, name := range []string{"00001_baseline.sql", "00004_app_auth.sql", "00005_oauth.sql", "00006_public_profile.sql", "00007_rides.sql", "00008_support.sql", "00009_mobile_passenger.sql", "00010_mobile_auth.sql", "00011_staff_mfa.sql", "00013_operation_events.sql", "00014_app_notifications.sql", "00015_shared_rides.sql", "00016_transport_reliability.sql"} {
 		for _, statement := range schemaStatements(t, name) {
 			if name == "00010_mobile_auth.sql" && (strings.Contains(statement, "interval '365 days'") || strings.Contains(statement, "ALTER COLUMN absolute_expires_at SET NOT NULL")) {
 				continue
@@ -279,5 +279,39 @@ func TestPostgresRejectsIncompatibleExistingSchemaBeforeVersioning(t *testing.T)
 	version, err := Version(context.Background(), db)
 	if err != nil || version != 0 {
 		t.Fatal("incompatible schema was marked migrated")
+	}
+}
+
+func TestPostgresTransportUpgradeFrom15PreservesConfirmedSeats(t *testing.T) {
+	database := postgresTestDB(t)
+	ctx := context.Background()
+	p, err := provider(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = p.UpTo(ctx, 15); err != nil {
+		t.Fatal(err)
+	}
+	trip, driver, passenger, seat := uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()
+	if _, err = database.Exec(`INSERT INTO shared_trips(id,driver_id,completed,pickup_lat,pickup_lng,pickup_address,dropoff_lat,dropoff_lng,dropoff_address,vehicle,capacity,seats,price,fee,status,deadline,created) VALUES($1,$2,0,-6.94,39.19,'Mbande',-6.82,39.28,'Posta','car',3,2,2000,700,'waiting',2000000000,1900000000)`, trip, driver); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = database.Exec(`INSERT INTO shared_seats(id,trip_id,passenger_id,status,expires,failures) VALUES($1,$2,$3,'confirmed',1900000300,0)`, seat, trip, passenger); err != nil {
+		t.Fatal(err)
+	}
+	if err = Up(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	var status string
+	var fee, version int64
+	if err = database.QueryRow(`SELECT status FROM shared_seats WHERE id=$1`, seat).Scan(&status); err != nil || status != "confirmed" {
+		t.Fatal(status, err)
+	}
+	if err = database.QueryRow(`SELECT fee,version FROM shared_trips WHERE id=$1`, trip).Scan(&fee, &version); err != nil || fee != 700 || version != 0 {
+		t.Fatal(fee, version, err)
+	}
+	var count int
+	if err = database.QueryRow(`SELECT count(*) FROM transport_assessments`).Scan(&count); err != nil || count != 0 {
+		t.Fatal("historical records were charged during migration", err)
 	}
 }

@@ -42,7 +42,7 @@ func TestSharedRideVisibilityAndRoleGuards(t *testing.T) {
 	}
 	d, driver := appToken(models.RoleDriver, "driver@shared.test")
 	prepareRideDriver(t, s, d)
-	if e := s.DB().Model(&models.DriverProfile{}).Where("user_id=?", d).Updates(map[string]any{"vehicle_type": "bajaji", "verification_status": models.Approved}).Error; e != nil {
+	if e := s.DB().Model(&models.DriverProfile{}).Where("user_id=?", d).Updates(map[string]any{"passenger_seats": 3, "vehicle_type": "bajaji", "verification_status": models.Approved}).Error; e != nil {
 		t.Fatal(e)
 	}
 	_, passenger := appToken(models.RolePassenger, "passenger@shared.test")
@@ -99,8 +99,16 @@ func TestSharedRideVisibilityAndRoleGuards(t *testing.T) {
 	if v["confirmed"] != float64(1) || v["held"] != float64(0) {
 		t.Fatal("pickup did not verify seat")
 	}
+	request("GET", path+"/driver-location", stranger, "", nil, 404)
+	request("POST", path+"/sos", stranger, "", map[string]any{"lat": -6.94, "lng": 39.19, "accuracy": 5}, 404)
+	request("POST", path+"/sos", passenger, "", map[string]any{"lat": -6.94, "lng": 39.19, "accuracy": 5}, 200)
+	request("GET", "/admin"+path, support, "", nil, 200)
 	request("POST", path+"/start", driver, "driver-start", nil, 200)
 	request("POST", path+"/complete", driver, "driver-finish", nil, 200)
+	request("POST", path+"/rating", passenger, "", map[string]any{"score": 5, "comment": "Good shared trip"}, 200)
+	request("POST", path+"/rating", passenger, "", map[string]any{"score": 5, "comment": "Good shared trip"}, 200)
+	request("POST", path+"/rating", stranger, "", map[string]any{"score": 5}, 404)
+	request("GET", "/admin/transport/assessments", support, "", nil, 200)
 	request("GET", path, stranger, "", nil, 404)
 	request("GET", "/admin/shared-trips", support, "", nil, 200)
 }

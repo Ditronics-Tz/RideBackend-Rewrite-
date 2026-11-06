@@ -28,8 +28,13 @@ func (s *Store) CreateSupportTicket(userID string, input models.CreateSupportTic
 	if _, err := s.ActiveAccount(userID); err != nil {
 		return nil, OpError(403, "Active account required")
 	}
+	if input.SharedTripID != nil {
+		if err := s.requireSharedParticipant(*input.SharedTripID, userID, false); err != nil {
+			return nil, err
+		}
+	}
 	now := s.now()
-	ticket := &models.SupportTicket{ID: newID(), UserID: userID, Subject: input.Subject, Description: input.Description, Category: input.Category, Status: "open", Priority: "normal", CreatedAt: now, UpdatedAt: now}
+	ticket := &models.SupportTicket{ID: newID(), UserID: userID, SharedTripID: input.SharedTripID, Subject: input.Subject, Description: input.Description, Category: input.Category, Status: "open", Priority: "normal", CreatedAt: now, UpdatedAt: now}
 	if err := s.db.Create(ticket).Error; err != nil {
 		return nil, OpError(503, "Unable to create support ticket")
 	}

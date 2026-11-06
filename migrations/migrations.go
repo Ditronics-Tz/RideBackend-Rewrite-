@@ -19,7 +19,7 @@ import (
 //go:embed *.sql schema*.json
 var files embed.FS
 
-const LatestVersion int64 = 15
+const LatestVersion int64 = 16
 
 var ErrMigration = errors.New("database migration failed; database details and personal data are redacted")
 var ErrIncompatibleSchema = errors.New("existing database schema is incompatible with the frozen baseline; review schema drift before migrating")
@@ -45,6 +45,14 @@ var appAuthColumns = map[string]map[string]bool{
 
 var publicProfileColumns = map[string]map[string]bool{
 	"driver_profiles": {"vehicle_type": true, "passenger_seats": true},
+}
+
+var transportColumns = map[string]map[string]bool{
+	"ratings":         {"shared_trip_id": true},
+	"support_tickets": {"shared_trip_id": true}, "sos_alerts": {"shared_trip_id": true},
+	"shared_trips": {"version": true, "fee_version": true},
+	"shared_seats": {"created": true, "confirmed_at": true, "completed_at": true},
+	"rides":        {"fee_version": true},
 }
 
 var rideColumns = map[string]map[string]bool{
@@ -197,7 +205,7 @@ WHERE n.nspname = current_schema() AND c.relkind IN ('r', 'p') AND a.attnum > 0 
 		}
 		for _, column := range columns {
 			current, exists := found[column.Name]
-			if !exists && adopting && (storageColumns[table][column.Name] || appAuthColumns[table][column.Name] || publicProfileColumns[table][column.Name] || rideColumns[table][column.Name] || supportColumns[table][column.Name]) {
+			if !exists && adopting && (transportColumns[table][column.Name] || storageColumns[table][column.Name] || appAuthColumns[table][column.Name] || publicProfileColumns[table][column.Name] || rideColumns[table][column.Name] || supportColumns[table][column.Name]) {
 				continue
 			}
 			if !exists || normalizeType(current.kind) != normalizeType(column.Type) || column.NotNull && !current.notNull || column.Primary && !current.primary {

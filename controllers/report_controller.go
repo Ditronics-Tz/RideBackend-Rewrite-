@@ -23,6 +23,9 @@ func operationError(c *fiber.Ctx, err error) error {
 	var e *store.OperationError
 	if errors.As(err, &e) {
 		body := fiber.Map{"error": e.Message}
+		if e.Code != "" {
+			body["code"] = e.Code
+		}
 		if e.Message == "cash limit reached" {
 			body["code"] = "CASH_LIMIT_REACHED"
 		}

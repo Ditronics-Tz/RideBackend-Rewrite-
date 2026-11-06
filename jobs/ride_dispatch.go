@@ -14,6 +14,12 @@ func RunRideDispatch(ctx context.Context, s *store.Store, cfg *config.Config) {
 	timer := time.NewTicker(5 * time.Second)
 	defer timer.Stop()
 	for {
+		if err := s.WithContext(ctx).ExpireShared(); err != nil {
+			slog.Error("Shared expiry job failed")
+		}
+		if err := s.WithContext(ctx).RetryTransportCollections(); err != nil {
+			slog.Error("Transport collection retry failed")
+		}
 		if err := s.DispatchDueScheduledRides(ctx, cfg); err != nil {
 			slog.Error("Scheduled ride dispatch failed")
 		}

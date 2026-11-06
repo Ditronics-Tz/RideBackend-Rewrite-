@@ -461,11 +461,8 @@ func (oc *OperationsController) Earnings(c *fiber.Ctx) error {
 	return c.JSON(out)
 }
 func (oc *OperationsController) FinanceSummary(c *fiber.Ctx) error {
-	var totals struct {
-		GMV        int64 `json:"gmv"`
-		Commission int64 `json:"commission"`
-	}
-	if err := oc.Store.DB().Model(&models.PaymentTransaction{}).Where("ride_id IS NOT NULL AND status IN ?", []string{"succeeded", "partially_refunded", "refunded"}).Select("COALESCE(SUM(fare),0) AS gmv,COALESCE(SUM(commission),0) AS commission").Scan(&totals).Error; err != nil {
+	totals, daily, outstanding, err := oc.Store.TransportFinanceSummary()
+	if err != nil {
 		return operationError(c, err)
 	}
 	var payouts, refunds int64
@@ -475,15 +472,8 @@ func (oc *OperationsController) FinanceSummary(c *fiber.Ctx) error {
 	if err := oc.Store.DB().Model(&models.Refund{}).Where("status = ?", "processed").Select("COALESCE(SUM(amount),0)").Scan(&refunds).Error; err != nil {
 		return operationError(c, err)
 	}
-	daily := []struct {
-		Date       string `json:"date"`
-		GMV        int64  `json:"gmv"`
-		Commission int64  `json:"commission"`
-	}{}
-	if err := oc.Store.DB().Model(&models.PaymentTransaction{}).Where("ride_id IS NOT NULL AND status IN ? AND created_at >= ?", []string{"succeeded", "partially_refunded", "refunded"}, time.Now().UTC().Add(-30*24*time.Hour)).Select("DATE(created_at) AS date,SUM(fare) AS gmv,SUM(commission) AS commission").Group("DATE(created_at)").Order("DATE(created_at) ASC").Scan(&daily).Error; err != nil {
-		return operationError(c, err)
-	}
-	return c.JSON(fiber.Map{"gmv": totals.GMV, "commission": totals.Commission, "pending_payouts": payouts, "refunds": refunds, "daily": daily})
+
+	return c.JSON(fiber.Map{"gmv": totals.GMV, "commission": totals.Commission, "uncollected_commission": outstanding, "commission_basis": "assessed before promotions; cash collection recorded separately", "pending_payouts": payouts, "refunds": refunds, "daily": daily})
 }
 func (oc *OperationsController) FinanceCSV(c *fiber.Ctx) error {
 	if err := oc.Store.CreateAuditLog(middleware.CurrentStaff(c).ID, "export_payments", "payment", "collection", c.IP(), nil); err != nil {

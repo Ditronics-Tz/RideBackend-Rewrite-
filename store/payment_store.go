@@ -136,8 +136,17 @@ func (s *Store) settlePayment(p *models.PaymentTransaction) error {
 			if err := s.postWallet(driver, "driver_wallet", "credit", p.DiscountAmount, -MaxMoney, "payment", p.ID, prefix+":promo_credit"); err != nil {
 				return err
 			}
-			if err := s.postWallet(driver, "driver_wallet", "debit", p.Commission, -settings.DriverMaxNegativeBalance, "payment", p.ID, prefix+":commission_debit"); err != nil {
+			var assessment models.TransportAssessment
+			assessed := false
+			if err := s.db.First(&assessment, "mode='hail' AND trip_id=?", *p.RideID).Error; err == nil {
+				assessed = true
+			} else if !notFound(err) {
 				return err
+			}
+			if !assessed {
+				if err := s.postWallet(driver, "driver_wallet", "debit", p.Commission, -settings.DriverMaxNegativeBalance, "payment", p.ID, prefix+":commission_debit"); err != nil {
+					return err
+				}
 			}
 		} else {
 			if p.Method == "wallet" {
@@ -153,8 +162,14 @@ func (s *Store) settlePayment(p *models.PaymentTransaction) error {
 				return err
 			}
 		}
-		if err := s.postSystem("platform_revenue", "credit", p.Commission, "payment", p.ID, prefix+":commission"); err != nil {
+		var assessmentCount int64
+		if err := s.db.Model(&models.TransportAssessment{}).Where("mode='hail' AND trip_id=?", *p.RideID).Count(&assessmentCount).Error; err != nil {
 			return err
+		}
+		if assessmentCount == 0 {
+			if err := s.postSystem("platform_revenue", "credit", p.Commission, "payment", p.ID, prefix+":commission"); err != nil {
+				return err
+			}
 		}
 		if err := s.postSystem("promo_subsidy", "debit", p.DiscountAmount, "payment", p.ID, prefix+":subsidy"); err != nil {
 			return err

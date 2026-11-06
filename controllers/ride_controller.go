@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
+	"gorm.io/gorm"
 	"math"
 	"time"
 
@@ -58,6 +60,12 @@ func (rc *RideController) RideResponse(c *fiber.Ctx, ride *models.Ride) (*models
 			return nil, err
 		}
 		net := ride.Fare - commission
+		var receipt models.TransportAssessment
+		if err := rc.Store.DB().First(&receipt, "mode='hail' AND trip_id=?", ride.ID).Error; err == nil {
+			response.Receipt = &receipt
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
 		response.CommissionTZS = &commission
 		response.NetTZS = &net
 		fare := ride.Fare

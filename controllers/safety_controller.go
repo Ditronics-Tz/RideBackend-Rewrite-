@@ -178,6 +178,55 @@ func (oc *OperationsController) SOSDetail(c *fiber.Ctx) error {
 	if err := oc.Store.DB().First(&a, "id = ?", c.Params("id")).Error; err != nil {
 		return operationError(c, err)
 	}
+	if a.SharedTripID != nil {
+		trip, err := oc.Store.SharedStaffDetail(*a.SharedTripID)
+		if err != nil {
+			return operationError(c, err)
+		}
+		events := []models.SOSEvent{}
+		if err = oc.Store.DB().Where("alert_id=?", a.ID).Order("created_at,id").Find(&events).Error; err != nil {
+			return operationError(c, err)
+		}
+		trail := []models.SOSLocationPing{}
+		total, err := oc.Store.PageRows(oc.Store.DB().Model(&models.SOSLocationPing{}).Where("alert_id=?", a.ID), p, &trail)
+		if err != nil {
+			return operationError(c, err)
+		}
+		if err = oc.Store.CreateAuditLog(middleware.CurrentStaff(c).ID, "sos_sensitive_view", "sos", a.ID, c.IP(), fiber.Map{"mode": "shared", "location_trail": true}); err != nil {
+			return operationError(c, err)
+		}
+		driver, err := oc.Store.Party(trip.DriverID)
+		if err != nil {
+			return operationError(c, err)
+		}
+		var passenger *store.PartySummary
+		if a.Role == "passenger" {
+			passenger, err = oc.Store.Party(a.TriggeredBy)
+			if err != nil {
+				return operationError(c, err)
+			}
+		}
+		contacts := []models.EmergencyContact{}
+		if err = oc.Store.DB().Where("user_id=?", a.TriggeredBy).Order("created_at,id").Limit(5).Find(&contacts).Error; err != nil {
+			return operationError(c, err)
+		}
+		for i := range contacts {
+			if !c.QueryBool("reveal") {
+				contacts[i].Phone = maskSafetyPhone(contacts[i].Phone)
+			}
+		}
+		phones := map[string]string{}
+		for _, id := range []string{trip.DriverID, a.TriggeredBy} {
+			u, ok := oc.Store.GetUserByID(id)
+			if ok {
+				phones[id] = maskSafetyPhone(u.Phone)
+				if c.QueryBool("reveal") {
+					phones[id] = u.Phone
+				}
+			}
+		}
+		return c.JSON(fiber.Map{"alert": a, "shared_trip": trip, "driver": driver, "passenger": passenger, "vehicle": trip.Vehicle, "timeline": events, "timeline_total": len(events), "trail": trail, "trail_total": total, "contacts": contacts, "phones": phones, "flags": []any{}})
+	}
 	var ride models.Ride
 	if err := oc.Store.DB().First(&ride, "id = ?", a.RideID).Error; err != nil {
 		return operationError(c, err)

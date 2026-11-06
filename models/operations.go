@@ -6,6 +6,7 @@ import "time"
 // separate module; never populate these fields from a payment/report request.
 type Ride struct {
 	AssessedFee *int64 `json:"-"`
+	FeeVersion  int    `json:"fee_version"`
 	HailPercent *int   `json:"-"`
 	// Optional authoritative route polyline as JSON [[lat,lng],...]; never accepted from payment requests.
 	RouteGeometry    string     `json:"-"`

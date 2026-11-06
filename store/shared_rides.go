@@ -61,22 +61,38 @@ func sharedCode(secret, seat string) string {
 func (s *Store) activeSharedPassenger(id string, now int64) (bool, error) {
 	var n int64
 	err := s.db.Model(&models.SharedSeat{}).Joins("JOIN shared_trips t ON t.id = shared_seats.trip_id").
-		Where("passenger_id = ? AND ((t.status = 'waiting' AND t.deadline > ?) OR t.status = 'in_progress') AND (shared_seats.status = 'confirmed' OR (shared_seats.status = 'held' AND expires > ?))", id, now, now).Count(&n).Error
+		Where("passenger_id = ? AND t.status IN ('waiting','in_progress') AND (shared_seats.status = 'confirmed' OR (t.deadline > ? AND shared_seats.status = 'held' AND expires > ?))", id, now, now).Count(&n).Error
 	return n > 0, err
 }
 
 func (s *Store) expireWaiting(driver string, now int64) error {
-	return s.db.Model(&models.SharedTrip{}).Where("driver_id = ? AND status = 'waiting' AND deadline <= ?", driver, now).Update("status", "expired").Error
+	var trips []models.SharedTrip
+	if err := s.db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("driver_id=? AND status='waiting' AND deadline<=? AND NOT EXISTS (SELECT 1 FROM shared_seats b WHERE b.trip_id=shared_trips.id AND b.status='confirmed')", driver, now).Find(&trips).Error; err != nil {
+		return err
+	}
+	for _, trip := range trips {
+		trip.Status = "expired"
+		if err := s.db.Save(&trip).Error; err != nil {
+			return err
+		}
+		if err := s.appendTransportEvent(&trip, "", "shared_trip.expired"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func (s *Store) activeSharedDriver(id string, now int64) (bool, error) {
 	var n int64
-	err := s.db.Model(&models.SharedTrip{}).Where("driver_id = ? AND (status = 'in_progress' OR (status = 'waiting' AND deadline > ?))", id, now).Count(&n).Error
+	err := s.db.Model(&models.SharedTrip{}).Where("driver_id = ? AND (status = 'in_progress' OR (status = 'waiting' AND (deadline > ? OR EXISTS (SELECT 1 FROM shared_seats b WHERE b.trip_id=shared_trips.id AND b.status='confirmed'))))", id, now).Count(&n).Error
 	return n > 0, err
 }
 
-// Every mutation locks the actor before the trip. The original request key and
+// Shared and hailed mutations use the same lock order: transport cursor, actor, profile/trip, seat, wallet. The original request key and
 // hash are stored in the same transaction, including failed pickup attempts.
 func (s *Store) sharedMutation(actor, key string, payload any, apply func(*Store, int64) (string, error, error)) (string, error) {
+	if len(key) < 8 || len(key) > 100 {
+		return "", FieldError("Idempotency-Key", "Idempotency-Key must contain 8-100 characters")
+	}
 	hash, err := rideRequestHash(payload)
 	if err != nil {
 		return "", err
@@ -84,6 +100,9 @@ func (s *Store) sharedMutation(actor, key string, payload any, apply func(*Store
 	var tripID string
 	var rejected error
 	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := lockTransportCursor(tx); err != nil {
+			return err
+		}
 		if _, err := lockRideActor(tx, actor); err != nil {
 			return err
 		}
@@ -94,7 +113,7 @@ func (s *Store) sharedMutation(actor, key string, payload any, apply func(*Store
 				return OpError(409, "This key was used for another request")
 			}
 			if prior.TripID == models.UnassignedRideDriverID {
-				return OpError(409, "Pickup code was rejected")
+				return TransportError(409, "INVALID_PICKUP_CODE", "Pickup code was rejected")
 			}
 			tripID = prior.TripID
 			return nil
@@ -133,7 +152,7 @@ func (s *Store) PublishShared(actor, key string, in models.SharedPublish) (strin
 			return "", nil, err
 		}
 		if !settings.Enabled {
-			return "", nil, OpError(409, "Ride sharing is closed")
+			return "", nil, TransportError(409, "SHARING_DISABLED", "Ride sharing is closed")
 		}
 		var p models.DriverProfile
 		if err := w.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&p, "user_id = ?", actor).Error; err != nil {
@@ -165,25 +184,23 @@ func (s *Store) PublishShared(actor, key string, in models.SharedPublish) (strin
 		if active > 0 {
 			return "", nil, OpError(409, "Finish your current hailed ride first")
 		}
-		if p.PassengerSeats > 0 && in.Capacity != p.PassengerSeats {
+		if p.PassengerSeats < 1 {
+			return "", nil, FieldError("capacity", "Register passenger capacity in vehicle setup before publishing")
+		}
+		if in.Capacity != p.PassengerSeats {
 			return "", nil, FieldError("capacity", "Enter the registered passenger capacity or update your vehicle")
 		}
-		if p.PassengerSeats == 0 {
-			if err := w.db.Model(&p).Update("passenger_seats", in.Capacity).Error; err != nil {
-				return "", nil, err
-			}
+		trip := models.SharedTrip{ID: newID(), DriverID: actor, Status: "waiting", Vehicle: p.VehicleType, Pickup: in.Pickup, Dropoff: in.Dropoff, Capacity: in.Capacity, Seats: in.Seats, Price: in.Price, Fee: settings.SharedFee, FeeVersion: settings.Version, Created: now, Deadline: now + int64(in.WaitMinutes)*60}
+		if err := w.db.Model(&p).Update("is_online", false).Error; err != nil {
+			return "", nil, err
 		}
-		trip := models.SharedTrip{ID: newID(), DriverID: actor, Status: "waiting", Vehicle: p.VehicleType, Pickup: in.Pickup, Dropoff: in.Dropoff, Capacity: in.Capacity, Seats: in.Seats, Price: in.Price, Fee: settings.SharedFee, Created: now, Deadline: now + int64(in.WaitMinutes)*60}
-		return trip.ID, nil, w.db.Create(&trip).Error
+		if err := w.db.Create(&trip).Error; err != nil {
+			return "", nil, err
+		}
+		return trip.ID, nil, w.appendTransportEvent(&trip, actor, "shared_trip.published")
 	})
 }
 
-func effectiveTrip(t models.SharedTrip, now int64) models.SharedTrip {
-	if t.Status == "waiting" && now >= t.Deadline {
-		t.Status = "expired"
-	}
-	return t
-}
 func seatState(seat models.SharedSeat, t models.SharedTrip, now int64) models.SharedSeat {
 	if (seat.Status == "held" && now >= seat.Expires) || ((seat.Status == "held" || seat.Status == "confirmed") && t.Status == "expired") {
 		seat.Status = "expired"
@@ -194,19 +211,32 @@ func seatState(seat models.SharedSeat, t models.SharedTrip, now int64) models.Sh
 	return seat
 }
 func (s *Store) sharedView(trip models.SharedTrip, actor, secret string, staff bool, now int64) (models.SharedView, error) {
-	t := effectiveTrip(trip, now)
+	t := trip
 	v := models.SharedView{SharedTrip: t, ServerTime: now}
 	var seats []models.SharedSeat
 	err := s.db.Where("trip_id = ?", t.ID).Order("expires ASC, id ASC").Find(&seats).Error
 	if err != nil {
 		return v, err
 	}
+	if t.Status == "waiting" && now >= t.Deadline {
+		confirmed := false
+		for _, seat := range seats {
+			if seat.Status == "confirmed" {
+				confirmed = true
+				break
+			}
+		}
+		if !confirmed {
+			t.Status = "expired"
+			v.SharedTrip = t
+		}
+	}
 	for _, row := range seats {
 		seat := seatState(row, t, now)
 		switch seat.Status {
 		case "held":
 			v.Held++
-		case "confirmed":
+		case "confirmed", "completed":
 			v.Confirmed++
 		}
 		if actor == seat.PassengerID && (v.MySeat == nil || (v.MySeat.Status != "held" && v.MySeat.Status != "confirmed") || seat.Status == "held" || seat.Status == "confirmed") {
@@ -217,13 +247,52 @@ func (s *Store) sharedView(trip models.SharedTrip, actor, secret string, staff b
 			}
 		}
 		if staff || actor == t.DriverID {
-			if seat.Status == "confirmed" || seat.Status == "held" {
+			if seat.Status == "confirmed" || seat.Status == "held" || seat.Status == "completed" {
 				v.Manifest = append(v.Manifest, seat)
 			}
 		}
 	}
 	if t.Status == "waiting" && t.Deadline-now >= 300 {
 		v.Available = t.Seats - v.Held - v.Confirmed
+	}
+	if actor == t.DriverID || staff || v.MySeat != nil {
+		var a models.TransportAssessment
+		if err := s.db.First(&a, "mode='shared' AND trip_id=?", t.ID).Error; err == nil {
+			v.Receipt = &a
+		} else if !notFound(err) {
+			return v, err
+		}
+	}
+	if t.Status == "completed" && v.Receipt != nil {
+		v.Confirmed = v.Receipt.Passengers
+	}
+	var profile models.DriverProfile
+	if err := s.db.First(&profile, "user_id=?", t.DriverID).Error; err == nil {
+		v.DriverRating = profile.AverageRating
+	}
+	var driver models.User
+	if err := s.db.First(&driver, "id=?", t.DriverID).Error; err == nil {
+		v.DriverName = driver.Name
+	}
+	if staff || actor == t.DriverID {
+		v.PassengerNames = map[string]string{}
+		if len(v.Manifest) > 0 {
+			ids := []string{}
+			for _, seat := range v.Manifest {
+				ids = append(ids, seat.PassengerID)
+			}
+			var users []models.User
+			if err := s.db.Where("id IN ?", ids).Find(&users).Error; err != nil {
+				return v, err
+			}
+			for _, seat := range v.Manifest {
+				for _, u := range users {
+					if u.ID == seat.PassengerID {
+						v.PassengerNames[seat.ID] = u.Name
+					}
+				}
+			}
+		}
 	}
 	return v, nil
 }
@@ -232,7 +301,7 @@ func (s *Store) SharedAction(actor, role, tripID, key, action, secret string, in
 	// The request fingerprint must not retain an offline-verifiable hash of a six-digit PIN.
 	digest := hmac.New(sha256.New, []byte(secret))
 	digest.Write([]byte(in.PIN))
-	payload := []any{tripID, action, in.SeatID, fmt.Sprintf("%x", digest.Sum(nil))}
+	payload := []any{tripID, action, in.SeatID, in.Reason, fmt.Sprintf("%x", digest.Sum(nil))}
 	return s.sharedMutation(actor, key, payload, func(w *Store, now int64) (string, error, error) {
 		var t models.SharedTrip
 		if err := w.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&t, "id = ?", tripID).Error; err != nil {
@@ -251,12 +320,19 @@ func (s *Store) SharedAction(actor, role, tripID, key, action, secret string, in
 		}
 		switch action {
 		case "reserve":
+			var recent int64
+			if err := w.db.Model(&models.SharedSeat{}).Where("passenger_id=? AND created>?", actor, now-60).Count(&recent).Error; err != nil {
+				return "", nil, err
+			}
+			if recent >= 5 {
+				return "", nil, TransportError(429, "RESERVATION_RATE_LIMIT", "Wait before reserving another seat")
+			}
 			settings, err := w.TransportSettings()
 			if err != nil {
 				return "", nil, err
 			}
 			if !settings.Enabled || v.Available <= 0 {
-				return "", nil, OpError(409, "Booking has closed or the trip is full")
+				return "", nil, TransportError(409, "SEAT_UNAVAILABLE", "Booking has closed or the trip is full")
 			}
 			if err := w.CheckDispatchEligibility(actor, t.DriverID); err != nil {
 				return "", nil, err
@@ -264,65 +340,83 @@ func (s *Store) SharedAction(actor, role, tripID, key, action, secret string, in
 			if busy, err := w.activeSharedPassenger(actor, now); err != nil {
 				return "", nil, err
 			} else if busy {
-				return "", nil, OpError(409, "You already have an active seat")
+				return "", nil, TransportError(409, "COMMITMENT_CONFLICT", "You already have an active seat")
 			}
 			var count int64
 			if err := w.db.Model(&models.Ride{}).Where("passenger_id = ? AND status IN ?", actor, rideActiveStatuses).Count(&count).Error; err != nil {
 				return "", nil, err
 			}
 			if count > 0 {
-				return "", nil, OpError(409, "Finish your hailed ride first")
+				return "", nil, TransportError(409, "COMMITMENT_CONFLICT", "Finish your hailed ride first")
 			}
-			err = w.db.Create(&models.SharedSeat{ID: newID(), TripID: t.ID, PassengerID: actor, Status: "held", Expires: now + 300}).Error
-			return t.ID, nil, err
+			err = w.db.Create(&models.SharedSeat{ID: newID(), TripID: t.ID, PassengerID: actor, Status: "held", Created: now, Expires: now + 300}).Error
+			if err != nil {
+				return "", nil, err
+			}
+			return t.ID, nil, w.appendTransportEvent(&t, actor, "seat_reservation.created")
 		case "release":
 			if v.MySeat == nil || t.Status != "waiting" || (v.MySeat.Status != "held" && v.MySeat.Status != "confirmed") {
-				return "", nil, OpError(409, "There is no active seat to release")
+				return "", nil, TransportError(409, "NO_ACTIVE_SEAT", "There is no active seat to release")
 			}
-			return t.ID, nil, w.db.Model(v.MySeat).Update("status", "released").Error
+			if err := w.db.Model(v.MySeat).Update("status", "cancelled").Error; err != nil {
+				return "", nil, err
+			}
+			return t.ID, nil, w.appendTransportEvent(&t, actor, "seat_reservation.cancelled")
 		case "verify":
 			var seat models.SharedSeat
 			if err := w.db.First(&seat, "trip_id = ? AND id = ?", t.ID, in.SeatID).Error; err != nil {
 				return "", nil, err
 			}
 			if t.Status != "waiting" || seatState(seat, t, now).Status != "held" {
-				return "", nil, OpError(409, "Seat hold has ended")
+				return "", nil, TransportError(409, "HOLD_EXPIRED", "Seat hold has ended")
 			}
 			if !hmac.Equal([]byte(sharedCode(secret, seat.ID)), []byte(in.PIN)) {
 				seat.Failures++
 				if seat.Failures >= 5 {
 					seat.Status = "released"
 				}
-				return t.ID, OpError(409, "Pickup code was rejected"), w.db.Save(&seat).Error
+				if err := w.db.Save(&seat).Error; err != nil {
+					return "", nil, err
+				}
+				return t.ID, TransportError(409, "INVALID_PICKUP_CODE", "Pickup code was rejected"), w.appendTransportEvent(&t, actor, "seat_reservation.verification_failed")
 			}
-			if err := w.db.Model(&seat).Update("status", "confirmed").Error; err != nil {
+			if err := w.db.Model(&seat).Updates(map[string]any{"status": "confirmed", "confirmed_at": now}).Error; err != nil {
+				return "", nil, err
+			}
+			if err := w.appendTransportEvent(&t, actor, "seat_reservation.confirmed"); err != nil {
 				return "", nil, err
 			}
 			return t.ID, nil, w.queueAppNotification(w.db.Statement.Context, seat.PassengerID, "ride", "Seat confirmed", "Your driver verified your shared ride pickup.", map[string]string{"shared_trip_id": t.ID, "status": "confirmed"})
 		case "start":
 			if t.Status != "waiting" || v.Held != 0 || v.Confirmed == 0 {
-				return "", nil, OpError(409, "Confirm passengers and resolve live holds before departure")
+				return "", nil, TransportError(409, "DEPARTURE_NOT_READY", "Confirm passengers and resolve live holds before departure")
 			}
 			t.Status = "in_progress"
 		case "cancel":
 			if t.Status != "waiting" {
-				return "", nil, OpError(409, "Only waiting trips can be cancelled")
+				return "", nil, TransportError(409, "TRIP_NOT_WAITING", "Only waiting trips can be cancelled")
 			}
 			t.Status = "cancelled"
-		case "complete":
-			if t.Status != "in_progress" {
-				return "", nil, OpError(409, "Start the trip before completing it")
-			}
-			if err := w.postWallet(actor, "driver_wallet", "debit", t.Fee, -MaxMoney, "shared_trip", t.ID, "shared:"+t.ID+":debit"); err != nil {
+			if err := w.db.Model(&models.SharedSeat{}).Where("trip_id=? AND status IN ?", t.ID, []string{"held", "confirmed"}).Update("status", "cancelled").Error; err != nil {
 				return "", nil, err
 			}
-			if err := w.postSystem("platform_revenue", "credit", t.Fee, "shared_trip", t.ID, "shared:"+t.ID+":credit"); err != nil {
+		case "complete":
+			if t.Status != "in_progress" {
+				return "", nil, TransportError(409, "TRIP_NOT_STARTED", "Start the trip before completing it")
+			}
+			if err := w.assessTransport("shared", t.ID, actor, t.Price*int64(v.Confirmed), t.Fee, v.Confirmed, t.FeeVersion); err != nil {
+				return "", nil, err
+			}
+			if err := w.db.Model(&models.SharedSeat{}).Where("trip_id=? AND status='confirmed'", t.ID).Updates(map[string]any{"status": "completed", "completed_at": now}).Error; err != nil {
 				return "", nil, err
 			}
 			t.Status = "completed"
 			t.Completed = now
 		default:
 			return "", nil, OpError(404, "Unknown trip action")
+		}
+		if err := w.appendTransportEvent(&t, actor, "shared_trip."+t.Status, in.Reason); err != nil {
+			return "", nil, err
 		}
 		if err := w.db.Save(&t).Error; err != nil {
 			return "", nil, err
@@ -371,6 +465,7 @@ func (s *Store) SharedList(actor, role, scope, secret string, lat, lng, radius f
 		if err != nil || !setting.Enabled {
 			return out, err
 		}
+		q = q.Where("EXISTS (SELECT 1 FROM users u JOIN driver_profiles p ON p.user_id=u.id WHERE u.id=shared_trips.driver_id AND u.is_active=true AND u.status='active' AND u.deleted_at IS NULL AND p.verification_status='approved')")
 		q = q.Where("status = 'waiting' AND deadline >= ? AND pickup_lat BETWEEN ? AND ?", now+300, lat-radius/110, lat+radius/110).
 			Where("seats > (SELECT count(*) FROM shared_seats b WHERE b.trip_id=shared_trips.id AND (b.status='confirmed' OR (b.status='held' AND b.expires>?)))", now).
 			Where("NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=shared_trips.driver_id) OR (b.blocked_id=? AND b.blocker_id=shared_trips.driver_id))", actor, actor)
@@ -466,7 +561,7 @@ func (s *Store) DriverPeriodEarnings(driver string, period string) (map[string]a
 		return nil, err
 	}
 	if err := s.db.Model(&models.SharedTrip{}).Where("driver_id=? AND status='completed' AND completed>=?", driver, since.Unix()).
-		Select("coalesce(sum(price * (select count(*) from shared_seats b where b.trip_id=shared_trips.id and b.status='confirmed')),0) gross,coalesce(sum(fee),0) fee,count(*) trips").Scan(&shared).Error; err != nil {
+		Select("coalesce(sum(price * (select count(*) from shared_seats b where b.trip_id=shared_trips.id and b.status IN ('confirmed','completed'))),0) gross,coalesce(sum(fee),0) fee,count(*) trips").Scan(&shared).Error; err != nil {
 		return nil, err
 	}
 	gross := newHails.Gross + oldHails.Gross + shared.Gross
@@ -483,6 +578,9 @@ func (s *Store) StaffCancelShared(actor *models.StaffUser, id, reason string) er
 		return FieldError("reason", "Supply a reason of up to 250 characters")
 	}
 	return s.Transaction(func(w *Store) error {
+		if err := lockTransportCursor(w.db); err != nil {
+			return err
+		}
 		var trip models.SharedTrip
 		if err := w.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&trip, "id=?", id).Error; err != nil {
 			return err
@@ -496,6 +594,13 @@ func (s *Store) StaffCancelShared(actor *models.StaffUser, id, reason string) er
 		}
 		if v.Status != "waiting" {
 			return OpError(409, "Only a waiting shared trip can be cancelled")
+		}
+		trip.Status = "cancelled"
+		if err := w.appendTransportEvent(&trip, actor.ID, "shared_trip.cancelled", reason); err != nil {
+			return err
+		}
+		if err := w.db.Model(&models.SharedSeat{}).Where("trip_id=? AND status IN ?", id, []string{"held", "confirmed"}).Update("status", "cancelled").Error; err != nil {
+			return err
 		}
 		if err := w.db.Model(&trip).Update("status", "cancelled").Error; err != nil {
 			return err

@@ -144,6 +144,10 @@
     {
       "key": "webhook_event_id",
       "value": "{{guid}}"
+    },
+    {
+      "key": "shared_trip_id",
+      "value": ""
     }
   ],
   "item": [
@@ -1871,7 +1875,7 @@
       ]
     },
     {
-      "name": "Phase 6 — Reports and blocks",
+      "name": "Phase 6 \u2014 Reports and blocks",
       "description": "App requires app tokens. Report moderation is staff-only; support temporary account actions are capped at seven days.",
       "item": [
         {
@@ -2139,7 +2143,7 @@
       ]
     },
     {
-      "name": "Phase 7 — SOS and incidents",
+      "name": "Phase 7 \u2014 SOS and incidents",
       "description": "Public share lookup has no bearer token and returns the same 404 for invalid/expired tokens.",
       "item": [
         {
@@ -2718,7 +2722,7 @@
       ]
     },
     {
-      "name": "Phase 8 — Payments and finance",
+      "name": "Phase 8 \u2014 Payments and finance",
       "description": "Every money-moving POST carries Idempotency-Key. Provider webhook is HMAC signed in the pre-request script using payment_webhook_secret.",
       "item": [
         {
@@ -3485,7 +3489,7 @@
       ]
     },
     {
-      "name": "Phase 9 — Fraud review",
+      "name": "Phase 9 \u2014 Fraud review",
       "description": "Support can triage and dismiss low-severity flags. Admin controls holds, confirmation and rule changes.",
       "item": [
         {
@@ -3756,6 +3760,139 @@
               }
             ],
             "url": "{{base_url}}/api/v1/admin/fraud/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dual ride modes",
+      "item": [
+        {
+          "name": "Transport settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/transport/settings"
+          }
+        },
+        {
+          "name": "Durable shared updates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/transport/watch?lat=-6.94&lng=39.19&radius_km=10&after=0"
+          }
+        },
+        {
+          "name": "Nearby shared trips",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/shared-trips?scope=nearby&lat=-6.94&lng=39.19"
+          }
+        },
+        {
+          "name": "Publish shared trip",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/shared-trips",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": -6.94,\n    \"lng\": 39.19,\n    \"address\": \"Mbande\"\n  },\n  \"dropoff\": {\n    \"lat\": -6.82,\n    \"lng\": 39.28,\n    \"address\": \"Posta\"\n  },\n  \"capacity\": 3,\n  \"seats\": 2,\n  \"price\": 2000,\n  \"wait_minutes\": 20\n}"
+            }
+          }
+        },
+        {
+          "name": "Reserve shared seat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/shared-trips/{{shared_trip_id}}/reserve",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "Shared driver location",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/shared-trips/{{shared_trip_id}}/driver-location"
+          }
+        },
+        {
+          "name": "Shared staff timeline",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/shared-trips/{{shared_trip_id}}"
+          }
+        },
+        {
+          "name": "Transport fee assessments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/transport/assessments"
           }
         }
       ]

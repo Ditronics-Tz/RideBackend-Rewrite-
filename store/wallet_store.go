@@ -197,6 +197,14 @@ func absMoney(n int64) int64 {
 	return n
 }
 func (s *Store) checkFinancialEligibility(driver string) error {
+	var pending int64
+	if err := s.db.Model(&models.TransportAssessment{}).Where("driver_id=? AND status='receivable'", driver).Count(&pending).Error; err != nil {
+		return err
+	}
+	if pending > 0 {
+		return TransportError(403, "TRANSPORT_FEE_OUTSTANDING", "Settle the outstanding transport fee before accepting another trip")
+	}
+
 	settings, err := s.GetPaymentSettings()
 	if err != nil {
 		return err
@@ -208,6 +216,9 @@ func (s *Store) checkFinancialEligibility(driver string) error {
 	}
 	if err != nil {
 		return err
+	}
+	if w.Status != "active" {
+		return OpError(403, "wallet unavailable")
 	}
 	if w.Balance-w.Held < -settings.DriverMaxNegativeBalance {
 		return OpError(403, "cash limit reached")

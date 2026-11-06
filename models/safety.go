@@ -13,6 +13,7 @@ type EmergencyContact struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 type SOSAlert struct {
+	SharedTripID     *string    `json:"shared_trip_id,omitempty" gorm:"type:uuid;index"`
 	ID               string     `json:"id" gorm:"primaryKey;type:uuid"`
 	RideID           string     `json:"ride_id" gorm:"type:uuid;index;uniqueIndex:idx_open_sos,where:resolved_at IS NULL,priority:1"`
 	TriggeredBy      string     `json:"triggered_by" gorm:"type:uuid;index;uniqueIndex:idx_open_sos,where:resolved_at IS NULL,priority:2"`

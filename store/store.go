@@ -29,7 +29,6 @@ type Store struct {
 	Delivery       notifications.Sender
 	PushSender     notifications.PushSender
 	PushKey        []byte
-	sharedEvents   *EventHub
 	Events         *EventHub
 	db             *gorm.DB
 	SMS            SMSSender
@@ -38,7 +37,7 @@ type Store struct {
 }
 
 func New(db *gorm.DB) *Store {
-	return &Store{db: db, Notifier: notifier.Logging{}, ExportNotifier: notifier.Logging{}, Delivery: notifications.Logging{}, Events: NewEventHub(), sharedEvents: NewEventHub()}
+	return &Store{db: db, Notifier: notifier.Logging{}, ExportNotifier: notifier.Logging{}, Delivery: notifications.Logging{}, Events: NewEventHub()}
 }
 
 // WithContext retains adapters while bounding every worker database operation

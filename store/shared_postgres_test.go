@@ -29,7 +29,7 @@ func sharedDriverFixture(t *testing.T, s *Store) *models.User {
 			t.Fatal("driver document fixture failed")
 		}
 	}
-	if err := s.db.Model(&models.DriverProfile{}).Where("user_id = ?", driver.ID).Updates(map[string]any{"is_online": true, "verification_status": models.Approved, "vehicle_type": "car"}).Error; err != nil {
+	if err := s.db.Model(&models.DriverProfile{}).Where("user_id = ?", driver.ID).Updates(map[string]any{"passenger_seats": 3, "is_online": true, "verification_status": models.Approved, "vehicle_type": "car"}).Error; err != nil {
 		t.Fatal("driver availability fixture failed")
 	}
 	return driver
@@ -152,8 +152,17 @@ func TestPostgresSharedLastSeatVerificationAndWholeTripFee(t *testing.T) {
 		t.Fatal("charged again")
 	}
 	var entries []models.LedgerEntry
-	if err := s.db.Where("ref_id=?", trip).Find(&entries).Error; err != nil || len(entries) != 2 {
+	if err := s.db.Where("ref_id=?", trip).Find(&entries).Error; err != nil || len(entries) != 4 {
 		t.Fatal("expected balanced settlement", entries, err)
+	}
+	var revenue int
+	for _, e := range entries {
+		if e.Account == "platform_revenue" {
+			revenue++
+		}
+	}
+	if revenue != 1 {
+		t.Fatal("expected exactly one revenue assessment")
 	}
 	for _, e := range entries {
 		if e.Amount != 700 {

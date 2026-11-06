@@ -105,6 +105,9 @@ func (s *Store) CreateRideRequest(ctx context.Context, passengerID, key string, 
 	now := s.now()
 	var result models.Ride
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockTransportCursor(tx); err != nil {
+			return err
+		}
 		user, err := lockRideActor(tx, passengerID)
 		if err != nil {
 			return err
@@ -139,6 +142,7 @@ func (s *Store) CreateRideRequest(ctx context.Context, passengerID, key string, 
 		result = models.Ride{ID: newID(), PassengerID: passengerID, DriverID: models.UnassignedRideDriverID, Status: "searching", EstimatedFare: estimatedFare, VehicleType: input.VehicleType, Pickup: input.Pickup.Address, Dropoff: input.Dropoff.Address, PickupLat: input.Pickup.Lat, PickupLng: input.Pickup.Lng, DropoffLat: input.Dropoff.Lat, DropoffLng: input.Dropoff.Lng, ExpectedDistance: distanceMeters, CreatedAt: now, UpdatedAt: now}
 		if settings.Version > 0 {
 			result.HailPercent = &settings.HailPercent
+			result.FeeVersion = settings.Version
 		}
 		if err := tx.Create(&result).Error; err != nil {
 			return err
@@ -266,6 +270,9 @@ func (s *Store) offerNextDriver(tx *gorm.DB, ride *models.Ride, radiusKM int, ti
 func (s *Store) AdvanceExpiredRideOffers(ctx context.Context, radiusKM int, timeout time.Duration) error {
 	now := s.now()
 	return rideOperationError(s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockTransportCursor(tx); err != nil {
+			return err
+		}
 		var rides []models.Ride
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("status = ? AND offer_expires_at <= ?", "offered", now).Order("offer_expires_at ASC, id ASC").Limit(100).Find(&rides).Error; err != nil {
 			return err
@@ -327,6 +334,9 @@ func (s *Store) rideDriverAction(ctx context.Context, driverID, rideID, key, act
 	now := s.now()
 	var result models.Ride
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockTransportCursor(tx); err != nil {
+			return err
+		}
 		user, err := lockRideActor(tx, driverID)
 		if err != nil {
 			return err
@@ -417,6 +427,9 @@ func (s *Store) CancelRide(ctx context.Context, actorID, rideID, key, reason str
 	now := s.now()
 	var result models.Ride
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockTransportCursor(tx); err != nil {
+			return err
+		}
 		user, err := lockRideActor(tx, actorID)
 		if err != nil {
 			return err
@@ -478,6 +491,9 @@ func (s *Store) TransitionRide(ctx context.Context, driverID, rideID, key, actio
 	now := s.now()
 	var result models.Ride
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockTransportCursor(tx); err != nil {
+			return err
+		}
 		user, err := lockRideActor(tx, driverID)
 		if err != nil {
 			return err
@@ -516,6 +532,11 @@ func (s *Store) TransitionRide(ctx context.Context, driverID, rideID, key, actio
 				return err
 			}
 			ride.AssessedFee = &assessed
+			if ride.HailPercent != nil {
+				if err := scoped.assessTransport("hail", ride.ID, driverID, ride.Fare, assessed, 1, ride.FeeVersion); err != nil {
+					return err
+				}
+			}
 			completed := now
 			ride.CompletedAt = &completed
 		}
@@ -545,12 +566,15 @@ func (s *Store) TransitionRide(ctx context.Context, driverID, rideID, key, actio
 }
 
 func (s *Store) SetDriverLocation(ctx context.Context, driverID, key string, lat, lng, accuracy float64) error {
-	if lat < -90 || lat > 90 || lng < -180 || lng > 180 || accuracy < 0 || accuracy > 10000 {
+	if !ValidLocation(lat, lng, accuracy) || accuracy > 100 {
 		return FieldError("location", "latitude, longitude or accuracy is outside the supported range")
 	}
 	hash, _ := rideRequestHash(map[string]float64{"lat": lat, "lng": lng, "accuracy": accuracy})
 	now := s.now()
 	return rideOperationError(s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockTransportCursor(tx); err != nil {
+			return err
+		}
 		user, err := lockRideActor(tx, driverID)
 		if err != nil {
 			return err
@@ -565,7 +589,14 @@ func (s *Store) SetDriverLocation(ctx context.Context, driverID, key string, lat
 			return nil
 		}
 		var profile models.DriverProfile
-		if err := tx.First(&profile, "user_id = ?", driverID).Error; err != nil || !profile.IsOnline {
+		if err := tx.First(&profile, "user_id = ?", driverID).Error; err != nil {
+			return OpError(403, "Driver profile unavailable")
+		}
+		active, err := s.WithContext(ctx).activeDriverTransport(tx, driverID)
+		if err != nil {
+			return err
+		}
+		if !profile.IsOnline && !active {
 			return OpError(403, "Driver must be eligible and online to update location")
 		}
 		if err := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "driver_id"}}, DoUpdates: clause.AssignmentColumns([]string{"lat", "lng", "accuracy", "updated_at"})}).Create(&models.DriverLocation{DriverID: driverID, Lat: lat, Lng: lng, Accuracy: accuracy, UpdatedAt: now}).Error; err != nil {
@@ -584,6 +615,9 @@ func (s *Store) SetDriverAvailability(ctx context.Context, driverID, key string,
 		}
 	}
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockTransportCursor(tx); err != nil {
+			return err
+		}
 		user, err := lockRideActor(tx, driverID)
 		if err != nil {
 			return err
@@ -608,6 +642,15 @@ func (s *Store) SetDriverAvailability(ctx context.Context, driverID, key string,
 			return OpError(403, "Driver profile is unavailable")
 		}
 		if online {
+			scoped := *s
+			scoped.db = tx
+			busy, err := scoped.activeSharedDriver(driverID, now.Unix())
+			if err != nil {
+				return err
+			}
+			if busy {
+				return TransportError(409, "COMMITMENT_CONFLICT", "Finish the active shared trip before accepting hail requests")
+			}
 			var active int64
 			if err := tx.Model(&models.Ride{}).Where("driver_id = ? AND status IN ?", driverID, rideActiveStatuses).Count(&active).Error; err != nil {
 				return err

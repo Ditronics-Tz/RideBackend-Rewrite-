@@ -3,6 +3,7 @@ package models
 import "time"
 
 type SupportTicket struct {
+	SharedTripID      *string    `json:"shared_trip_id,omitempty" gorm:"type:uuid;index"`
 	ID                string     `json:"id" gorm:"primaryKey;type:uuid"`
 	UserID            string     `json:"user_id" gorm:"type:uuid;not null;index"`
 	Subject           string     `json:"subject" gorm:"size:160;not null"`
@@ -54,9 +55,10 @@ type SupportTicketAttachment struct {
 }
 
 type CreateSupportTicketInput struct {
-	Subject     string `json:"subject"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
+	SharedTripID *string `json:"shared_trip_id,omitempty" gorm:"type:uuid;index"`
+	Subject      string  `json:"subject"`
+	Description  string  `json:"description"`
+	Category     string  `json:"category"`
 }
 
 type RateRideInput struct {

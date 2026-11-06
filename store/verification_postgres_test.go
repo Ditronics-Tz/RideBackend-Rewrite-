@@ -2,12 +2,12 @@ package store_test
 
 import (
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"os"
-	"ride-backend/config"
+
 	"ride-backend/db"
 	"ride-backend/models"
 	"ride-backend/store"
@@ -18,15 +18,11 @@ import (
 )
 
 func TestPostgresConcurrentVerification(t *testing.T) {
-	if os.Getenv("RUN_POSTGRES_VERIFICATION_TESTS") != "1" {
-		t.Skip("Set RUN_POSTGRES_VERIFICATION_TESTS=1 to use an isolated local Postgres schema")
+	dsn := os.Getenv("POSTGRES_TEST_DSN")
+	if os.Getenv("RUN_POSTGRES_VERIFICATION_TESTS") != "1" || dsn == "" {
+		t.Skip("Set RUN_POSTGRES_VERIFICATION_TESTS=1 and POSTGRES_TEST_DSN for isolated verification tests")
 	}
-	_ = godotenv.Load("../.env")
-	cfg, err := config.NewConfigFromEnv()
-	if err != nil {
-		t.Fatal(err)
-	}
-	root, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	root, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +33,7 @@ func TestPostgresConcurrentVerification(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Exec("DROP SCHEMA " + schema + " CASCADE")
-	gdb, err := gorm.Open(postgres.Open(cfg.DSN()+" search_path="+schema), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	gdb, err := gorm.Open(postgres.Open(dsn+" search_path="+schema), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatal(err)
 	}

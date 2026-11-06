@@ -413,13 +413,29 @@ func (s *Store) updateDriverIdentifiers(id string, input models.DriverProfileInp
 		if p.AssignedTo != nil {
 			return conflict("profile cannot change during a claimed review")
 		}
+		materialVehicleChange := (input.PassengerSeats != nil && *input.PassengerSeats != p.PassengerSeats) || (vehicleType != "" && vehicleType != p.VehicleType)
+		if materialVehicleChange {
+			w := *s
+			w.db = tx
+			shared, err := w.activeSharedDriver(id, s.now().Unix())
+			if err != nil {
+				return err
+			}
+			var hail int64
+			if err := tx.Model(&models.Ride{}).Where("driver_id=? AND status IN ?", id, rideActiveStatuses).Count(&hail).Error; err != nil {
+				return err
+			}
+			if shared || hail > 0 {
+				return TransportError(409, "COMMITMENT_CONFLICT", "Finish the active trip before changing vehicle or capacity")
+			}
+		}
 		if input.PassengerSeats != nil {
 			if *input.PassengerSeats < 1 || *input.PassengerSeats > 100 {
 				return FieldError("passenger_seats", "Enter 1–100 passenger seats excluding the driver")
 			}
 			p.PassengerSeats = *input.PassengerSeats
 		}
-		changedIdentifiers := false
+		changedIdentifiers := materialVehicleChange
 		if v := values["licence_number"]; v != "" && v != p.LicenceNumber {
 			p.LicenceNumber = v
 			changedIdentifiers = true
@@ -577,5 +593,5 @@ func (s *Store) CheckDispatchEligibility(passengerID, driverID string) error {
 	if passengerID != "" {
 		return s.CheckRideEligibility(passengerID, driverID)
 	}
-	return nil
+	return s.checkFinancialEligibility(driverID)
 }
