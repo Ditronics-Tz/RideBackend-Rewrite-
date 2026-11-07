@@ -178,6 +178,10 @@ To bind another address or host port, set `API_BIND_ADDRESS` and `API_PORT` in
 `.env`. Binding to `0.0.0.0` exposes the unencrypted API directly on all host
 interfaces; use only behind a deliberate firewall/proxy configuration.
 
+## Continuous delivery
+
+`.github/workflows/ci.yml` runs `go vet`, `go test ./...`, and `go build ./...` on pull requests and on `main`. A push to `main` deploys only after those checks pass. The deploy job uses `RIDA_DEPLOY_KEY` and `RIDA_DEPLOY_KNOWN_HOSTS` to run the server command `backend`. That command follows the later-deployment order above: backup, build, `migrate up`, then `docker compose up -d api`. It does not run `create-admin` and it does not remove volumes. The restricted command is `deploy/gha-remote.sh`.
+
 ## Troubleshooting
 
 - **API exits saying schema is not current:** check `docker compose logs db`, run
