@@ -257,3 +257,34 @@ func TestTicketConversationAndPrivateAttachmentScope(t *testing.T) {
 		}
 	}
 }
+
+func TestPassengerNotificationReadIsOwnerScoped(t *testing.T) {
+	s, cfg, err := testutil.SetupTestStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, _ := s.CreateUser("Owner", uuid.NewString()+"@test.invalid", "unused", models.RolePassenger)
+	other, _ := s.CreateUser("Other", uuid.NewString()+"@test.invalid", "unused", models.RolePassenger)
+	driver, _ := s.CreateUser("Driver", uuid.NewString()+"@test.invalid", "unused", models.RoleDriver)
+	note := models.AppNotification{ID: uuid.NewString(), UserID: owner.ID, Kind: "ride", Title: "Driver assigned", Body: "Your driver is on the way.", Data: `{}`, CreatedAt: time.Now().UTC()}
+	if err := s.DB().Create(&note).Error; err != nil {
+		t.Fatal(err)
+	}
+	app := routes.BuildApp(cfg, s)
+	defer app.Shutdown()
+	ownerToken, _ := testutil.AppToken(s, owner.ID, owner.Role, cfg.JWTSecret, time.Hour)
+	otherToken, _ := testutil.AppToken(s, other.ID, other.Role, cfg.JWTSecret, time.Hour)
+	driverToken, _ := testutil.AppToken(s, driver.ID, driver.Role, cfg.JWTSecret, time.Hour)
+	path := "/passenger/notifications/" + note.ID + "/read"
+	mobileJSONRequest(t, app, "POST", path, "", "", nil, 401)
+	mobileJSONRequest(t, app, "POST", path, driverToken, "", nil, 403)
+	mobileJSONRequest(t, app, "POST", path, otherToken, "", nil, 404)
+	var stored models.AppNotification
+	if err := s.DB().First(&stored, "id = ?", note.ID).Error; err != nil || stored.ReadAt != nil {
+		t.Fatalf("another passenger changed the notification: %+v %v", stored, err)
+	}
+	mobileJSONRequest(t, app, "POST", path, ownerToken, "", nil, 204)
+	if err := s.DB().First(&stored, "id = ?", note.ID).Error; err != nil || stored.ReadAt == nil {
+		t.Fatalf("owner mark-read did not persist: %+v %v", stored, err)
+	}
+}
