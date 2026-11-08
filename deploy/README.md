@@ -1,6 +1,6 @@
 # Main-branch delivery
 
-Work on `dev`. Pushes to `dev`, pull requests targeting `dev`/`main`, and pushes to `main` run static checks and a build. Tests are deliberately excluded under the project's code-only rule. A merge into `main` automatically starts deployment after the checks succeed. GitHub runner availability and build time determine when it finishes; deployment is not instantaneous.
+Work on `dev`. Pull requests targeting `main`, and pushes to `main`, run static checks and a build. Tests are deliberately excluded under the project's code-only rule. A merge into `main` automatically starts deployment after the checks succeed. Pushes to `dev` do not start this workflow. GitHub runner availability and build time determine when it finishes; deployment is not instantaneous.
 
 ## GitHub setup
 
