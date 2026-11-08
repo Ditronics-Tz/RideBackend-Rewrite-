@@ -28,7 +28,7 @@ deploy_backend() {
   docker compose config -q
   docker compose build
   docker compose --profile tools run --rm migrate up
-  docker compose up -d api
+  docker compose up -d --wait --wait-timeout 120 api
   docker compose exec -T api wget -q -O - http://127.0.0.1:3000/ready
   echo
 }
