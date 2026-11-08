@@ -146,6 +146,12 @@ func (pc *PromoController) Update(c *fiber.Ctx) error {
 	}
 	return pc.write(c, "update_promo", func(sc *store.Store) (interface{}, error) { return sc.UpdatePromo(c.Params("id"), input) })
 }
+
+func (pc *PromoController) Delete(c *fiber.Ctx) error {
+	return pc.write(c, "delete_promo", func(sc *store.Store) (interface{}, error) {
+		return fiber.Map{"message": "promotion deleted"}, sc.DeletePromo(c.Params("id"))
+	})
+}
 func (pc *PromoController) SetStatus(c *fiber.Ctx) error {
 	action := c.Params("action")
 	status := ""

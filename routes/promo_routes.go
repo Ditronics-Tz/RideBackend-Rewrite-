@@ -16,6 +16,7 @@ func SetupPromoAdminRoutes(admin fiber.Router, pc *controllers.PromoController, 
 	admin.Get("/promos", read, pc.List)
 	admin.Get("/promos/:id", read, pc.Get)
 	admin.Patch("/promos/:id", write, pc.Update)
+	admin.Delete("/promos/:id", write, pc.Delete)
 	admin.Get("/promos/:id/audience", read, pc.Audience)
 	admin.Post("/promos/:id/audience", write, pc.Audience)
 	admin.Delete("/promos/:id/audience/:userId", write, pc.RemoveAudience)

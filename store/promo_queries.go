@@ -41,7 +41,7 @@ func (s *Store) PromoDetail(id string, now time.Time) (*PromoDetail, error) {
 }
 
 func (s *Store) ListPromos(status, audience, search string, limit, offset int, now time.Time) ([]PromoView, int64, error) {
-	q := s.db.Model(&models.PromoCode{})
+	q := s.db.Model(&models.PromoCode{}).Where("status <> ?", models.PromoStatusDeleted)
 	switch status {
 	case "":
 	case "active":
@@ -154,7 +154,7 @@ func (s *Store) UserPromos(id string, now time.Time) (*UserPromos, error) {
 	return result, err
 }
 func eligiblePromoQuery(tx *gorm.DB, id string) *gorm.DB {
-	return tx.Model(&models.PromoCode{}).Where("audience = ? OR id IN (?)", "all", tx.Model(&models.PromoAudience{}).Select("promo_id").Where("user_id = ?", id))
+	return tx.Model(&models.PromoCode{}).Where("status <> ?", models.PromoStatusDeleted).Where("audience = ? OR id IN (?)", "all", tx.Model(&models.PromoAudience{}).Select("promo_id").Where("user_id = ?", id))
 }
 
 type AvailablePromo struct {

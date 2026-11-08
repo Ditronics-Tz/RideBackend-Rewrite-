@@ -4,6 +4,7 @@ import (
 	"ride-backend/config"
 	"ride-backend/controllers"
 	"ride-backend/middleware"
+	"ride-backend/models"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -12,6 +13,11 @@ func SetupProfileRoutes(router fiber.Router, pc *controllers.ProfileController, 
 	protected := middleware.AppProtected(cfg, pc.Store)
 
 	driver := router.Group("/driver", protected)
+	nc := &controllers.AppNotificationController{Store: pc.Store}
+	push := driver.Group("/push-devices", middleware.RequireAppRoles(models.RoleDriver))
+	push.Get("", nc.Devices)
+	push.Post("", nc.RegisterDevice)
+	push.Delete("/:id", nc.UnregisterDevice)
 	// Driver self-service (driver role only — enforced in controller)
 	driver.Get("/profile/me", pc.GetMyDriverProfile)
 	driver.Put("/profile/me", pc.UpdateMyDriverProfile)

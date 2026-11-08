@@ -2,6 +2,10 @@ package models
 
 import "time"
 
+// PromoStatusDeleted is an internal tombstone, not a creatable/editable status.
+// Keep the row and unique code for existing reservations and financial history.
+const PromoStatusDeleted = "deleted"
+
 // Money is whole TZS. DiscountValue is a percentage only when DiscountType=percent.
 type PromoCode struct {
 	ID             string    `json:"id" gorm:"primaryKey;type:uuid"`

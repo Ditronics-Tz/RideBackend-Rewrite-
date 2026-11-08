@@ -86,6 +86,11 @@ func (s *Store) AdminCancelRide(rideID string, actor *models.StaffUser, reason s
 		if err := tx.queueRideNotification(context.Background(), ride.PassengerID, ride.ID, "cancelled_by_admin"); err != nil {
 			return err
 		}
+		if ride.DriverID != models.UnassignedRideDriverID {
+			if err := tx.queueAppNotification(context.Background(), ride.DriverID, "ride", "Ride cancelled", "Rida support cancelled this ride.", map[string]string{"ride_id": ride.ID, "status": "cancelled_by_admin"}); err != nil {
+				return err
+			}
+		}
 		return tx.CreateAuditLog(actor.ID, "ride_cancelled_by_staff", "ride", ride.ID, "", map[string]string{"reason": reason, "actor_role": string(actor.Role)})
 	})
 }
@@ -144,6 +149,14 @@ func (s *Store) AdminReassignRide(rideID, driverID string, actor *models.StaffUs
 		}
 		if err := tx.queueRideNotification(context.Background(), ride.PassengerID, ride.ID, "assigned"); err != nil {
 			return err
+		}
+		if err := tx.queueAppNotification(context.Background(), driverID, "ride", "Ride assigned", "Rida support assigned a ride to you. Open Rida to see the current trip.", map[string]string{"ride_id": ride.ID, "status": "assigned"}); err != nil {
+			return err
+		}
+		if previous != models.UnassignedRideDriverID && previous != driverID {
+			if err := tx.queueAppNotification(context.Background(), previous, "ride", "Ride reassigned", "Rida support reassigned this ride to another driver.", map[string]string{"ride_id": ride.ID, "status": "reassigned"}); err != nil {
+				return err
+			}
 		}
 		return tx.CreateAuditLog(actor.ID, "ride_reassigned", "ride", ride.ID, "", map[string]string{"reason": reason, "driver_id": driverID, "actor_role": string(actor.Role)})
 	})

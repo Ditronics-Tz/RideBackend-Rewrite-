@@ -1,10 +1,10 @@
-# Rida passenger app: promo codes and notifications without Firebase
+# Rida passenger inbox and promo codes
 
 Audience: Android engineer working on `com.example.ridepassenger2` (Kotlin, Compose, Retrofit, OkHttp, Moshi). API base: `https://rida-backend.ditronics.co.tz/api/v1`. Use `Authorization: Bearer <accessToken>` and the existing `/auth/refresh` contract.
 
 ## What is implemented
 
-The backend stores one durable inbox item per passenger for promo shares and supported ride/account events. Admin creates or activates a promo and then selects **Share with audience**; saving alone does not notify users. The Android app must fetch and display its inbox. A new long-poll endpoint tells an open app when the inbox has changed. Firebase and an FCM device token are not part of this flow. Google Sign-In is independent and remains unchanged.
+The backend stores one durable inbox item per passenger for promo shares and supported ride/account events. Admin creates or activates a promo and then selects **Share with audience**; saving alone does not notify users. The Android app must fetch and display its inbox. A new long-poll endpoint tells an open app when the inbox has changed. The inbox/long-poll flow works without Firebase. Both Android apps now also implement optional FCM device registration and OS notifications; see [FCM setup](FCM_SETUP_RIDA.md) for activation and driver/admin announcement contracts. Google Sign-In is independent and remains unchanged.
 
 ## Promo API (passenger)
 
@@ -107,8 +107,8 @@ If background discovery is acceptable, use periodic WorkManager sync with a mini
 
 ## Notification preferences
 
-`GET /passenger/preferences` and `PATCH /passenger/preferences` remain available. Example patch: `{"promotions":true,"ride_updates":true,"language":"sw"}`. Use these preferences when deciding whether to show an optional local alert. The inbox remains the durable source of messages. `push_enabled` is a legacy setting and has no effect on this Firebase-free flow.
+`GET /passenger/preferences` and `PATCH /passenger/preferences` remain available. Example patch: `{"promotions":true,"ride_updates":true,"language":"sw"}`. Use these preferences when deciding whether to show an optional local alert. The inbox remains the durable source of messages. `push_enabled` controls FCM push delivery; it does not hide durable inbox entries. The push worker also respects `ride_updates` and promotional consent.
 
 ## Backend deployment
 
-Migration `00014_app_notifications.sql` is already required for the inbox. No new migration or Firebase credential is needed for the update endpoint. Keep `PUSH_PROVIDER=none`; use the base `docker-compose.yml` only. Deploy backend changes using the existing migration/build/restart process in `DOCKER_DEPLOYMENT.md`. Existing Google Sign-In, sessions, promos, and stored inbox messages are unaffected. The Android app source is a separate project and must implement the API calls above before users see these notifications.
+Migration `00014_app_notifications.sql` is already required for the inbox. No new migration or Firebase credential is needed for the update endpoint. Use `PUSH_PROVIDER=none` with base Compose for inbox-only operation; follow [FCM setup](FCM_SETUP_RIDA.md) to enable push for both apps. Deploy backend changes using the existing migration/build/restart process in `DOCKER_DEPLOYMENT.md`. Existing Google Sign-In, sessions, promos, and stored inbox messages are unaffected. The Android app source is a separate project and must implement the API calls above before users see these notifications.

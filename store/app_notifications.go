@@ -154,6 +154,9 @@ func (s *Store) decryptPushToken(encoded string) (string, error) {
 }
 
 func (s *Store) RegisterPushDevice(ctx context.Context, userID, sessionID, token string) (*models.PushDevice, error) {
+	if len(s.PushKey) != 32 {
+		return nil, OpError(503, "Push registration is not configured")
+	}
 	if len(token) < 20 || len(token) > 4096 || strings.TrimSpace(token) != token || strings.ContainsAny(token, "\r\n\t ") {
 		return nil, FieldError("token", "invalid FCM registration token")
 	}
@@ -245,20 +248,40 @@ func (s *Store) ProcessPushDeliveries(ctx context.Context) error {
 		if err := s.db.WithContext(ctx).Model(&models.AppSession{}).Where("family_id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ? AND absolute_expires_at > ?", device.SessionFamilyID, device.UserID, now, now).Count(&activeSessions).Error; err != nil {
 			return err
 		}
-		if !device.Active || device.UserID != notification.UserID || activeSessions == 0 {
+		currentOffer := true
+		if notification.Kind == "ride_offer" {
+			var data map[string]string
+			_ = json.Unmarshal([]byte(notification.Data), &data)
+			var count int64
+			if err := s.db.WithContext(ctx).Model(&models.Ride{}).Where("id = ? AND driver_id = ? AND status = 'offered' AND offer_expires_at > ?", data["ride_id"], notification.UserID, s.now()).Count(&count).Error; err != nil {
+				return err
+			}
+			currentOffer = count == 1
+		}
+		currentPromo := true
+		if notification.Kind == "promo" {
+			var data map[string]string
+			_ = json.Unmarshal([]byte(notification.Data), &data)
+			var count int64
+			if err := s.db.WithContext(ctx).Model(&models.PromoCode{}).Where("id = ? AND status <> ?", data["promo_id"], models.PromoStatusDeleted).Count(&count).Error; err != nil {
+				return err
+			}
+			currentPromo = count == 1
+		}
+		if !device.Active || device.UserID != notification.UserID || activeSessions == 0 || !currentOffer || !currentPromo {
 			status = "skipped"
 		} else {
 			prefs, err := s.PassengerPreferences(ctx, notification.UserID)
 			if err != nil {
 				status = "pending"
-			} else if !prefs.PushEnabled || notification.Kind == "promo" && !prefs.Promotions || notification.Kind == "ride" && !prefs.RideUpdates {
+			} else if !prefs.PushEnabled || notification.Kind == "promo" && !prefs.Promotions || (notification.Kind == "ride" || notification.Kind == "ride_offer") && !prefs.RideUpdates {
 				status = "skipped"
 			} else {
 				token, err := s.decryptPushToken(device.TokenCiphertext)
 				if err == nil {
 					var data map[string]string
 					_ = json.Unmarshal([]byte(notification.Data), &data)
-					err = s.PushSender.SendPush(ctx, token, notifications.PushMessage{ID: notification.ID, Kind: notification.Kind, Title: notification.Title, Body: notification.Body, PromoID: data["promo_id"], RideID: data["ride_id"]})
+					err = s.PushSender.SendPush(ctx, token, notifications.PushMessage{ID: notification.ID, Kind: notification.Kind, Title: notification.Title, Body: notification.Body, PromoID: data["promo_id"], RideID: data["ride_id"], SharedTripID: data["shared_trip_id"]})
 				}
 				if errors.Is(err, notifications.ErrInvalidPushToken) {
 					status = "invalid"

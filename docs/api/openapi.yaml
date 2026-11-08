@@ -6409,6 +6409,176 @@
         "x-go-handler": "ride-backend/controllers.(*AdminController).NotificationDeliveries"
       }
     },
+    "/api/v1/admin/notifications/announcements": {
+      "post": {
+        "description": "Atomically queue an audited announcement for active accounts. Retry the same payload with the same key to recover the original result without duplicates. Push mode fcm means queued delivery, not confirmed handset display.",
+        "operationId": "post_api_v1_admin_notifications_announcements",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 8,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "audience": {
+                    "enum": [
+                      "both",
+                      "passengers",
+                      "drivers"
+                    ],
+                    "type": "string"
+                  },
+                  "body": {
+                    "maxLength": 500,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "title": {
+                    "maxLength": 160,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "audience",
+                  "body",
+                  "title"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "notified_count": {
+                      "type": "integer"
+                    },
+                    "push_mode": {
+                      "enum": [
+                        "none",
+                        "fcm"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "notified_count",
+                    "push_mode"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Atomically queue an audited announcement for active accounts. Retry the same payload with the same key to recover the original result without duplicates. Push mode fcm means queued delivery, not confirmed handset display.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid audience, content or idempotency key.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Admin role required.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Idempotency key was used for different content.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/admin/notifications/announcements",
+        "x-allowed-roles": [
+          "admin"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/notifications/announcements",
+        "x-go-handler": "ride-backend/controllers.(*AppNotificationController).Announce"
+      }
+    },
     "/api/v1/admin/operation-events": {
       "get": {
         "description": "Current paged list; existing collection key is preserved alongside total, limit and offset.",
@@ -7292,6 +7462,125 @@
       }
     },
     "/api/v1/admin/promos/{id}": {
+      "delete": {
+        "description": "Delete an admin-created promotion from admin and passenger listings using an internal deleted status. Existing reservations, redemption/financial records and the unique promo code are retained. Repeating deletion succeeds; hidden promotions cannot be edited, resumed or shared. The mutation and named staff audit entry are transactional.",
+        "operationId": "delete_api_v1_admin_promos_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Delete an admin-created promotion from admin and passenger listings using an internal deleted status. Existing reservations, redemption/financial records and the unique promo code are retained. Repeating deletion succeeds; hidden promotions cannot be edited, resumed or shared. The mutation and named staff audit entry are transactional.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Only admin-created promotions can be deleted.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Admin role required.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Promotion does not exist or id is invalid.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "DELETE /api/v1/admin/promos/{id}",
+        "x-allowed-roles": [
+          "admin"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/promos/:id",
+        "x-go-handler": "ride-backend/controllers.(*PromoController).Delete"
+      },
       "get": {
         "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
         "operationId": "get_api_v1_admin_promos_id",
@@ -15345,6 +15634,130 @@
         "x-fiber-path": "/api/v1/driver/profile/:userId",
         "x-go-handler": "ride-backend/controllers.(*ProfileController).GetDriverProfileByID",
         "x-privacy-contract": "public DTO for other users; full profile for owner"
+      }
+    },
+    "/api/v1/driver/push-devices": {
+      "get": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "get_api_v1_driver_push_devices",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/driver/push-devices",
+        "x-allowed-roles": [
+          "driver"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/driver/push-devices",
+        "x-go-handler": "ride-backend/controllers.(*AppNotificationController).Devices"
+      },
+      "post": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "post_api_v1_driver_push_devices",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "POST /api/v1/driver/push-devices",
+        "x-allowed-roles": [
+          "driver"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/driver/push-devices",
+        "x-go-handler": "ride-backend/controllers.(*AppNotificationController).RegisterDevice"
+      }
+    },
+    "/api/v1/driver/push-devices/{id}": {
+      "delete": {
+        "description": "Existing registered handler. This early contract records the route and access realm; response details for this existing module are not yet expanded.",
+        "operationId": "delete_api_v1_driver_push_devices_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Existing handler response; see endpoint implementation for the current payload."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "AppBearer": []
+          }
+        ],
+        "summary": "DELETE /api/v1/driver/push-devices/{id}",
+        "x-allowed-roles": [
+          "driver"
+        ],
+        "x-contract-detail": "route-inventory",
+        "x-fiber-path": "/api/v1/driver/push-devices/:id",
+        "x-go-handler": "ride-backend/controllers.(*AppNotificationController).UnregisterDevice"
       }
     },
     "/api/v1/driver/rides/current": {

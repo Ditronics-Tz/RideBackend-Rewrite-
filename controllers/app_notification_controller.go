@@ -14,6 +14,21 @@ import (
 
 type AppNotificationController struct{ Store *store.Store }
 
+func (nc *AppNotificationController) Announce(c *fiber.Ctx) error {
+	if len(c.Body()) > 4096 {
+		return operationError(c, store.FieldError("body", "announcement body is too large"))
+	}
+	var input store.AnnouncementInput
+	if err := c.BodyParser(&input); err != nil {
+		return operationError(c, store.FieldError("body", "invalid announcement body"))
+	}
+	result, err := nc.Store.Announce(c.UserContext(), middleware.CurrentStaff(c), c.Get("Idempotency-Key"), input)
+	if err != nil {
+		return operationError(c, err)
+	}
+	return c.Status(fiber.StatusAccepted).JSON(result)
+}
+
 func (nc *AppNotificationController) List(c *fiber.Ctx) error {
 	userID, _ := middleware.CurrentUser(c)
 	page, err := operationPage(c)

@@ -1,62 +1,62 @@
-# Activate FCM for Rida passenger Android
+# Firebase push for passenger and driver apps
 
-**Deferred:** The current mobile notification implementation does not use FCM.
-Use [MOBILE_PROMOS_AND_NOTIFICATIONS.md](MOBILE_PROMOS_AND_NOTIFICATIONS.md)
-for the active Firebase-free inbox and foreground update contract. Keep
-`PUSH_PROVIDER=none`. The steps below are retained only if FCM is chosen later.
+Updated 2026-11-08. Code is wired for FCM in both Android apps and the backend. Backend tests, vet and generated API-contract checks pass. Server activation is a separate operational step; handset display requires updated apps, authenticated device registration and notification permission. Never infer real handset delivery from source checks or provider acceptance.
 
-The backend and admin are already deployed with a durable passenger inbox. FCM is an optional delivery channel for immediate Android push alerts. On 16 October 2026, the VPS did not contain a Firebase service-account JSON, so production is currently **inbox-only**. No actual handset push has been verified.
+## What the code does
 
-## 1. Firebase Console
+- Both apps include Firebase Messaging, a non-exported `FirebaseMessagingService`, an Android notification channel/icon, and Android 13+ notification permission requested after login. Analytics alone is not a push transport.
+- The Application observes login changes. It obtains the Firebase device token and registers it with an explicit captured bearer token at `POST /api/v1/passenger/push-devices` or `POST /api/v1/driver/push-devices`, body `{"token":"<FCM registration token>"}`. Failures retry while the process is alive (5 seconds through 5 minutes); foreground resume, token refresh and a new login trigger registration again. A token/account conflict rotates the installation token before retrying. Tokens/credentials are never logged.
+- Backend registration binds encrypted tokens to a user and active session family. Logout/revocation removes those registrations; queued sends also check the session. An offline local sign-out cannot recall a notification already accepted by FCM.
+- Existing passenger ride/account/promo messages use the delivery queue. Drivers now receive hail offers, passenger/admin cancellations, staff assignment changes, and shared-seat reservation/release messages. Expired or reassigned offers are skipped before sending. Push is a hint: opening the app reloads authoritative ride state; it does not accept a ride or navigate directly to an unverified payload ID.
+- Firebase notification messages display through the SDK when the app is backgrounded. The service posts foreground messages. Notification taps open the app's normal authenticated navigation. Passenger inbox/foreground polling remains available independently; the driver has no new inbox UI in this change.
+- Admin → Notification deliveries includes an announcement form for active passengers, drivers, or both. Support cannot send. `POST /api/v1/admin/notifications/announcements` accepts `audience` (`both`, `passengers`, `drivers`), `title` (1–160 characters) and `body` (1–500 characters). Required `Idempotency-Key`: 8–100 characters. A transaction stores the inbox entries, push jobs and deterministic staff audit receipt. Retry the same content/key for the original result; different content with that key returns 409. The audience is snapshotted once. Response 202: `{"id":"UUID","notified_count":42,"push_mode":"fcm"}` (`none` if disabled). Counts are accounts queued, not handset deliveries.
 
-1. Open the Firebase Console and select the Firebase project for Rida. The Google OAuth configuration previously supplied named `rida-511608`; verify that this is the actual Firebase project before using its ID.
-2. Add an Android app with package/application ID exactly `com.example.ridepassenger2`.
-3. In **Project settings → Cloud Messaging**, enable the Firebase Cloud Messaging HTTP v1 API.
-4. Create a service account with the [Firebase Cloud Messaging API Admin role](https://firebase.google.com/docs/cloud-messaging/send/v1-api) for this project and download its JSON private key. Keep this file private. The Google OAuth Web client secret is not an FCM credential.
-5. Download `google-services.json` for the Android app. Give that file to the mobile engineer; never give the server service-account JSON to the mobile app.
+## Server prerequisites
 
-## 2. VPS secret and environment
+Use the same Firebase project as both Android `google-services.json` files. The two local configs were checked to have matching project IDs. In Firebase Console:
 
-Transfer the service-account JSON over SSH/SCP to `/root/RideBackend-Rewrite-/secrets/firebase-service-account.json`. The repository ignores `secrets/` and `.env`; neither is copied into the Docker image. On the VPS:
+1. Verify Android registrations `com.example.ridepassenger2` and `com.example.ridedriver` belong to that project.
+2. Under Project settings → Cloud Messaging, ensure the Firebase Cloud Messaging HTTP v1 API is enabled.
+3. Provision a Google service account with permission to send FCM messages in that project (Firebase Cloud Messaging API Admin role). To download a JSON key in Firebase Console, open Project settings → Service accounts → Firebase Admin SDK → Generate new private key, then keep the downloaded file private. Alternatively use Google Application Default Credentials/workload identity when supported by the hosting environment. A Google OAuth Web secret and Android `google-services.json` cannot authenticate the backend sender.
 
-```bash
-cd /root/RideBackend-Rewrite-
-mkdir -p secrets
-chmod 700 secrets
-# Put the real service-account file here using a secure transfer first.
-chown 10001:10001 secrets/firebase-service-account.json
-chmod 400 secrets/firebase-service-account.json
-openssl rand -hex 32
+See [Firebase server authorization](https://firebase.google.com/docs/cloud-messaging/auth-server) and [Android setup](https://firebase.google.com/docs/cloud-messaging/android/get-started).
+
+## Docker/VPS activation
+
+The existing `docker-compose.fcm.yml` mounts a read-only service-account file into the API container. The current deploy script uses `/root/RideBackend-Rewrite-` on the VPS. On the server, place the private JSON at `secrets/firebase-service-account.json` under the backend checkout. The API runs as UID 10001, so the mounted file must be readable by that UID. Restrict the host directory to the operator and the file to the service user (for example directory mode 0700, file owner 10001:10001 and mode 0400). Do not commit this credential or copy it into either Android app.
+
+Merge these entries into the server's existing `.env`; preserve other values:
+
+```dotenv
+# Match project_info.project_id from the Android configs.
+FIREBASE_PROJECT_ID=<your Firebase project ID>
+# Generate once with openssl rand -hex 32 and retain securely.
+PUSH_TOKEN_ENCRYPTION_KEY=<64 hexadecimal characters>
+PUSH_PROVIDER=fcm
+# Keep the credentials mount enabled across ordinary automated deployments.
+COMPOSE_FILE=docker-compose.yml:docker-compose.fcm.yml
 ```
 
-Copy the generated 64-character hex value into the existing `.env` as `PUSH_TOKEN_ENCRYPTION_KEY`. Add `FIREBASE_PROJECT_ID=<verified project ID>` to the same file. Do not replace the `.env` file or existing application secrets. Keep `PUSH_PROVIDER=none` in the base `.env`; the FCM Compose overlay sets the provider for the API container only. Protect `.env` with `chmod 600 .env`. Keep the encryption key stable after devices register.
+The overlay supplies `GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-service-account.json`. Keep the token encryption key stable after devices register. Do not print credentials or live `.env` values in logs. The Linux `COMPOSE_FILE` separator is `:`. This also makes the existing GitHub deploy script's ordinary `docker compose` commands load the FCM overlay on later deployments; a one-time explicit overlay command alone would not persist that choice.
 
-Check the mount without printing the key:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml config -q
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml run --rm --no-deps --entrypoint /bin/sh api -c 'test -r /run/secrets/firebase-service-account.json'
-```
-
-## 3. Activate the API
-
-From the same VPS checkout:
+After the changed backend code has been deployed, server activation commands for the operator are:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml up -d --no-deps api
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml ps
-docker compose -f docker-compose.yml -f docker-compose.fcm.yml logs --tail=100 api
-curl -fsS https://rida-backend.ditronics.co.tz/ready
+docker compose config -q
+docker compose up -d --no-deps api
+docker compose exec -T api wget -q -O - http://127.0.0.1:3000/ready
 ```
 
-The admin **Notification deliveries** page should show FCM enabled. If API startup fails, leave the durable inbox available by returning to the base Compose file: `docker compose up -d --no-deps api`. The admin UI does not need a rebuild when FCM is enabled.
+Run activation after successful backend deployment. No schema migration was added: notification tables and staff audit receipts already exist. Deploy both updated Android apps and the admin UI through the owner's normal release process. Do not generate APKs or run builds without the owner's request.
 
-## 4. Mobile engineer
+To disable push, remove the `COMPOSE_FILE` override, set `PUSH_PROVIDER=none`, and recreate the API with base Compose. Stored passenger inbox messages remain available. Keep encryption key backups if registered tokens will be reused later.
 
-Give the engineer [MOBILE_PROMOS_AND_NOTIFICATIONS.md](MOBILE_PROMOS_AND_NOTIFICATIONS.md). They must add the [Firebase Messaging Android SDK](https://firebase.google.com/docs/cloud-messaging/android/get-started), request Android 13+ notification permission, register and refresh device tokens through the authenticated Rida API, handle foreground/background notification taps, and display the durable inbox. Registration endpoint: `POST /api/v1/passenger/push-devices` with `{"token":"<FCM registration token>"}`. This endpoint needs a logged-in passenger. Do not put service-account JSON or private keys in Android.
+## Acceptance on real phones
 
-For a real end-to-end check, sign in on one test phone, enable `promotions` and `push_enabled` in `/api/v1/passenger/preferences`, create and activate a promo in admin, then use **Share with audience**. Confirm the inbox entry, then the OS notification. Admin `sent` means Firebase accepted the request; it does not prove display on the handset.
+1. Open each updated app with Google Play services available; sign in and allow notifications. Registration retries once the server is configured. Android Settings can restore permission if it was previously denied.
+2. In admin, confirm **Push delivery: FCM**. Send an announcement to both apps; test with each app open and then in the background. Confirm a foreground alert, a system notification, and that tapping opens the correct app. Use a fresh announcement after devices register: old inbox entries are not retroactively pushed.
+3. Exercise a real ride request with an eligible online driver, passenger cancellation, passenger ride updates and shared-seat changes. Driver offers can expire before delivery; the phone must fetch the current offer. FCM is not a guaranteed dispatch timer.
+4. Sign out/revoke sessions and confirm subsequent account messages are not sent to that session. Test token rotation and reinstall/account changes.
+5. Passenger `push_enabled=false` suppresses all queued push alerts; `ride_updates=false` suppresses ride/offer pushes, and `promotions=false` suppresses promotional pushes. Driver transport currently uses the same default push-enabled policy; Android system permission/channel settings provide its user control. Announcements respect global push enablement but are not promo campaigns.
 
-## Alternative without FCM
-
-The inbox and promo validation work with `PUSH_PROVIDER=none`. The Android app can sync on launch, foreground resume, and periodically with WorkManager. The [Android WorkManager minimum periodic interval is 15 minutes](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work); OS scheduling can delay it further. This is suitable for non-urgent promo updates but not instant background alerts. For instant OS notifications on standard Android, an actual push transport is needed; FCM is the most direct choice for this app.
+`push_by_status.sent` means Firebase accepted a send, not that the phone displayed it. Check pending/failed/invalid counts, current registered sessions, Android permission/channel settings, network/Play services, matching Firebase project, service-account IAM and API availability. Delivery workers retry transient failures; data-only guaranteed background delivery is not claimed. Firebase Console test messages can check a specific installation, but bypass backend session, queue and preference checks.

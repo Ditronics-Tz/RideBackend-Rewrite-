@@ -32,6 +32,8 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 		return err
 	})
 	dc := controllers.NewDataRequestController(cfg, s)
+	nc := &controllers.AppNotificationController{Store: s}
+	admin.Post("/notifications/announcements", adminOnly, nc.Announce)
 	pc := controllers.NewProfileController(cfg, s)
 	admin.Get("/data-requests", supportAndAdmin, dc.AdminList)
 	admin.Get("/data-requests/:id", supportAndAdmin, dc.AdminDetail)

@@ -19,7 +19,7 @@ import (
 var ErrInvalidPushToken = errors.New("invalid push registration token")
 
 type PushMessage struct {
-	ID, Kind, Title, Body, PromoID, RideID string
+	ID, Kind, Title, Body, PromoID, RideID, SharedTripID string
 }
 
 type PushSender interface {
@@ -58,11 +58,23 @@ func (s *FCMSender) SendPush(ctx context.Context, token string, m PushMessage) e
 	if m.RideID != "" {
 		data["ride_id"] = m.RideID
 	}
+	if m.SharedTripID != "" {
+		data["shared_trip_id"] = m.SharedTripID
+	}
+	priority, ttl := "NORMAL", "86400s"
+	if m.Kind == "ride" || m.Kind == "ride_offer" {
+		priority, ttl = "HIGH", "120s"
+	}
+	if m.Kind == "ride_offer" {
+		ttl = "30s"
+	}
 	requestBody, err := json.Marshal(map[string]any{"message": map[string]any{
 		"token":        token,
 		"notification": map[string]string{"title": m.Title, "body": m.Body},
 		"data":         data,
-		"android":      map[string]any{"priority": "NORMAL", "restricted_package_name": "com.example.ridepassenger2"},
+		// The registration token selects the Android app within this Firebase
+		// project. A passenger-only package restriction rejects driver tokens.
+		"android": map[string]any{"priority": priority, "ttl": ttl, "notification": map[string]string{"channel_id": "rida_updates", "tag": m.ID}},
 	}})
 	if err != nil {
 		return errors.New("FCM request encoding failed")

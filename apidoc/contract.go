@@ -74,7 +74,7 @@ func realm(route Route) ([]any, []string) {
 	}
 	if strings.HasPrefix(path, "/admin/") {
 		adminOnly := strings.HasPrefix(path, "/admin/staff") || strings.HasPrefix(path, "/admin/ratings") || path == "/admin/audit-logs" || strings.HasSuffix(path, "/role") || strings.HasSuffix(path, "/ban") || route.Method == "DELETE" && strings.Contains(path, "/notes/") || route.Method == "POST" && (strings.Contains(path, "/data-requests/") || strings.HasSuffix(path, "/deletion-request")) || strings.HasPrefix(path, "/admin/payouts") || strings.HasPrefix(path, "/admin/wallets") || strings.HasPrefix(path, "/admin/reconciliation") || path == "/admin/payment-settings" || path == "/admin/payments/summary" || path == "/admin/payments/export" || path == "/admin/sos/export" || route.Method != "GET" && (strings.HasPrefix(path, "/admin/promos") || path == "/admin/referral-settings" || strings.HasPrefix(path, "/admin/fraud/rules"))
-		adminOnly = adminOnly || path == "/admin/shared-trips/:id/cancel" || path == "/admin/operation-events" || path == "/admin/transport/settings" && route.Method == "PUT"
+		adminOnly = adminOnly || path == "/admin/notifications/announcements" || path == "/admin/shared-trips/:id/cancel" || path == "/admin/operation-events" || path == "/admin/transport/settings" && route.Method == "PUT"
 		roles := []string{"admin", "support"}
 		if adminOnly {
 			roles = []string{"admin"}
@@ -83,6 +83,9 @@ func realm(route Route) ([]any, []string) {
 	}
 	if strings.HasPrefix(path, "/staff/") {
 		return []any{object{"StaffBearer": []string{}}}, []string{"admin", "support"}
+	}
+	if strings.HasPrefix(path, "/driver/push-devices") {
+		return []any{object{"AppBearer": []string{}}}, []string{"driver"}
 	}
 	return []any{object{"AppBearer": []string{}}}, nil
 }
@@ -98,6 +101,22 @@ func describeCurrent(route Route, operation, schemas object) {
 	}
 	params := func(values ...any) { operation["parameters"] = append(operation["parameters"].([]any), values...) }
 	if describeTransport(route, operation, schemas) {
+		return
+	}
+	if path == "/admin/promos/:id" && route.Method == "DELETE" {
+		set("200", "Delete an admin-created promotion from admin and passenger listings using an internal deleted status. Existing reservations, redemption/financial records and the unique promo code are retained. Repeating deletion succeeds; hidden promotions cannot be edited, resumed or shared. The mutation and named staff audit entry are transactional.", properties(object{"message": scalar("string")}, "message"))
+		responses["400"] = jsonResponse("Only admin-created promotions can be deleted.", ref("Error"))
+		responses["403"] = jsonResponse("Admin role required.", ref("Error"))
+		responses["404"] = jsonResponse("Promotion does not exist or id is invalid.", ref("Error"))
+		return
+	}
+	if path == "/admin/notifications/announcements" {
+		params(object{"name": "Idempotency-Key", "in": "header", "required": true, "schema": object{"type": "string", "minLength": 8, "maxLength": 100}})
+		operation["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": properties(object{"audience": object{"type": "string", "enum": []string{"both", "passengers", "drivers"}}, "title": object{"type": "string", "minLength": 1, "maxLength": 160}, "body": object{"type": "string", "minLength": 1, "maxLength": 500}}, "audience", "title", "body")}}}
+		set("202", "Atomically queue an audited announcement for active accounts. Retry the same payload with the same key to recover the original result without duplicates. Push mode fcm means queued delivery, not confirmed handset display.", properties(object{"id": object{"type": "string", "format": "uuid"}, "notified_count": scalar("integer"), "push_mode": object{"type": "string", "enum": []string{"none", "fcm"}}}, "id", "notified_count", "push_mode"))
+		responses["400"] = jsonResponse("Invalid audience, content or idempotency key.", ref("Error"))
+		responses["403"] = jsonResponse("Admin role required.", ref("Error"))
+		responses["409"] = jsonResponse("Idempotency key was used for different content.", ref("Error"))
 		return
 	}
 	if path == "/promos/validate" {

@@ -45,6 +45,10 @@ func guardFor(route Route) (access, guard, status string) {
 	}
 	guard, status = "Resource scope needs an endpoint-specific review.", "review"
 	switch {
+	case path == "/admin/promos/:id" && route.Method == "DELETE":
+		guard, status = "Admin role; locked admin-created promotion is marked deleted with transactional audit. Existing reservations and financial history are retained.", "admin scoped and audited"
+	case path == "/driver/push-devices/:id":
+		guard, status = "Driver role; deletion scopes device id to the authenticated user.", "owner scoped"
 	case path == "/driver/profile/:userId":
 		guard, status = "Other app users receive name, vehicle type, picture and rating only; matching driver owner receives the full profile. Staff full profile access uses the audited admin route.", "public DTO; owner scoped"
 	case path == "/passenger/profile/:userId":

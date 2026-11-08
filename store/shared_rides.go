@@ -353,7 +353,10 @@ func (s *Store) SharedAction(actor, role, tripID, key, action, secret string, in
 			if err != nil {
 				return "", nil, err
 			}
-			return t.ID, nil, w.appendTransportEvent(&t, actor, "seat_reservation.created")
+			if err := w.appendTransportEvent(&t, actor, "seat_reservation.created"); err != nil {
+				return "", nil, err
+			}
+			return t.ID, nil, w.queueAppNotification(w.db.Statement.Context, t.DriverID, "ride", "Shared ride reservation", "A passenger reserved a seat. Open Rida to review your manifest.", map[string]string{"shared_trip_id": t.ID, "status": "held"})
 		case "release":
 			if v.MySeat == nil || t.Status != "waiting" || (v.MySeat.Status != "held" && v.MySeat.Status != "confirmed") {
 				return "", nil, TransportError(409, "NO_ACTIVE_SEAT", "There is no active seat to release")
@@ -361,7 +364,10 @@ func (s *Store) SharedAction(actor, role, tripID, key, action, secret string, in
 			if err := w.db.Model(v.MySeat).Update("status", "cancelled").Error; err != nil {
 				return "", nil, err
 			}
-			return t.ID, nil, w.appendTransportEvent(&t, actor, "seat_reservation.cancelled")
+			if err := w.appendTransportEvent(&t, actor, "seat_reservation.cancelled"); err != nil {
+				return "", nil, err
+			}
+			return t.ID, nil, w.queueAppNotification(w.db.Statement.Context, t.DriverID, "ride", "Seat cancelled", "A passenger released a seat on your shared trip.", map[string]string{"shared_trip_id": t.ID, "status": "cancelled"})
 		case "verify":
 			var seat models.SharedSeat
 			if err := w.db.First(&seat, "trip_id = ? AND id = ?", t.ID, in.SeatID).Error; err != nil {

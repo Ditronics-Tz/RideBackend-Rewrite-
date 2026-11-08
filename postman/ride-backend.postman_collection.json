@@ -148,6 +148,18 @@
     {
       "key": "shared_trip_id",
       "value": ""
+    },
+    {
+      "key": "push_token",
+      "value": ""
+    },
+    {
+      "key": "push_device_id",
+      "value": ""
+    },
+    {
+      "key": "announcement_key",
+      "value": ""
     }
   ],
   "item": [
@@ -563,6 +575,19 @@
                 }
               }
             }
+          }
+        },
+        {
+          "name": "Delete admin promotion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/promos/{{promo_id}}"
           }
         }
       ]
@@ -1875,7 +1900,7 @@
       ]
     },
     {
-      "name": "Phase 6 \u2014 Reports and blocks",
+      "name": "Phase 6 — Reports and blocks",
       "description": "App requires app tokens. Report moderation is staff-only; support temporary account actions are capped at seven days.",
       "item": [
         {
@@ -2143,7 +2168,7 @@
       ]
     },
     {
-      "name": "Phase 7 \u2014 SOS and incidents",
+      "name": "Phase 7 — SOS and incidents",
       "description": "Public share lookup has no bearer token and returns the same 404 for invalid/expired tokens.",
       "item": [
         {
@@ -2722,7 +2747,7 @@
       ]
     },
     {
-      "name": "Phase 8 \u2014 Payments and finance",
+      "name": "Phase 8 — Payments and finance",
       "description": "Every money-moving POST carries Idempotency-Key. Provider webhook is HMAC signed in the pre-request script using payment_webhook_secret.",
       "item": [
         {
@@ -3489,7 +3514,7 @@
       ]
     },
     {
-      "name": "Phase 9 \u2014 Fraud review",
+      "name": "Phase 9 — Fraud review",
       "description": "Support can triage and dismiss low-severity flags. Admin controls holds, confirmation and rule changes.",
       "item": [
         {
@@ -3893,6 +3918,145 @@
               }
             ],
             "url": "{{base_url}}/api/v1/admin/transport/assessments"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Firebase push and announcements",
+      "item": [
+        {
+          "name": "passenger push devices POST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/passenger/push-devices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{push_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "passenger push devices GET",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/passenger/push-devices"
+          }
+        },
+        {
+          "name": "passenger push devices DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/passenger/push-devices/{{push_device_id}}"
+          }
+        },
+        {
+          "name": "driver push devices POST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/driver/push-devices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{push_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "driver push devices GET",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/driver/push-devices"
+          }
+        },
+        {
+          "name": "driver push devices DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/driver/push-devices/{{push_device_id}}"
+          }
+        },
+        {
+          "name": "Announce to both apps (admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staff_access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{announcement_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/notifications/announcements",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"audience\": \"both\",\n  \"title\": \"Service update\",\n  \"body\": \"Example announcement\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]

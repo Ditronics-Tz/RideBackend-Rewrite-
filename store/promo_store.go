@@ -123,7 +123,7 @@ func (s *Store) GetPromo(id string) (*models.PromoCode, error) {
 		return nil, gorm.ErrRecordNotFound
 	}
 	var p models.PromoCode
-	err := s.db.First(&p, "id = ?", id).Error
+	err := s.db.Where("status <> ?", models.PromoStatusDeleted).First(&p, "id = ?", id).Error
 	return &p, err
 }
 func (s *Store) UpdatePromo(id string, changes map[string]json.RawMessage) (*models.PromoCode, error) {
@@ -182,8 +182,29 @@ func (s *Store) lockPromo(id string) (*models.PromoCode, error) {
 		return nil, gorm.ErrRecordNotFound
 	}
 	var p models.PromoCode
-	err := s.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&p, "id = ?", id).Error
+	err := s.db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("status <> ?", models.PromoStatusDeleted).First(&p, "id = ?", id).Error
 	return &p, err
+}
+
+// DeletePromo hides an admin promotion without breaking existing redemption
+// references or letting its code be reused for a different offer.
+func (s *Store) DeletePromo(id string) error {
+	if _, err := uuid.Parse(id); err != nil {
+		return gorm.ErrRecordNotFound
+	}
+	return s.Transaction(func(sc *Store) error {
+		var p models.PromoCode
+		if err := sc.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&p, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if p.Source != "admin" {
+			return promoInvalid("source", "only admin-created promotions can be deleted")
+		}
+		if p.Status == models.PromoStatusDeleted {
+			return nil
+		}
+		return sc.db.Model(&p).Updates(map[string]any{"status": models.PromoStatusDeleted, "updated_at": sc.now()}).Error
+	})
 }
 func (s *Store) SetPromoStatus(id, status string) (*models.PromoCode, error) {
 	var p *models.PromoCode
@@ -363,7 +384,9 @@ func (s *Store) finishPromo(rideID string, release bool) error {
 			return err
 		}
 		// Consistent promo -> redemption ordering prevents confirm/release deadlocks.
-		if _, err := sc.lockPromo(r.PromoID); err != nil {
+		// Deleted promotions must still honor or release existing reservations.
+		var historicalPromo models.PromoCode
+		if err := sc.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&historicalPromo, "id = ?", r.PromoID).Error; err != nil {
 			return err
 		}
 		if err := sc.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&r, "id = ?", r.ID).Error; err != nil {

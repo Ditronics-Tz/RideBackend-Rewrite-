@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// AppNotification is the durable passenger inbox. Push is only a delivery hint.
+// AppNotification stores passenger and driver messages. Push is a delivery hint.
 type AppNotification struct {
 	ID        string     `json:"id" gorm:"primaryKey;type:uuid"`
 	UserID    string     `json:"-" gorm:"type:uuid;not null"`

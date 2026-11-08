@@ -255,7 +255,10 @@ func (s *Store) offerNextDriver(tx *gorm.DB, ride *models.Ride, radiusKM int, ti
 		if err := tx.Save(ride).Error; err != nil {
 			return err
 		}
-		return appendRideEvent(tx, ride.ID, "offered", &chosen.profile.UserID, "driver", now, map[string]any{"expires_at": expires})
+		if err := appendRideEvent(tx, ride.ID, "offered", &chosen.profile.UserID, "driver", now, map[string]any{"expires_at": expires}); err != nil {
+			return err
+		}
+		return scopedStore.queueAppNotification(tx.Statement.Context, chosen.profile.UserID, "ride_offer", "New ride request", "A nearby passenger is requesting a ride. Open Rida to check the current offer.", map[string]string{"ride_id": ride.ID, "status": "offered"})
 	}
 	ride.DriverID = models.UnassignedRideDriverID
 	ride.Status = "no_driver_found"
@@ -468,6 +471,13 @@ func (s *Store) CancelRide(ctx context.Context, actorID, rideID, key, reason str
 			scopedStore := *s
 			scopedStore.db = tx
 			if err := scopedStore.queueRideNotification(ctx, ride.PassengerID, ride.ID, status); err != nil {
+				return err
+			}
+		}
+		if status == "cancelled_by_passenger" && ride.DriverID != models.UnassignedRideDriverID {
+			scoped := *s
+			scoped.db = tx
+			if err := scoped.queueAppNotification(ctx, ride.DriverID, "ride", "Ride cancelled", "The passenger cancelled the ride.", map[string]string{"ride_id": ride.ID, "status": status}); err != nil {
 				return err
 			}
 		}
