@@ -1,9 +1,10 @@
-name: CI
+name: CI/CD
 
 on:
   pull_request:
+    branches: [main, dev]
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -14,23 +15,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.27.2"
           cache: true
-      - name: Vet, test, and build
+      - name: Static checks and build (no tests)
         run: |
+          bash -n deploy/gha-remote.sh
           go vet ./...
-          go test ./... -count=1
           go build ./...
 
   deploy:
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 45
+    needs: check
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Deploy the API
@@ -38,8 +41,18 @@ jobs:
           DEPLOY_KEY: ${{ secrets.RIDA_DEPLOY_KEY }}
           KNOWN_HOSTS: ${{ secrets.RIDA_DEPLOY_KNOWN_HOSTS }}
         run: |
+          set -euo pipefail
+          : "${DEPLOY_KEY:?Missing RIDA_DEPLOY_KEY secret}"
+          : "${KNOWN_HOSTS:?Missing RIDA_DEPLOY_KNOWN_HOSTS secret}"
+          umask 077
           install -m 700 -d ~/.ssh
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes root@rida-backend.ditronics.co.tz backend
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=6 \
+            root@rida-backend.ditronics.co.tz "backend $GITHUB_SHA"
+      - name: Verify public health
+        run: curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 10 --max-time 30 https://rida-backend.ditronics.co.tz/ready

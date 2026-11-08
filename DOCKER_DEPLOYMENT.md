@@ -180,7 +180,7 @@ interfaces; use only behind a deliberate firewall/proxy configuration.
 
 ## Continuous delivery
 
-`.github/workflows/ci.yml` runs `go vet`, `go test ./...`, and `go build ./...` on pull requests and on `main`. A push to `main` deploys only after those checks pass. The deploy job uses `RIDA_DEPLOY_KEY` and `RIDA_DEPLOY_KNOWN_HOSTS` to run the server command `backend`. That command follows the later-deployment order above: backup, build, `migrate up`, then `docker compose up -d api`. It does not run `create-admin` and it does not remove volumes. The restricted command is `deploy/gha-remote.sh`.
+Develop on `dev`, then merge into `main`. `.github/workflows/ci.yml` runs shell syntax validation, `go vet`, and `go build ./...` on pushes to `dev`/`main` and pull requests targeting those branches. Tests are excluded under the project code-only rule. Main pushes automatically deploy after successful checks; manual workflow dispatch on main can retry delivery. The job uses the existing `RIDA_DEPLOY_KEY` and `RIDA_DEPLOY_KNOWN_HOSTS` secrets to send `backend <commit SHA>` through strictly verified SSH. The server accepts only the current main revision, serializes backend/admin deployment, builds the API image, backs up PostgreSQL, migrates, and waits for API health. The workflow also checks public readiness. It preserves volumes, the database container, FCM configuration, and a previous application image. See [the delivery runbook](deploy/README.md) for entrypoint installation, retries and recovery.
 
 ## Troubleshooting
 
