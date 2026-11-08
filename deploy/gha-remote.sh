@@ -44,11 +44,23 @@ git merge --ff-only "$revision"
 docker compose config -q
 
 preserve_image() {
-  local container image
+  local container image configured
   container="$(docker compose ps -q "$1")"
   if [[ -n "$container" ]]; then
     image="$(docker inspect --format '{{.Image}}' "$container")"
-    docker image tag "$image" "$2"
+    if docker image inspect "$image" >/dev/null 2>&1; then
+      docker image tag "$image" "$2"
+    else
+      # A running container can outlive its original local image metadata.
+      # Preserve the available build separately; never call it the running image.
+      configured="$(docker inspect --format '{{.Config.Image}}' "$container")"
+      if docker image inspect "$configured" >/dev/null 2>&1; then
+        docker image tag "$configured" "${2}-build"
+        echo "Warning: running image $image is unavailable; preserved $configured as ${2}-build. Verify compatibility before recovery." >&2
+      else
+        echo "Warning: no local recovery image is available for $1; the running container remains intact during build." >&2
+      fi
+    fi
   fi
 }
 
