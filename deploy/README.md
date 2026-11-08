@@ -34,6 +34,8 @@ ssh rida-server 'bash -n /tmp/rida-gha-deploy.next && install -m 0755 -o root -g
 
 ## Failure recovery
 
+A running container may reference an image ID that is no longer addressable in the local image store. This does not stop deployment. If available, the configured build image is retained under `:previous-build` instead of `:previous`, with an explicit warning. That build is not guaranteed to match the running container; verify its contents/schema compatibility before recovery. If neither reference exists, deployment reports that no recovery image was retained and continues building while the existing container stays running.
+
 Read the failed Actions step first, then inspect `docker compose ps` and narrowly scoped service logs in the affected server checkout. A failed build leaves the running container intact. A failed migration stops deployment; inspect schema state before retrying. A health failure after replacement leaves the failed service for operator diagnosis; no automatic database or application rollback is attempted.
 
 Prefer a corrective commit on `dev`, merge to `main`, and let delivery run again. Retained `:previous` images and database dumps support operator recovery, but an older binary may be incompatible with a newly applied schema. Do not restore a database or roll back an image without checking schema compatibility and the effect on writes since the backup. Do not prune named volumes or the retained recovery images during routine cleanup.
