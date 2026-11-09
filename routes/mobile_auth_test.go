@@ -126,6 +126,21 @@ func TestMobileGoogleExchangeProfileReplayAndAccountConflict(t *testing.T) {
 	if status != 403 && status != 401 {
 		t.Fatalf("previous passenger session remained usable after role switch: status %d", status)
 	}
+	// The passenger client omits role. That sign-in must keep the driver role
+	// and the session issued for it.
+	driverAccess := body["accessToken"].(string)
+	status, challenge, _ = authRequest(t, app, "POST", "/auth/google/challenge", "", map[string]any{})
+	expectAuthStatus(t, status, 200, challenge)
+	nonce = challenge["nonce"].(string)
+	status, body, _ = authRequest(t, app, "POST", "/auth/google", "", map[string]string{"idToken": "signed-fixture", "challengeId": challenge["challengeId"].(string)})
+	expectAuthStatus(t, status, 200, body)
+	if body["user"].(map[string]any)["role"] != "driver" || body["user"].(map[string]any)["id"] != profile["user"].(map[string]any)["id"] {
+		t.Fatalf("omitted role demoted the driver account: %+v", body["user"])
+	}
+	status, _, _ = authRequest(t, app, "GET", "/me", driverAccess, nil)
+	if status != 200 {
+		t.Fatalf("omitted-role sign-in revoked the driver session: status %d", status)
+	}
 	// Invalid/staff roles (admin, support, superadmin) are rejected with 400 before consuming challenge.
 	for _, staffRole := range []string{"admin", "support", "superadmin"} {
 		status, badRole, _ := authRequest(t, app, "POST", "/auth/google", "", map[string]string{"idToken": "signed-fixture", "challengeId": challenge["challengeId"].(string), "role": staffRole})
