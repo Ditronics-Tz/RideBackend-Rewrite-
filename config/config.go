@@ -66,6 +66,7 @@ type Config struct {
 	DeletionGraceDays        int
 	ExportTTLHours           int
 	ExportDir                string
+	StatusDir                string
 	FinancialRetentionYears  int
 	RunBackgroundJobs        bool
 	ReportFlagThreshold      int
@@ -273,6 +274,7 @@ func NewConfigFromEnv() (*Config, error) {
 		DeletionGraceDays:        getEnvInt("DELETION_GRACE_DAYS", 14),
 		ExportTTLHours:           getEnvInt("EXPORT_TTL_HOURS", 168),
 		ExportDir:                getEnv("EXPORT_DIR", "./uploads/private/exports"),
+		StatusDir:                getEnv("STATUS_DIR", ""),
 		FinancialRetentionYears:  getEnvInt("FINANCIAL_RETENTION_YEARS", 0),
 		RunBackgroundJobs:        parseBool(os.Getenv("RUN_BACKGROUND_JOBS"), false),
 		ReportFlagThreshold:      getEnvInt("REPORT_FLAG_THRESHOLD", 3),

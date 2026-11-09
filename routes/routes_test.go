@@ -27,7 +27,7 @@ func TestAllRoutesPrefixAndJSON404(t *testing.T) {
 		}
 
 		for _, r := range allRoutes {
-			if r.Path == "/health" || r.Path == "/ready" {
+			if r.Path == "/health" || r.Path == "/ready" || r.Path == "/status" {
 				continue
 			}
 			if !strings.HasPrefix(r.Path, "/api/v1") {

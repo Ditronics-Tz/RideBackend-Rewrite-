@@ -177,7 +177,7 @@ func TestCurrentContractRetainsKeysAndDocumentsPersistedB8Workflows(t *testing.T
 	if publicDriver["$ref"] != "#/components/schemas/PublicDriverProfile" {
 		t.Fatal("cross-user driver lookup does not use its public DTO")
 	}
-	for _, path := range []string{"/health", "/ready", "/api/v1/health", "/api/v1/ready"} {
+	for _, path := range []string{"/health", "/ready", "/status", "/api/v1/health", "/api/v1/ready", "/api/v1/status"} {
 		if paths[path] == nil {
 			t.Fatal("runtime alias missing")
 		}

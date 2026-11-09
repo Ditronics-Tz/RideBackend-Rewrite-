@@ -10,6 +10,7 @@ import (
 	"ride-backend/config"
 	"ride-backend/controllers"
 	"ride-backend/middleware"
+	"ride-backend/statuspage"
 	"ride-backend/store"
 
 	"github.com/gofiber/fiber/v2"
@@ -50,6 +51,12 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	})
 	requestLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	app.Use(middleware.RequestContext(requestLogger))
+	app.Use(func(c *fiber.Ctx) error {
+		started := time.Now()
+		err := c.Next()
+		statuspage.Observe(c.Path(), c.Response().StatusCode(), time.Since(started))
+		return err
+	})
 	app.Use(recover.New())
 	started := time.Now()
 	health := func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"status": "ok", "version": "1.0.0"}) }
@@ -85,6 +92,16 @@ func BuildApp(cfg *config.Config, appStore *store.Store) *fiber.App {
 	v1.Get("/ready", ready)
 	app.Get("/health", health)
 	app.Get("/ready", ready)
+	statuspage.Attach(app, v1, statuspage.Options{
+		Dir: cfg.StatusDir, Version: "1.0.0", PushEnabled: cfg.PushProvider == "fcm", BackgroundJobs: cfg.RunBackgroundJobs,
+		Ping: func(ctx context.Context) error {
+			sqlDB, err := appStore.DB().DB()
+			if err != nil {
+				return err
+			}
+			return sqlDB.PingContext(ctx)
+		},
+	})
 
 	// Static public uploads (profile pictures)
 	v1.Static("/uploads", "./uploads/public")

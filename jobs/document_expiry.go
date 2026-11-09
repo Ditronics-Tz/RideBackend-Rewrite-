@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"ride-backend/config"
+	"ride-backend/statuspage"
 	"ride-backend/store"
 	"time"
 )
@@ -15,6 +16,11 @@ func RunDocumentExpiry(ctx context.Context, s *store.Store) {
 	for {
 		if err := s.ExpireDriverDocuments(time.Now().UTC(), ""); err != nil {
 			slog.Error("Document expiry sweep failed")
+			if ctx.Err() == nil {
+				statuspage.Fail(statuspage.WorkerDocuments, "Document check failed")
+			}
+		} else if ctx.Err() == nil {
+			statuspage.Succeed(statuspage.WorkerDocuments)
 		}
 		now := time.Now().In(zone)
 		next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, zone)
@@ -35,6 +41,11 @@ func RunDataRequests(ctx context.Context, s *store.Store, cfg *config.Config) {
 	for {
 		if err := s.ProcessDataRequests(cfg); err != nil {
 			slog.Error("Data request processing failed")
+			if ctx.Err() == nil {
+				statuspage.Fail(statuspage.WorkerPrivacy, "Data request processing failed")
+			}
+		} else if ctx.Err() == nil {
+			statuspage.Succeed(statuspage.WorkerPrivacy)
 		}
 		select {
 		case <-ctx.Done():

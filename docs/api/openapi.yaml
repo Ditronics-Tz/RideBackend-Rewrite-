@@ -3328,6 +3328,191 @@
         ],
         "type": "object"
       },
+      "StatusComponent": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/StatusDay"
+            },
+            "type": "array"
+          },
+          "description": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "latency": {
+            "items": {
+              "$ref": "#/components/schemas/StatusLatency"
+            },
+            "type": "array"
+          },
+          "latency_label": {
+            "type": "string"
+          },
+          "latency_ms": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "uptime_percent": {
+            "maximum": 100,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "days",
+          "description",
+          "group",
+          "id",
+          "latency",
+          "latency_label",
+          "latency_ms",
+          "name",
+          "state",
+          "summary"
+        ],
+        "type": "object"
+      },
+      "StatusDay": {
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "operational",
+              "degraded",
+              "outage",
+              "maintenance",
+              "none"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "state"
+        ],
+        "type": "object"
+      },
+      "StatusLatency": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ms": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "at",
+          "ms"
+        ],
+        "type": "object"
+      },
+      "StatusLog": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "component": {
+            "type": "string"
+          },
+          "component_id": {
+            "type": "string"
+          },
+          "latency_ms": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "component",
+          "component_id",
+          "latency_ms",
+          "state",
+          "summary"
+        ],
+        "type": "object"
+      },
+      "StatusReport": {
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/StatusComponent"
+            },
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "logs": {
+            "items": {
+              "$ref": "#/components/schemas/StatusLog"
+            },
+            "type": "array"
+          },
+          "overall": {
+            "enum": [
+              "operational",
+              "degraded",
+              "outage"
+            ],
+            "type": "string"
+          },
+          "range_days": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "uptime_seconds": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "components",
+          "generated_at",
+          "logs",
+          "overall",
+          "range_days",
+          "summary",
+          "uptime_seconds",
+          "version"
+        ],
+        "type": "object"
+      },
       "SupportNote": {
         "properties": {
           "author_id": {
@@ -16354,7 +16539,7 @@
         "summary": "GET /api/v1/health",
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/health",
-        "x-go-handler": "ride-backend/routes.BuildApp.func2"
+        "x-go-handler": "ride-backend/routes.BuildApp.func3"
       }
     },
     "/api/v1/incidents": {
@@ -18306,7 +18491,7 @@
         "summary": "GET /api/v1/ready",
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/ready",
-        "x-go-handler": "ride-backend/routes.BuildApp.func3"
+        "x-go-handler": "ride-backend/routes.BuildApp.func4"
       }
     },
     "/api/v1/referral/apply": {
@@ -21744,6 +21929,52 @@
         "x-go-handler": "ride-backend/controllers.(*StaffAuthController).Refresh"
       }
     },
+    "/api/v1/status": {
+      "get": {
+        "description": "Public status snapshot used by the admin and public status pages. Component summaries are fixed phrases. Probe failures never include connection strings, hosts or request data.",
+        "operationId": "get_api_v1_status",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusReport"
+                }
+              }
+            },
+            "description": "Public status snapshot used by the admin and public status pages. Component summaries are fixed phrases. Probe failures never include connection strings, hosts or request data.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "summary": "GET /api/v1/status",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/status",
+        "x-go-handler": "ride-backend/statuspage.(*Monitor).ServeJSON"
+      }
+    },
     "/api/v1/support/tickets": {
       "get": {
         "description": "List only support tickets created by the authenticated user.",
@@ -22616,7 +22847,7 @@
         "summary": "GET /health",
         "x-contract-detail": "expanded",
         "x-fiber-path": "/health",
-        "x-go-handler": "ride-backend/routes.BuildApp.func2"
+        "x-go-handler": "ride-backend/routes.BuildApp.func3"
       }
     },
     "/ready": {
@@ -22679,7 +22910,46 @@
         "summary": "GET /ready",
         "x-contract-detail": "expanded",
         "x-fiber-path": "/ready",
-        "x-go-handler": "ride-backend/routes.BuildApp.func3"
+        "x-go-handler": "ride-backend/routes.BuildApp.func4"
+      }
+    },
+    "/status": {
+      "get": {
+        "description": "Public status page served by the API process. It stays available when the admin application cannot load a screen.",
+        "operationId": "get_status",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Public HTML status page with 90-day uptime, current health and recent checks. No authentication. Probe text is a fixed phrase and never includes connection strings or request data."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "summary": "GET /status",
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/status",
+        "x-go-handler": "ride-backend/statuspage.(*Monitor).ServePage"
       }
     }
   },

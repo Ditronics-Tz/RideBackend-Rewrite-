@@ -63,7 +63,7 @@ func Generate() ([]byte, error) {
 
 func realm(route Route) ([]any, []string) {
 	path := strings.TrimPrefix(route.Path, "/api/v1")
-	if path == "/health" || path == "/ready" || strings.HasPrefix(path, "/uploads") || strings.HasPrefix(path, "/profile-images/") || strings.HasPrefix(path, "/share/") || path == "/auth/register" || path == "/auth/login" || strings.HasPrefix(path, "/auth/google") || path == "/staff/auth/login" || path == "/staff/auth/refresh" || path == "/staff/auth/mfa/verify" || path == "/staff/auth/mfa/enroll" || path == "/staff/auth/mfa/enroll/confirm" || path == "/staff/auth/mfa/recovery/verify" {
+	if path == "/health" || path == "/ready" || path == "/status" || strings.HasPrefix(path, "/uploads") || strings.HasPrefix(path, "/profile-images/") || strings.HasPrefix(path, "/share/") || path == "/auth/register" || path == "/auth/login" || strings.HasPrefix(path, "/auth/google") || path == "/staff/auth/login" || path == "/staff/auth/refresh" || path == "/staff/auth/mfa/verify" || path == "/staff/auth/mfa/enroll" || path == "/staff/auth/mfa/enroll/confirm" || path == "/staff/auth/mfa/recovery/verify" {
 		return []any{}, nil
 	}
 	if strings.HasPrefix(path, "/webhooks/payments/") {
@@ -226,6 +226,18 @@ func describeCurrent(route Route, operation, schemas object) {
 			responses["409"] = jsonResponse("The offer expired or this transition is not valid in the current ride state.", ref("Error"))
 			return
 		}
+	}
+	if path == "/status" {
+		delete(responses, "429")
+		if route.Path == "/status" {
+			delete(responses, "2XX")
+			responses["200"] = object{"description": "Public HTML status page with 90-day uptime, current health and recent checks. No authentication. Probe text is a fixed phrase and never includes connection strings or request data.", "content": object{"text/html": object{"schema": scalar("string")}}}
+			operation["x-contract-detail"] = "expanded"
+			operation["description"] = "Public status page served by the API process. It stays available when the admin application cannot load a screen."
+			return
+		}
+		set("200", "Public status snapshot used by the admin and public status pages. Component summaries are fixed phrases. Probe failures never include connection strings, hosts or request data.", ref("StatusReport"))
+		return
 	}
 	if path == "/health" || path == "/ready" {
 		name := "Health"

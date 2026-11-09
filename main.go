@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"ride-backend/migrations"
 	"ride-backend/notifications"
 	"ride-backend/routes"
+	"ride-backend/statuspage"
 	"ride-backend/store"
 )
 
@@ -48,6 +50,9 @@ func run() error {
 		return errors.New("database schema is not current; run cmd/migrate before starting the server")
 	}
 	appStore := store.New(gdb)
+	if strings.TrimSpace(cfg.StatusDir) == "" {
+		cfg.StatusDir = "uploads/private/status"
+	}
 	appStore.PushKey = cfg.PushTokenEncryptionKey
 	if cfg.PushProvider == "fcm" {
 		push, err := notifications.NewFCMSender(context.Background(), cfg.FirebaseProjectID)
@@ -68,6 +73,7 @@ func run() error {
 	workerStore := appStore.WithContext(ctx)
 	var workers sync.WaitGroup
 	start := func(job func()) { workers.Add(1); go func() { defer workers.Done(); job() }() }
+	start(func() { statuspage.Run(ctx, 30*time.Second) })
 	start(func() { jobs.RunDocumentExpiry(ctx, workerStore) })
 	start(func() { jobs.RunRideDispatch(ctx, workerStore, cfg) })
 	if appStore.PushSender != nil {
