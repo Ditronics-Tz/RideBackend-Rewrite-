@@ -55,13 +55,16 @@ func (ac *AuthController) GoogleMobileExchange(c *fiber.Ctx) error {
 	if len(c.Body()) > 20000 || c.BodyParser(&input) != nil || input.ChallengeID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid Google sign-in request", "code": "INVALID_REQUEST"})
 	}
-	role := models.RolePassenger
+	// An omitted role is not a request to change an existing account. The
+	// passenger client does not send one; treating the default as explicit
+	// would demote a driver and leave an in-progress trip without a driver.
+	var requestedRole []models.Role
 	if input.Role != "" {
 		parsed, err := models.ParseRole(input.Role)
 		if err != nil {
 			return operationError(c, store.FieldError("role", "role must be driver or passenger"))
 		}
-		role = parsed
+		requestedRole = append(requestedRole, parsed)
 	}
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
@@ -79,7 +82,7 @@ func (ac *AuthController) GoogleMobileExchange(c *fiber.Ctx) error {
 		}
 		return authError(c, err)
 	}
-	user, err := ac.Store.ResolveGoogleIdentity(ctx, identity.Subject, identity.Name, email, role)
+	user, err := ac.Store.ResolveGoogleIdentity(ctx, identity.Subject, identity.Name, email, requestedRole...)
 	if err != nil {
 		var op *store.OperationError
 		if errors.As(err, &op) && op.Status == 409 {
