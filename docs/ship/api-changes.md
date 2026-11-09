@@ -218,3 +218,13 @@ limited to 10 per ticket and 5 MiB each. Internal staff notes remain separate.
 Existing ride create, payment, authentication, and profile payloads remain
 compatible. Cash is the only accepted ride payment method; quotes report this
 explicitly. See `docs/api/openapi.yaml` for response schemas and access rules.
+
+## 2026-11-09 - Public status page
+
+`GET /status` (HTML) and `GET /api/v1/status` (JSON) are unauthenticated. They
+show four customer rows — Rida API, Database, Notifications, and Ride matching —
+with fixed summaries and 90 EAT-day bars. They omit probe identifiers, latency,
+logs, version, and process uptime. A degraded or down internal worker still
+changes the banner without being named. `GET /api/v1/admin/status` is admin-only
+and returns that detail. `/health` and `/ready` are unchanged. No mobile payload
+change. Operator notes are in `docs/STATUS_PAGE.md`.

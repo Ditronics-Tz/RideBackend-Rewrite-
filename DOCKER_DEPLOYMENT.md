@@ -17,7 +17,11 @@ advisory lock and validates existing schema before applying the next migration.
 The current schema version is 13. The ride dispatch worker also activates due
 scheduled rides; it runs with the API even when optional `RUN_BACKGROUND_JOBS`
 is false. Private support attachments are stored in `uploads_data` with local
-storage and must be included in upload backups.
+storage and must be included in upload backups. `GET /status` is the public
+status page served by this same process, so it stays up when the admin
+application does not. Its 90-day history is `history.json` under `STATUS_DIR`
+(default `uploads/private/status` on `uploads_data`). See
+[docs/STATUS_PAGE.md](docs/STATUS_PAGE.md).
 
 ## Prerequisites
 
@@ -150,9 +154,10 @@ the migration package embeds them in the binaries.
 
 The `postgres_data` volume contains the database. The `uploads_data` volume
 contains public uploads, private objects, legacy documents, and generated data
-exports when local storage is enabled. `postgres_tls_public` contains only the
-certificate used by clients; `postgres_tls_private` contains the database TLS
-private key. Back up PostgreSQL and required uploads to encrypted off-host
+exports when local storage is enabled. Unless `STATUS_DIR` points somewhere
+else, it also holds the status history at `private/status/history.json`.
+`postgres_tls_public` contains only the certificate used by clients;
+`postgres_tls_private` contains the database TLS private key. Back up PostgreSQL and required uploads to encrypted off-host
 storage and test restoration regularly. Example PostgreSQL dump:
 
 ```bash
@@ -168,9 +173,11 @@ data and document retention and restore ownership.
 
 The default `API_BIND_ADDRESS=127.0.0.1` and `API_PORT=3000` publish the API only
 to the VPS loopback interface. Configure the existing host proxy to forward
-HTTPS traffic to `http://127.0.0.1:3000`; preserve the original `Host` and
-forwarded protocol/client headers. Configure the matching HTTPS origin in
-`CORS_ALLOWED_ORIGINS`. If the proxy runs in another container, it cannot use
+HTTPS traffic to `http://127.0.0.1:3000`. Include `GET /status` when the public
+status page should be reachable. A proxy that only forwards `/api` hides the
+HTML page; `GET /api/v1/status` remains the JSON snapshot. Do not cache
+`/status`. Preserve the original `Host` and forwarded protocol/client headers.
+Configure the matching HTTPS origin in `CORS_ALLOWED_ORIGINS`. If the proxy runs in another container, it cannot use
 its own `127.0.0.1` to reach this API; arrange a shared, explicitly managed
 Docker network or a host-gateway route and firewall it appropriately.
 
