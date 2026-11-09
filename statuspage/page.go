@@ -115,19 +115,13 @@ var pageTmpl = template.Must(template.New("status").Parse(`<!DOCTYPE html>
         </div>
       </article>
     {{end}}
-    <h2>Recent checks</h2>
-    {{if .Logs}}
-    <ol class="logs">
-      {{range .Logs}}<li><span>{{.Clock}}</span><span>{{.Component}}</span><span class="state {{.State}}">{{.StateLabel}}</span><span>{{.Summary}}</span><span>{{if .LatencyMS}}{{.LatencyMS}} ms{{end}}</span></li>{{end}}
-    </ol>
-    {{else}}<p class="desc">Checks appear here as the monitor samples each component.</p>{{end}}
-    <footer>This page is served by the Rida API and stays available when the admin app cannot load a screen. Refreshed {{.Generated}} EAT.</footer>
+    <footer>Refreshed {{.Generated}} EAT.</footer>
   </main>
 </body>
 </html>
 `))
 
-func renderPage(report Report) ([]byte, error) {
+func renderPage(report PublicReport) ([]byte, error) {
 	model := pageModel{
 		Overall: report.Overall, Summary: report.Summary, OverallLabel: stateLabel(report.Overall),
 		Generated: generatedClock(report.GeneratedAt),
@@ -135,27 +129,16 @@ func renderPage(report Report) ([]byte, error) {
 	var previous string
 	for _, component := range report.Components {
 		item := pageComponent{
-			Name: component.Name, Description: component.Description, Group: component.Group,
+			Name: component.Name, Group: component.Group,
 			State: component.State, StateLabel: stateLabel(component.State), Summary: component.Summary,
 			Uptime: uptimeLabel(component.UptimePercent, component.State), Counts: historyCounts(component.Days),
-			LatencyLabel: component.LatencyLabel, LatencyMS: component.LatencyMS,
 			ShowGroup: component.Group != previous,
 		}
 		previous = component.Group
 		for _, day := range component.Days {
 			item.Days = append(item.Days, pageDay{Date: day.Date, State: day.State})
 		}
-		if component.LatencyLabel != "" && len(component.Latency) >= 2 {
-			item.Spark = sparkSVG(component.Latency)
-			item.ShowSpark = item.Spark != ""
-		}
 		model.Components = append(model.Components, item)
-	}
-	for _, item := range report.Logs {
-		model.Logs = append(model.Logs, pageLog{
-			Clock: logClock(item.At), Component: item.Component, State: item.State,
-			StateLabel: stateLabel(item.State), Summary: item.Summary, LatencyMS: item.LatencyMS,
-		})
 	}
 	var buf strings.Builder
 	if err := pageTmpl.Execute(&buf, model); err != nil {
@@ -182,7 +165,7 @@ func stateLabel(state string) string {
 func uptimeLabel(pct *float64, state string) string {
 	if pct == nil {
 		if state == string(Maintenance) {
-			return "Not counted while jobs are off"
+			return "Not counted"
 		}
 		return "Collecting uptime"
 	}

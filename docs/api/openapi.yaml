@@ -3460,6 +3460,91 @@
         ],
         "type": "object"
       },
+      "StatusPublic": {
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/StatusPublicComponent"
+            },
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "overall": {
+            "enum": [
+              "operational",
+              "degraded",
+              "outage"
+            ],
+            "type": "string"
+          },
+          "range_days": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "components",
+          "generated_at",
+          "overall",
+          "range_days",
+          "summary"
+        ],
+        "type": "object"
+      },
+      "StatusPublicComponent": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/StatusDay"
+            },
+            "type": "array"
+          },
+          "group": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "operational",
+              "degraded",
+              "outage",
+              "none"
+            ],
+            "type": "string"
+          },
+          "summary": {
+            "enum": [
+              "Operating normally",
+              "Performance is reduced",
+              "Unavailable",
+              "No data yet"
+            ],
+            "type": "string"
+          },
+          "uptime_percent": {
+            "maximum": 100,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "days",
+          "group",
+          "name",
+          "state",
+          "summary"
+        ],
+        "type": "object"
+      },
       "StatusReport": {
         "properties": {
           "components": {
@@ -10869,6 +10954,93 @@
         "x-contract-detail": "expanded",
         "x-fiber-path": "/api/v1/admin/stats",
         "x-go-handler": "ride-backend/controllers.(*AdminController).GetStats"
+      }
+    },
+    "/api/v1/admin/status": {
+      "get": {
+        "description": "Admin-only operational detail. Includes component identifiers, fixed probe summaries, latency and recent checks. It does not include connection strings, hosts or request data.",
+        "operationId": "get_api_v1_admin_status",
+        "parameters": [
+          {
+            "description": "Safe incoming identifier is echoed; an invalid or absent identifier is replaced.",
+            "in": "header",
+            "name": "X-Request-ID",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusReport"
+                }
+              }
+            },
+            "description": "Admin-only operational detail. Includes component identifiers, fixed probe summaries, latency and recent checks. It does not include connection strings, hosts or request data.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Staff session is missing or invalid.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Admin role required.",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "summary": "GET /api/v1/admin/status",
+        "x-allowed-roles": [
+          "admin"
+        ],
+        "x-contract-detail": "expanded",
+        "x-fiber-path": "/api/v1/admin/status",
+        "x-go-handler": "ride-backend/routes.SetupAdminRoutes.func2"
       }
     },
     "/api/v1/admin/tickets": {
@@ -21931,7 +22103,7 @@
     },
     "/api/v1/status": {
       "get": {
-        "description": "Public status snapshot used by the admin and public status pages. Component summaries are fixed phrases. Probe failures never include connection strings, hosts or request data.",
+        "description": "Anonymous status snapshot for the public status page. Customer-facing rows only, with fixed summaries. Internal workers, latency, logs, version and process uptime are omitted.",
         "operationId": "get_api_v1_status",
         "parameters": [
           {
@@ -21951,11 +22123,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusReport"
+                  "$ref": "#/components/schemas/StatusPublic"
                 }
               }
             },
-            "description": "Public status snapshot used by the admin and public status pages. Component summaries are fixed phrases. Probe failures never include connection strings, hosts or request data.",
+            "description": "Anonymous status snapshot for the public status page. Customer-facing rows only, with fixed summaries. Internal workers, latency, logs, version and process uptime are omitted.",
             "headers": {
               "X-Request-ID": {
                 "schema": {
@@ -22939,7 +23111,7 @@
                 }
               }
             },
-            "description": "Public HTML status page with 90-day uptime, current health and recent checks. No authentication. Probe text is a fixed phrase and never includes connection strings or request data."
+            "description": "Public HTML status page. Shows customer-facing service state and 90-day uptime only. No authentication, no probe identifiers, latency, logs, version or process uptime."
           },
           "default": {
             "$ref": "#/components/responses/Error"

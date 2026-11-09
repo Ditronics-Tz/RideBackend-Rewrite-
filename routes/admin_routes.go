@@ -5,6 +5,7 @@ import (
 	"ride-backend/controllers"
 	"ride-backend/middleware"
 	"ride-backend/models"
+	"ride-backend/statuspage"
 	"ride-backend/store"
 
 	"github.com/gofiber/fiber/v2"
@@ -76,6 +77,13 @@ func SetupAdminRoutes(router fiber.Router, ac *controllers.AdminController, cfg 
 	admin.Post("/drivers/:id/documents/:documentId/reviews", supportAndAdmin, ac.ReviewDriverDocument)
 	admin.Patch("/drivers/:id/suspension", supportAndAdmin, ac.SuspendDriverVerification)
 	admin.Get("/stats", supportAndAdmin, ac.GetStats)
+	admin.Get("/status", adminOnly, func(c *fiber.Ctx) error {
+		monitor := statuspage.Active()
+		if monitor == nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "Status is unavailable"})
+		}
+		return monitor.ServeStaff(c)
+	})
 	admin.Get("/analytics", supportAndAdmin, ac.Analytics)
 	admin.Get("/notifications", supportAndAdmin, ac.NotificationDeliveries)
 	admin.Get("/rides", supportAndAdmin, ac.ListRides)

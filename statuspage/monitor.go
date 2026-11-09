@@ -148,6 +148,9 @@ func New(dir string, now func() time.Time) *Monitor {
 	return m
 }
 
+// Active is the monitor attached to this process, if BuildApp has run.
+func Active() *Monitor { return active.Load() }
+
 // Run samples the active monitor until ctx is cancelled.
 func Run(ctx context.Context, every time.Duration) {
 	m := active.Load()

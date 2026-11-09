@@ -74,7 +74,7 @@ func realm(route Route) ([]any, []string) {
 	}
 	if strings.HasPrefix(path, "/admin/") {
 		adminOnly := strings.HasPrefix(path, "/admin/staff") || strings.HasPrefix(path, "/admin/ratings") || path == "/admin/audit-logs" || strings.HasSuffix(path, "/role") || strings.HasSuffix(path, "/ban") || route.Method == "DELETE" && strings.Contains(path, "/notes/") || route.Method == "POST" && (strings.Contains(path, "/data-requests/") || strings.HasSuffix(path, "/deletion-request")) || strings.HasPrefix(path, "/admin/payouts") || strings.HasPrefix(path, "/admin/wallets") || strings.HasPrefix(path, "/admin/reconciliation") || path == "/admin/payment-settings" || path == "/admin/payments/summary" || path == "/admin/payments/export" || path == "/admin/sos/export" || route.Method != "GET" && (strings.HasPrefix(path, "/admin/promos") || path == "/admin/referral-settings" || strings.HasPrefix(path, "/admin/fraud/rules"))
-		adminOnly = adminOnly || path == "/admin/notifications/announcements" || path == "/admin/shared-trips/:id/cancel" || path == "/admin/operation-events" || path == "/admin/transport/settings" && route.Method == "PUT"
+		adminOnly = adminOnly || path == "/admin/notifications/announcements" || path == "/admin/shared-trips/:id/cancel" || path == "/admin/operation-events" || path == "/admin/status" || path == "/admin/transport/settings" && route.Method == "PUT"
 		roles := []string{"admin", "support"}
 		if adminOnly {
 			roles = []string{"admin"}
@@ -227,16 +227,22 @@ func describeCurrent(route Route, operation, schemas object) {
 			return
 		}
 	}
+	if path == "/admin/status" {
+		set("200", "Admin-only operational detail. Includes component identifiers, fixed probe summaries, latency and recent checks. It does not include connection strings, hosts or request data.", ref("StatusReport"))
+		responses["401"] = jsonResponse("Staff session is missing or invalid.", ref("Error"))
+		responses["403"] = jsonResponse("Admin role required.", ref("Error"))
+		return
+	}
 	if path == "/status" {
 		delete(responses, "429")
 		if route.Path == "/status" {
 			delete(responses, "2XX")
-			responses["200"] = object{"description": "Public HTML status page with 90-day uptime, current health and recent checks. No authentication. Probe text is a fixed phrase and never includes connection strings or request data.", "content": object{"text/html": object{"schema": scalar("string")}}}
+			responses["200"] = object{"description": "Public HTML status page. Shows customer-facing service state and 90-day uptime only. No authentication, no probe identifiers, latency, logs, version or process uptime.", "content": object{"text/html": object{"schema": scalar("string")}}}
 			operation["x-contract-detail"] = "expanded"
 			operation["description"] = "Public status page served by the API process. It stays available when the admin application cannot load a screen."
 			return
 		}
-		set("200", "Public status snapshot used by the admin and public status pages. Component summaries are fixed phrases. Probe failures never include connection strings, hosts or request data.", ref("StatusReport"))
+		set("200", "Anonymous status snapshot for the public status page. Customer-facing rows only, with fixed summaries. Internal workers, latency, logs, version and process uptime are omitted.", ref("StatusPublic"))
 		return
 	}
 	if path == "/health" || path == "/ready" {

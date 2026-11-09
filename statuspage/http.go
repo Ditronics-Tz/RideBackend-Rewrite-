@@ -37,9 +37,8 @@ func Attach(app *fiber.App, api fiber.Router, opts Options) *Monitor {
 
 // ServePage renders the public HTML status page.
 func (m *Monitor) ServePage(c *fiber.Ctx) error {
-	c.Set("Cache-Control", "no-store")
-	c.Set("X-Content-Type-Options", "nosniff")
-	body, err := renderPage(m.Snapshot())
+	setStatusHeaders(c)
+	body, err := renderPage(m.PublicSnapshot())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("Status page is unavailable")
 	}
@@ -47,8 +46,23 @@ func (m *Monitor) ServePage(c *fiber.Ctx) error {
 	return c.Send(body)
 }
 
-// ServeJSON returns the same snapshot the admin and public pages chart.
+// ServeJSON returns the anonymous status snapshot.
 func (m *Monitor) ServeJSON(c *fiber.Ctx) error {
+	setStatusHeaders(c)
+	return c.JSON(m.PublicSnapshot())
+}
+
+// ServeStaff returns probe detail for an authenticated admin request.
+func (m *Monitor) ServeStaff(c *fiber.Ctx) error {
 	c.Set("Cache-Control", "no-store")
+	c.Set("X-Content-Type-Options", "nosniff")
 	return c.JSON(m.Snapshot())
+}
+
+func setStatusHeaders(c *fiber.Ctx) {
+	c.Set("Cache-Control", "no-store")
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set("Referrer-Policy", "no-referrer")
+	c.Set("X-Frame-Options", "DENY")
+	c.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 }

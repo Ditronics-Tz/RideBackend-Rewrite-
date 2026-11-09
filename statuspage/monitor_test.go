@@ -45,7 +45,7 @@ func TestUptimeBarsKeepAnOutageVisibleWithoutErasingThePercentage(t *testing.T) 
 	if report.Components[0].State != "operational" || report.Overall != "operational" {
 		t.Fatalf("current state = %s overall %s", report.Components[0].State, report.Overall)
 	}
-	body, err := renderPage(report)
+	body, err := renderPage(redact(report))
 	if err != nil {
 		t.Fatal(err)
 	}
