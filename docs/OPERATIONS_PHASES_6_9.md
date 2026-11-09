@@ -59,7 +59,7 @@ Run `go run ./cmd/process-fraud` for queued events; add `--nightly` to queue the
 
 ## Configuration and privacy
 
-Add the keys from `.env.example` to the deployment secret manager. Do not copy production credentials to `.env.example`. `RUN_BACKGROUND_JOBS=false` means use the `cmd` jobs under a scheduler. Run all database migrations before workers. Confirm secret rotation and job monitoring before exposing mobile-money calls. Staff audit events store action, opaque subject ID, staff ID, timestamp and numeric/status-only metadata; never put phone numbers, names, descriptions, tokens, device IDs/hashes or file data in audit metadata. Staff audit logs are exempt from deletion and must be retained; keep their metadata free of personal data.
+Add the keys from `.env.example` to the deployment secret manager. Do not copy production credentials to `.env.example`. `RUN_BACKGROUND_JOBS=false` means use the `cmd` jobs under a scheduler. Those external commands do not feed the status page; see [STATUS_PAGE.md](STATUS_PAGE.md). Run all database migrations before workers. Confirm secret rotation and job monitoring before exposing mobile-money calls. Staff audit events store action, opaque subject ID, staff ID, timestamp and numeric/status-only metadata; never put phone numbers, names, descriptions, tokens, device IDs/hashes or file data in audit metadata. Staff audit logs are exempt from deletion and must be retained; keep their metadata free of personal data.
 
 | Data | Removed/anonymised | Retained |
 | --- | --- | --- |

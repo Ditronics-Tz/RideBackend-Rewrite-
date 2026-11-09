@@ -46,10 +46,13 @@ Go backend service built with Fiber v2, GORM, and PostgreSQL.
 
 ## Architecture & API Structure
 
-All HTTP endpoints are strictly prefixed under `/api/v1`. Any route outside this prefix will return a JSON 404 response.
+Application routes live under `/api/v1`. `GET /health`, `GET /ready`, and `GET /status` are the only unprefixed routes; any other unknown path returns a JSON 404.
 
 ### Route Overview
-- **System / Health**: `/api/v1/health`
+- **Liveness**: `GET /health` and `GET /api/v1/health` (no database)
+- **Readiness**: `GET /ready` and `GET /api/v1/ready` (database ping)
+- **Public status**: `GET /status` (HTML) and `GET /api/v1/status` (JSON). See [docs/STATUS_PAGE.md](docs/STATUS_PAGE.md).
+- **Admin status**: `GET /api/v1/admin/status` (admin only; probe identifiers, latency, and check logs)
 - **Static Public Uploads**: `/api/v1/uploads/*` (profile pictures)
 - **Protected File Downloads**: `/api/v1/files/licences/:id` (driver licence documents, accessible only by the driver or staff)
 - **App Realm Auth**: `/api/v1/auth/*` (register, login, google, me)
