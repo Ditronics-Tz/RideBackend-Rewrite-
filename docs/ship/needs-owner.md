@@ -6,6 +6,8 @@ continue implementation using mocks and interfaces.
 - Rotate the exposed credential classes identified by the combined report:
   Google OAuth, database, app/staff JWTs and staff TOTP encryption. Invalidate
   previous sessions/credentials and confirm old credentials are unusable.
+  Replacing `STAFF_TOTP_KEY` makes stored authenticator secrets undecryptable;
+  another admin must reset each enrolled account (`docs/STAFF_MFA.md`).
 - After rotation, untrack the live `.env` without publishing its contents or
   rewriting history. No agent has opened or modified that file. The new secret
   scan intentionally does not ignore known exposure; CI may fail until the owner

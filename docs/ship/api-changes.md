@@ -218,3 +218,19 @@ limited to 10 per ticket and 5 MiB each. Internal staff notes remain separate.
 Existing ride create, payment, authentication, and profile payloads remain
 compatible. Cash is the only accepted ride payment method; quotes report this
 explicitly. See `docs/api/openapi.yaml` for response schemas and access rules.
+
+## 2026-10-15 - Staff authenticator challenge
+
+Staff password login no longer returns an access token. `POST /staff/auth/login`
+returns a five-minute `challenge_token` with `mfa_required: true`. First-time
+admin and support accounts enroll through `POST /staff/auth/mfa/enroll` and
+`/mfa/enroll/confirm`. Later sign-ins use `POST /staff/auth/mfa/verify` or
+`POST /staff/auth/mfa/recovery/verify`. A `totp_code` sent with the password is
+ignored. Confirm shows eight one-time recovery codes once. Signed-in staff
+replace the authenticator and regenerate codes under `/staff/auth/mfa/`; they
+cannot disable the authenticator. Another admin resets a lost device with
+`POST /admin/staff/:id/reset-mfa`. Apply migration 11 and keep `STAFF_TOTP_KEY`
+stable. Request and error details are in `docs/STAFF_MFA.md`.
+
+Affected: admin and support clients. Passenger and driver authentication is
+unchanged.

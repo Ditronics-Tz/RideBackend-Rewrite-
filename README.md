@@ -53,7 +53,7 @@ All HTTP endpoints are strictly prefixed under `/api/v1`. Any route outside this
 - **Static Public Uploads**: `/api/v1/uploads/*` (profile pictures)
 - **Protected File Downloads**: `/api/v1/files/licences/:id` (driver licence documents, accessible only by the driver or staff)
 - **App Realm Auth**: `/api/v1/auth/*` (register, login, google, me)
-- **Staff Realm Auth**: `/api/v1/staff/auth/*` (login, refresh, logout, logout-all, me, change-password, 2fa/*)
+- **Staff Realm Auth**: `/api/v1/staff/auth/*` (login, refresh, logout, logout-all, me, change-password, authenticator challenge/enroll/recovery, 2fa/*). See [docs/STAFF_MFA.md](docs/STAFF_MFA.md).
 - **Admin & Management**: `/api/v1/admin/*` (staff management, audit logs, system stats, tickets, complaints, user oversight)
 
 ---
@@ -90,10 +90,10 @@ RideBackend uses two completely separated authentication realms with strict isol
 - **Refresh Token Rotation & Family Reuse Detection**:
   - Each refresh token can only be used once. A new session is generated upon rotation.
   - If a previously used or revoked refresh token is presented, the entire session family is revoked immediately to mitigate token theft.
-- **Two-Factor Authentication (TOTP - RFC 6238)**:
-  - Supports Google Authenticator / standard TOTP apps.
-  - TOTP secrets are encrypted at rest using AES-256-GCM via `STAFF_TOTP_KEY`.
-  - Configurable enforcement: `STAFF_REQUIRE_2FA_FOR_ADMIN=true` mandates 2FA setup before admins can execute admin-only operations.
+- **Staff authenticator (TOTP, RFC 6238)**:
+  - Password login returns a five-minute challenge. Admin and support enroll an authenticator before any staff session is issued. The workflow, recovery codes, and lost-device reset are in [docs/STAFF_MFA.md](docs/STAFF_MFA.md).
+  - TOTP secrets are encrypted at rest with AES-256-GCM. `STAFF_TOTP_KEY` is exactly 32 bytes, or 64 hex characters, and must stay stable across deploys.
+  - `STAFF_REQUIRE_2FA_FOR_ADMIN=true` (the default) rejects an access token for an unenrolled admin or support account except on logout and logout-all. The account holder cannot turn the authenticator off. Another admin resets it with `POST /api/v1/admin/staff/:id/reset-mfa`.
 - **First Login Password Change**:
   - Staff created with temporary passwords have `must_change_password=true`.
   - Until changed, all endpoints except `/me` and `/change-password` are blocked.

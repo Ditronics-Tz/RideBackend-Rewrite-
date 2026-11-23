@@ -231,10 +231,12 @@ completed deletion, and explicit revocation invalidate app tokens immediately.
 Google OAuth now uses exact configured redirect allowlisting, one-use stored state,
 a browser-bound HttpOnly cookie, verified Google email, and subject-based identity
 binding. Staff access checks database auth versions and session rows on every
-request. Password and active/role changes revoke staff sessions. Authenticator
-replacement stores a ten-minute pending secret, requires password and current
-TOTP proof when replacing, activates only after a new valid code, revokes other
-sessions, and returns a fresh current access token. Manual private file handlers
+request. Password and active/role changes revoke staff sessions. Password login returns
+an enrollment or verify challenge; the current routes, recovery codes, and
+lost-device reset are in `docs/STAFF_MFA.md`. Authenticator replacement stores
+a ten-minute pending secret, requires password and current TOTP proof when
+replacing, activates only after a new valid code, revokes other sessions, and
+returns a fresh current access token. Manual private file handlers
 also enforce current session validity.
 
 Validation: `go vet ./...`, `go test ./... -count=1`, and `go build ./...` pass.
