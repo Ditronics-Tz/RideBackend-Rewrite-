@@ -435,7 +435,10 @@ func (s *Store) updateDriverIdentifiers(id string, input models.DriverProfileInp
 			}
 			p.PassengerSeats = *input.PassengerSeats
 		}
-		changedIdentifiers := materialVehicleChange
+		// Seat count and vehicle type are blocked during an active trip above.
+		// They are not identity fields: only licence, plate and vehicle card
+		// changes withdraw document approval.
+		changedIdentifiers := false
 		if v := values["licence_number"]; v != "" && v != p.LicenceNumber {
 			p.LicenceNumber = v
 			changedIdentifiers = true
