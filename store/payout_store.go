@@ -180,7 +180,15 @@ func (s *Store) completePayout(event PaymentEvent) error {
 	status := "failed"
 	if event.Status == "succeeded" {
 		status = "paid"
-		if err := s.postWallet(p.DriverID, "driver_wallet", "debit", p.Amount, 0, "payout", p.ID, "payout:"+p.ID+":wallet"); err != nil {
+		// Trip fees collected after approval may spend the unreserved balance
+		// down to the configured debt floor. The hold is released first, so this
+		// debit has to use that same floor. A zero floor rejects the settlement
+		// and leaves the provider payout retrying with the reserve stuck.
+		settings, err := s.GetPaymentSettings()
+		if err != nil {
+			return err
+		}
+		if err := s.postWallet(p.DriverID, "driver_wallet", "debit", p.Amount, -settings.DriverMaxNegativeBalance, "payout", p.ID, "payout:"+p.ID+":wallet"); err != nil {
 			return err
 		}
 		if err := s.postSystem("payouts_pending", "credit", p.Amount, "payout", p.ID, "payout:"+p.ID+":clearing"); err != nil {

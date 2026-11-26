@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -383,5 +384,75 @@ func TestCashLimitAndSupportRefundCap(t *testing.T) {
 	}
 	if err := s.SetDriverOnline(driver.ID, true); err == nil {
 		t.Fatal("cash cutoff not enforced online")
+	}
+}
+
+// A cash commission may be collected after a payout is approved. The wallet is
+// allowed to go negative by DriverMaxNegativeBalance, which can leave the cash
+// balance below the amount already reserved for that payout. Settlement still
+// has to record the disbursement instead of retrying forever with the hold stuck.
+func TestPayoutSettlesAfterCommissionSpendsReservedBalance(t *testing.T) {
+	s, cfg, err := testutil.SetupTestStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.PaymentProviderName = "mock"
+	cfg.PaymentEncryptionKey = []byte("12345678901234567890123456789012")
+	s.ConfigureOperations(cfg)
+	driver, err := s.CreateUser("Driver", uuid.NewString()+"@test.invalid", "", models.RoleDriver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	passenger, err := s.CreateUser("Passenger", uuid.NewString()+"@test.invalid", "", models.RolePassenger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DB().Model(&models.DriverProfile{}).Where("user_id = ?", driver.ID).Update("verification_status", models.Approved).Error; err != nil {
+		t.Fatal(err)
+	}
+	adminID := uuid.NewString()
+	settings := models.PaymentSettings{ID: uuid.NewString(), DriverMaxNegativeBalance: 10000, PayoutMin: 1000, PayoutAutoApproveMax: 10000, RefundSupportLimit: 5000, UpdatedBy: adminID, CreatedAt: time.Now().UTC()}
+	if err := s.DB().Create(&settings).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AdjustWallet(driver.ID, adminID, uuid.NewString(), "seed earned balance", 20000); err != nil {
+		t.Fatal(err)
+	}
+	payout, err := s.RequestPayout(driver.ID, uuid.NewString(), "mpesa", "+255712345678", 5000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	percent := 100
+	started := time.Now().UTC().Add(-time.Hour)
+	ride := models.Ride{ID: uuid.NewString(), PassengerID: passenger.ID, DriverID: driver.ID, Status: "in_progress", HailPercent: &percent, FeeVersion: 1, StartedAt: &started, CreatedAt: started, UpdatedAt: started}
+	if err := s.DB().Create(&ride).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.TransitionRide(context.Background(), driver.ID, ride.ID, uuid.NewString(), "complete", 16000); err != nil {
+		t.Fatal(err)
+	}
+	wallet, err := s.GetWallet(driver.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wallet.Balance >= payout.Amount || wallet.Held != payout.Amount {
+		t.Fatalf("commission did not spend the reserved payout: balance=%d held=%d", wallet.Balance, wallet.Held)
+	}
+	if err := s.ProcessPayments(); err != nil {
+		t.Fatal(err)
+	}
+	var saved models.DriverPayout
+	if err := s.DB().First(&saved, "id = ?", payout.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if saved.Status != "paid" {
+		t.Fatalf("payout status %s, want paid", saved.Status)
+	}
+	wallet, err = s.GetWallet(driver.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wallet.Held != 0 || wallet.Balance != 20000-16000-5000 {
+		t.Fatalf("wallet balance=%d held=%d", wallet.Balance, wallet.Held)
 	}
 }
